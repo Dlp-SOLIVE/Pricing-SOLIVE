@@ -370,14 +370,25 @@ const CAPS33 = REF.capitulos.map(c=>c.cap);
 const CAPS_ESPERADOS = ["COBERTURAS","IMPERMEABILIZAÇÕES E ISOLAMENTOS","PAREDES","REVESTIMENTOS DE PAREDES","REVESTIMENTOS DE PAVIMENTOS","REVESTIMENTOS DE TECTOS","PINTURAS","CANTARIAS","SERRALHARIAS","VÃOS","CARPINTARIAS","EQUIPAMENTOS SANITÁRIOS","COZINHAS","DIVERSOS"];
 
 const CAP_MAP = [
- [/ESTALEIRO/,"ESTALEIRO"],[/ESTABILIDADE|\bESTRUTURAS?\b|BET[ÃA]O ARMADO/,"ESTABILIDADE"],
+ [/ESTALEIRO/,"ESTALEIRO"],
+ [/EQUIPAMENTO MEC[ÂA]NICO|ELEVADOR|PLATAFORMA ELEVAT/,"ELEVADORES"],
+ [/BET[ÃA]O LEVE|BETONILHA/,"BETONILHAS"],
+ [/ACABAMENTO DE SUPERF[ÍI]CIES/,"ARGAMASSAS"],
+ [/REVESTIMENTO EM ARGAMASSA/,"ARGAMASSAS"],
+ [/REVESTIMENTOS? (EM|DE) TE[CT]?TOS/,"REVESTIMENTOS DE TECTOS"],
+ [/REVESTIMENTOS? CER[ÂA]MICOS/,"CERÂMICOS"],
+ [/RODAP[ÉE]S/,"REVESTIMENTOS DE PAVIMENTOS"],
+ [/BANCADAS/,"CANTARIAS"],
+ [/EQUIPAMENTO COZINHA|COZINHA\/|COPAS/,"COZINHAS"],
+ [/EQUIPAMENTO SANIT[ÁA]RIO/,"EQUIPAMENTOS SANITÁRIOS"],
+ [/COBERTURAS E FACHADAS/,"COBERTURAS"],[/ESTABILIDADE|\bESTRUTURAS?\b|BET[ÃA]O ARMADO/,"ESTABILIDADE"],
  [/MOVIMENTO DE TERRAS|CONTEN[ÇC][ÃA]O|ESCAVA/,"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA"],
  [/COBERTURA/,"COBERTURAS"],[/IMPERMEABILIZA|ISOLAMENTO/,"IMPERMEABILIZAÇÕES E ISOLAMENTOS"],
  [/ALVENARIA/,"ALVENARIAS"],[/REVESTIMENTOS? DE PAREDES/,"REVESTIMENTOS DE PAREDES"],[/^PAREDES/,"PAREDES"],[/PEDRA/,"PEDRA"],[/ETICS|CAPOTO/,"ETICS"],
  [/ARGAMASSA|REBOCO/,"ARGAMASSAS"],[/CER[ÂA]MICO/,"CERÂMICOS"],[/GESSO CARTONADO|PLADUR/,"GESSO CARTONADO"],
  [/BETONILHA/,"BETONILHAS"],[/PAVIMENTOS DIVERSOS/,"PAVIMENTOS DIVERSOS"],
- [/REVESTIMENTOS? DE PAVIMENTOS/,"REVESTIMENTOS DE PAVIMENTOS"],
- [/REVESTIMENTOS? DE TE[CT]TOS/,"REVESTIMENTOS DE TECTOS"],
+ [/REVESTIMENTOS? DE PAVIMENTOS|REVESTIMENTO EM PAVIMENTOS/,"REVESTIMENTOS DE PAVIMENTOS"],
+ [/REVESTIMENTOS? DE TE[CT]?TOS/,"REVESTIMENTOS DE TECTOS"],
  [/PINTURA/,"PINTURAS"],[/CANTARIA/,"CANTARIAS"],[/SERRALHARIA/,"SERRALHARIAS"],
  [/V[ÃA]OS|CAIXILHARIA/,"VÃOS"],[/CARPINTARIA/,"CARPINTARIAS"],
  [/SANIT[ÁA]RIO/,"EQUIPAMENTOS SANITÁRIOS"],[/COZINHA/,"COZINHAS"],[/PISCINA/,"PISCINA"],
@@ -389,7 +400,7 @@ const CAP_MAP = [
 ];
 
 const UNIT_RULES = [
- {re:/impermeabiliza[çc][ãa]o|pintura de paredes|pintura de te[ct]|reboco|betonilha|gesso cartonado|assentamento de mosaico|revestimento cer[âa]mico|isolamento t[ée]rmico|lajeta|lajes? flutuante/i, skip:/pontos|zonas singulares|caleira|rufo|remate|refor[çc]o/i, esperado:["m²","m2"], msg:"trabalho medido em área"},
+ {re:/impermeabiliza[çc][ãa]o|pintura de paredes|pintura de te[ct]|reboco|betonilha|gesso cartonado|assentamento de mosaico|revestimento cer[âa]mico|isolamento t[ée]rmico|lajeta|lajes? flutuante/i, skip:/pontos|zonas singulares|caleira|rufo|remate|refor[çc]o|sanca|moldura|vedaç|divis[óo]ria/i, esperado:["m²","m2"], msg:"trabalho medido em área"},
  {re:/\brufo|rodap[ée]|caleira|perfil met|calha|tubo de queda|junta de dilata|remate linear|corrim[ãa]o/i, esperado:["m","ml"], msg:"trabalho de natureza linear"},
  {re:/\bporta\b|\bjanela\b|caixilho|arm[áa]rio|bancada|louça|sanita|lavat[óo]rio|banheira|base de duche|luminária|equipamento|aparelho|exaustor|forno|frigor[íi]fico|placa de indu/i, esperado:["un","und","uni","vg","cj"], msg:"elemento contável"}
 ];
@@ -584,14 +595,14 @@ async function applyMapper(save){
 }
 
 /* ================= PARSING ================= */
-function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim()}
+function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").toUpperCase().trim()}
 function esc(s){const d=document.createElement('div');d.textContent=s==null?"":String(s);return d.innerHTML}
 function fmt(n,d){return n==null||isNaN(n)?"—":Number(n).toLocaleString('pt-PT',{minimumFractionDigits:d??0,maximumFractionDigits:d??2})}
 
 function detectHeader(rows){
   for(let i=0;i<Math.min(rows.length,40);i++){
     const cells=(rows[i]||[]).map(norm);
-    const hasDesc=cells.findIndex(c=>/DESIGNACAO|DESCRICAO/.test(c));
+    const hasDesc=cells.findIndex(c=>/DESIGNACAO|DESCRICAO|REFERENCIA DOS MATERIAIS|DESIGNAÇÃO|ARTIGO/.test(c));
     const hasUn=cells.findIndex(c=>/^UN\b|^UNID/.test(c));
     const hasQt=cells.findIndex(c=>/QUANT|^QT/.test(c));
     if(hasDesc>-1&&hasUn>-1&&hasQt>-1){
@@ -626,7 +637,7 @@ function parseSheet(){
     if(qt===null){const v=r[H.qt];if(typeof v==='number')qt=v}
     if(!code&&!desc) continue;
     if(/^TOTAL/i.test(desc)||/^TOTAL/i.test(code)) continue;
-    const isCapCode=/^(CAP\.?\s*[IVX\d]*|\d{1,2}\.)$/i.test(code);
+    const isCapCode=/^(CAP\.?\s*[IVX\d]*|\d{1,2}\.?)$/i.test(code);
     if(isCapCode&&desc&&!un){
       const m=mapCapitulo(desc);
       curCapRaw=desc; curCap=m||norm(desc); curTopMapped=!!m;
@@ -665,9 +676,15 @@ function runChecks(itens){
 
   arts.forEach(a=>{
     if(!a.un||!a.desc) return;
-    const u=norm(a.un).replace("2","²").toLowerCase();
+    let u=norm(a.un).replace("2","²").toLowerCase();
+    if(u==="ml") u="m";
+    const composto=/composto por|constitu[íi]d|inclui:|tipo:/i.test(a.desc);
     for(const rule of UNIT_RULES){
       if(rule.skip&&rule.skip.test(a.desc)) continue;
+      // artigo já medido em métrica dimensional (m/m²): não sinalizar como "devia ser contável"
+      if(rule.esperado[0]==="un"&&(u==="m"||u==="m²")) continue;
+      // descrição composta com vários materiais: só a regra de área/linear é fiável
+      if(composto&&rule.esperado[0]==="un") continue;
       if(rule.re.test(a.desc)){
         const ok=rule.esperado.some(e=>u===e||u===e.replace("²","2"));
         if(!ok) add(a,"Unidade improvável","aviso",`Descrição sugere ${rule.msg} (${rule.esperado[0]}), mas a unidade é "${a.un}".`,`Confirmar unidade de medição: a descrição sugere medição em ${rule.esperado[0]}, mas o MQ indica "${a.un}".`);
@@ -679,7 +696,9 @@ function runChecks(itens){
   const seen={};
   arts.forEach(a=>{
     if(!a.desc) return;
-    const key=(a.cap||"")+"|"+norm(a.desc).replace(/\s+/g," ").trim();
+    const dn=norm(a.desc).replace(/\s+/g," ").trim();
+    if(dn.length<25||a.qt===null||!a.un) return; // ignora organizadores/subtítulos curtos
+    const key=(a.cap||"")+"|"+dn;
     if(seen[key]) add(a,"Possível duplicado","aviso",`Descrição praticamente igual ao artigo ${seen[key].code} (linha ${seen[key].linha}).`,`Verificar possível duplicação com o artigo ${seen[key].code}.`);
     else seen[key]=a;
   });
