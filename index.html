@@ -455,15 +455,26 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   </div>
 
   <div class="card">
-    <div class="step"><div class="n">1</div><h2>Projeto</h2></div>
-    <div class="hint">Escolhe um projeto existente ou escreve um nome novo para o criar. Se for novo, preenche os descritores (ABC, fogos) para os custos reais virarem rácios. O modelo em branco serve para a equipa de obra preencher; se já tens um <b>auto de medição</b>, salta para o passo 2.</div>
+    <div class="step"><div class="n">1</div><h2>Projeto e descritores</h2></div>
+    <div class="hint">Escolhe um projeto existente ou escreve um nome novo para o criar. Preenche os descritores — a ABC e os fogos tornam os custos em rácios; os restantes (do programa do projeto) completam a Comparação. Ao escolher um projeto existente, os descritores já gravados são pré-carregados.</div>
     <div class="grid g6">
       <div style="grid-column:span 2"><label>Projeto (existente ou novo)</label><input type="text" id="foProjeto" list="foProjList" placeholder="Ex.: Parque Atlântico"><datalist id="foProjList"></datalist></div>
       <div><label>ABC total (m²)</label><input type="number" id="foAbc" placeholder="—"></div>
-      <div><label>Nº de fogos</label><input type="number" id="foFogos" placeholder="—"></div>
+      <div><label>Ac. acima solo (m²)</label><input type="number" id="foGca" placeholder="—"></div>
+      <div><label>Ac. abaixo solo (m²)</label><input type="number" id="foAbaixo" placeholder="—"></div>
       <div><label>Data de fecho</label><input type="date" id="foData"></div>
-      <div style="display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="genModelo()">Modelo em branco (.xlsx)</button></div>
     </div>
+    <div class="grid g6" style="margin-top:12px">
+      <div><label>Nº de fogos</label><input type="number" id="foFogos" placeholder="—"></div>
+      <div><label>Pisos elevados</label><input type="number" id="foPisosAcima" placeholder="—"></div>
+      <div><label>Pisos enterrados</label><input type="number" id="foPisosAbaixo" placeholder="—"></div>
+      <div><label>Área implantação (m²)</label><input type="number" id="foImplantacao" placeholder="—"></div>
+      <div><label>Área do lote (m²)</label><input type="number" id="foLote" placeholder="—"></div>
+      <div style="display:flex;align-items:end;gap:8px">
+        <div style="flex:1"><label>Estacionamento</label><input type="number" id="foEstacionamento" placeholder="—"></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn navy" style="padding:8px 16px" onclick="genModelo()">Modelo em branco (.xlsx)</button></div>
     <div class="note" id="foOffline" style="margin-top:14px"></div>
   </div>
 
@@ -1477,7 +1488,12 @@ function refreshFecho(){
 document.addEventListener('input',e=>{
   if(e.target&&e.target.id==='foProjeto'){
     const p=PROJETOS.find(x=>norm(x.nome)===norm(e.target.value));
-    if(p){if(p.gfa)document.getElementById('foAbc').value=p.gfa;if(p.fogos)document.getElementById('foFogos').value=p.fogos;}
+    if(p){
+      const set=(id,v)=>{if(v!=null)document.getElementById(id).value=v;};
+      set('foAbc',p.gfa); set('foGca',p.gca); set('foAbaixo',p.ac_abaixo); set('foFogos',p.fogos);
+      set('foPisosAcima',p.pisos_acima); set('foPisosAbaixo',p.pisos_enterrados);
+      set('foImplantacao',p.area_implantacao); set('foLote',p.area_lote); set('foEstacionamento',p.estacionamento);
+    }
   }
 });
 function genModelo(){
@@ -1588,17 +1604,20 @@ async function saveReal(){
   if(!nome){toast("Indica o nome do projeto no passo 1.");return}
   const linhas=FO_ROWS.filter(r=>r.std&&r.total!=null);
   if(!linhas.length){alert("Sem capítulos mapeados com total preenchido.");return}
-  const abc=+document.getElementById('foAbc').value||null, fogos=+document.getElementById('foFogos').value||null;
+  const n=id=>+document.getElementById(id).value||null;
+  const desc={gfa:n('foAbc'),gca:n('foGca'),ac_abaixo:n('foAbaixo'),fogos:n('foFogos'),
+    pisos_acima:n('foPisosAcima'),pisos_enterrados:n('foPisosAbaixo'),
+    area_implantacao:n('foImplantacao'),area_lote:n('foLote'),estacionamento:n('foEstacionamento')};
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
-    const {data,error}=await sb.from('projetos').insert({nome,gfa:abc,fogos,metricas:FO_METRICAS||null}).select().single();
+    const {data,error}=await sb.from('projetos').insert(Object.assign({nome,metricas:FO_METRICAS||null},desc)).select().single();
     if(error){alert("Erro a criar o projeto: "+error.message);return}
     proj=data;
   } else {
-    const upd={}; if(abc)upd.gfa=abc; if(fogos)upd.fogos=fogos;
+    const upd={}; Object.keys(desc).forEach(k=>{if(desc[k]!=null)upd[k]=desc[k]});
     if(FO_METRICAS&&Object.keys(FO_METRICAS).length)upd.metricas=FO_METRICAS; // quantidades reais do auto substituem quaisquer preliminares
     if(Object.keys(upd).length)await sb.from('projetos').update(upd).eq('id',proj.id);
-    if(abc)proj.gfa=abc; if(fogos)proj.fogos=fogos;
+    Object.assign(proj,upd);
   }
   await loadProjetos();
   await resolveFaseExistente(proj.id,'Real');
