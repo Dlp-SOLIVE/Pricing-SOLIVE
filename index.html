@@ -292,11 +292,11 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
       <div class="hint">Quantidades agregadas por capítulo comparadas com os rácios do L'Urbain (normalizadas por ABC). Desvios acima de ±50% são <b>sinais a verificar contra as peças desenhadas</b>, não erros confirmados — o mapa mediu a mais, a menos, ou o projeto é simplesmente diferente. Servem para focar a revisão.</div>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Capítulo</th><th style="width:56px">Un</th><th style="text-align:right">Qt. no MQ</th><th style="text-align:right">Rácio MQ /m² GFA</th><th style="text-align:right">Rácio L'Urbain /m² GFA</th><th style="text-align:right">Desvio</th></tr></thead>
+        <thead><tr><th>Capítulo</th><th style="width:56px">Un</th><th style="text-align:right">Qt. no MQ</th><th style="text-align:right">Rácio MQ /m² ABC</th><th style="text-align:right">Rácio L'Urbain /m² ABC</th><th style="text-align:right">Desvio</th></tr></thead>
         <tbody id="tbRatios"></tbody>
       </table>
       </div>
-      <div class="empty hidden" id="noRatios">Introduz o GFA do projeto (passo 1) para ativar a verificação de rácios.</div>
+      <div class="empty hidden" id="noRatios">Introduz a ABC do projeto (passo 1) para ativar a verificação de rácios.</div>
     </div>
 
     <div class="card">
@@ -399,11 +399,26 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
       </div>
     </div>
     <div class="hint" style="margin-top:10px">"Arrancar dos rácios" preenche cada capítulo com a estimativa da biblioteca no estado inicial "Rácio" (vermelho). Depois marcas o estado e ajustas o valor à medida que consultas.</div>
+    <div class="drop" id="orcResumoDrop" style="margin-top:12px">Ou larga o <b>resumo do orçamento</b> (.xlsx, formato Summary com colunas de fonte) para arrancar já com o semáforo aceso</div>
+    <input type="file" id="orcResumoFile" accept=".xlsx,.xls" class="hidden">
+    <div id="orcResumoSheet" class="hidden"><label style="margin-top:12px">Folha</label><div class="pills" id="orcResumoPills"></div></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+      <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:10px">
+        <div style="flex:1;min-width:220px"><label>Fornecedor (para a proposta)</label><input type="text" id="orcForn" placeholder="Nome do fornecedor"></div>
+      </div>
+      <div class="drop" id="orcPropDrop">Larga a <b>proposta de um fornecedor</b> (.xlsx) — preenche os capítulos que ela cobre e marca-os como proposta recebida</div>
+      <input type="file" id="orcPropFile" accept=".xlsx,.xls" class="hidden">
+      <div id="orcPropSheet" class="hidden"><label style="margin-top:12px">Folha</label><div class="pills" id="orcPropPills"></div></div>
+      <div class="note hidden" id="orcPropCober" style="margin-top:12px"></div>
+    </div>
   </div>
 
   <div class="card hidden" id="orcBoard">
     <h2>Consolidação do orçamento <span class="tag" id="orcTag"></span>
-      <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportOrcamento()">Exportar (.xlsx)</button>
+      <span style="float:right;display:flex;gap:8px">
+        <button class="btn teal" style="padding:6px 14px" onclick="saveOrcBoard()">Gravar em curso</button>
+        <button class="btn navy" style="padding:6px 14px" onclick="exportOrcamento()">Exportar (.xlsx)</button>
+      </span>
     </h2>
     <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
       <div class="kpi"><div class="v" id="orcKTotal">—</div><div class="l">Total do orçamento</div></div>
@@ -482,7 +497,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <div class="hint">Comparação por capítulo entre a fase de orçamento mais recente e os valores reais da obra.</div>
     <div style="overflow-x:auto">
     <table>
-      <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² GFA</th></tr></thead>
+      <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² ABC</th></tr></thead>
       <tbody id="tbDesvios"></tbody>
     </table>
     </div>
@@ -527,7 +542,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <div class="filters">
       <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
       <div style="min-width:200px"><label>Fase</label><select id="libFase" onchange="renderLibFase()"></select></div>
-      <div style="margin-left:auto;display:flex;align-items:end"><button class="btn navy" onclick="exportWrapUp()">Exportar wrap-up (formato Solive)</button></div>
+      <div style="margin-left:auto;display:flex;align-items:end;gap:8px"><button class="btn navy" onclick="exportWrapUp()">Wrap-up por capítulo</button><button class="btn teal" onclick="exportWrapUpLegendre()">Wrap-up Legendre</button></div>
     </div>
     <div class="legend" id="libLegend">
       <span><i style="background:var(--teal)"></i>Proposta recebida</span>
@@ -1282,17 +1297,21 @@ function trackChanges(oldA,newA){
 async function compareRevisions(){
   if(!SESSION){toast("Inicia sessão — o histórico de análises vem da biblioteca.");return}
   const nome=document.getElementById('pNome').value.trim();
-  if(!nome){alert("Indica o nome do projeto (passo 1) para encontrar a revisão anterior.");return}
+  if(!nome){toast("Indica o nome do projeto (passo 1) para encontrar a revisão anterior.");return}
   const proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){alert("Ainda não há análises gravadas para \""+nome+"\". Grava esta como primeira revisão.");return}
-  const {data:ans}=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('criado',{ascending:false}).limit(1);
+  const {data:ans}=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('criado',{ascending:false}).limit(5);
   if(!ans||!ans.length){alert("Sem análise anterior gravada para este projeto.");return}
-  const prev=ans[0].payload;
+  // usar a mais recente de OUTRO ficheiro; se todas forem do mesmo, usar a anterior à última
+  let prevRow=ans.find(a=>a.payload&&a.payload.ficheiro&&a.payload.ficheiro!==wbName);
+  if(!prevRow&&ans.length>1)prevRow=ans[1];
+  if(!prevRow)prevRow=ans[0];
+  const prev=prevRow.payload;
   const oldArts=(prev&&prev.artigos)||[];
   if(!oldArts.length){alert("A análise anterior não tem artigos guardados para comparar.");return}
   const newArts=ITENS.filter(x=>x.tipo==='art');
   const diff=trackChanges(oldArts,newArts);
-  TRACK_LAST={nome,prevFile:prev.ficheiro||"",prevDate:ans[0].criado,diff};
+  TRACK_LAST={nome,prevFile:prev.ficheiro||"",prevDate:prevRow.criado,diff};
   renderTrack();
 }
 function renderTrack(){
@@ -1323,7 +1342,7 @@ function renderTrack(){
   diff.removed.forEach(a=>row(a.code,a.desc,a.cap,"Removido",`estava: qt ${fmt(a.qt)} ${esc(a.un||"")}`,"sev-erro"));
 }
 function exportTrack(){
-  if(!TRACK_LAST){alert("Corre a comparação primeiro.");return}
+  if(!TRACK_LAST){toast("Corre a comparação primeiro.");return}
   const {diff,nome,prevFile}=TRACK_LAST;
   const head=[["SOLIVE — TRACK CHANGES DO MAPA DE QUANTIDADES"],
     ["Projeto: "+nome+"   ·   Revisão anterior: "+(prevFile||"—")+"   ·   Atual: "+wbName+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
@@ -1342,7 +1361,7 @@ function exportTrack(){
 async function saveAnalysis(){
   if(!SESSION){toast("Sem sessão ativa.");return}
   const nome=document.getElementById('pNome').value.trim();
-  if(!nome){alert("Indica o nome do projeto (passo 1) antes de gravar.");return}
+  if(!nome){toast("Indica o nome do projeto (passo 1) antes de gravar.");return}
   const env=envelopeInputs();
   const attrs=Object.assign({nome},env,{metricas:PHYS});
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
@@ -1367,7 +1386,7 @@ async function saveOrcamento(){
   if(!SESSION){toast("Sem sessão ativa.");return}
   if(!CUSTO_TOTAL){alert("Não há custos extraídos para gravar.");return}
   const nome=document.getElementById('pNome').value.trim();
-  if(!nome){alert("Indica o nome do projeto (passo 1) antes de gravar.");return}
+  if(!nome){toast("Indica o nome do projeto (passo 1) antes de gravar.");return}
   const env=envelopeInputs();
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
@@ -1551,7 +1570,7 @@ async function resolveFaseExistente(projeto_id,faseTipo){
 async function saveReal(){
   if(!SESSION){toast("Sem sessão ativa — configura o Supabase para gravar.");return}
   const nome=document.getElementById('foProjeto').value.trim();
-  if(!nome){alert("Indica o nome do projeto no passo 1.");return}
+  if(!nome){toast("Indica o nome do projeto no passo 1.");return}
   const linhas=FO_ROWS.filter(r=>r.std&&r.total!=null);
   if(!linhas.length){alert("Sem capítulos mapeados com total preenchido.");return}
   const abc=+document.getElementById('foAbc').value||null, fogos=+document.getElementById('foFogos').value||null;
@@ -1620,7 +1639,7 @@ async function renderDesvios(proj,linhas){
 }
 let DESV_LAST=null;
 function exportDesvios(){
-  if(!DESV_LAST){alert("Grava primeiro uma fase Real para gerar os desvios.");return}
+  if(!DESV_LAST){toast("Grava primeiro uma fase Real para gerar os desvios.");return}
   const D=DESV_LAST;
   const head=[["SOLIVE — DESVIOS ORÇAMENTO vs. REAL"],
     ["Projeto: "+D.nome+"   ·   Base de comparação: "+D.baseTag+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
@@ -1640,6 +1659,50 @@ function exportDesvios(){
 }
 
 /* ================= ORÇAMENTAÇÃO (semáforo de consolidação) ================= */
+function detectSummary(rows){
+  let hr=-1;
+  for(let i=0;i<Math.min(rows.length,15);i++){
+    const cs=(rows[i]||[]).map(norm);
+    if(cs.some(c=>/RECEIVED OFFER|PROPOSTA RECEBIDA/.test(c))||cs.some(c=>/NO SOURCE|SEM FONTE/.test(c))){hr=i;break;}
+  }
+  if(hr<0)return null;
+  const cs=(rows[hr]||[]).map(norm);
+  const recv=[],old=[],nos=[];
+  cs.forEach((c,j)=>{
+    if(/RECEIVED OFFER|PROPOSTA RECEBIDA/.test(c))recv.push(j);
+    else if(/OFFER.*2\s*YEAR|<\s*2\s*YEAR|PROPOSTA.*ANTIG|>\s*2\s*ANOS/.test(c))old.push(j);
+    else if(/NO SOURCE|SEM FONTE/.test(c))nos.push(j);
+  });
+  if(!recv.length&&!old.length&&!nos.length)return null;
+  return {hr,recv,old,nos};
+}
+function extractSummary(rows){
+  const d=detectSummary(rows); if(!d)return null;
+  const out=[];
+  for(let i=d.hr+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    let nameCol=-1,name='';
+    for(let j=0;j<6;j++){if(typeof r[j]==='string'&&/TOTAL|CAP[IÍ]TULO/i.test(r[j])){nameCol=j;name=r[j];break;}}
+    if(nameCol<0){ // aceitar também nome sem "TOTAL" se a linha tiver um total numérico e fontes
+      for(let j=0;j<3;j++){if(typeof r[j]==='string'&&r[j].trim().length>3){nameCol=j;name=r[j];break;}}
+      if(nameCol<0)continue;
+    }
+    let total=null;
+    for(let j=nameCol+1;j<nameCol+4;j++){if(typeof r[j]==='number'){total=r[j];break;}}
+    if(total==null||total<=0)continue;
+    const sum=cols=>cols.reduce((s,c)=>s+(typeof r[c]==='number'?r[c]:0),0);
+    if(/TOTAL\s+PROJETO|TOTAL\s+GERAL/i.test(name))continue;
+    out.push({name:name.replace(/^TOTAL\s+/i,'').trim(),total,recebida:sum(d.recv),antiga:sum(d.old),sem:sum(d.nos)});
+  }
+  return out;
+}
+function estadoPorFonte(recebida,antiga,sem){
+  const m=Math.max(recebida,antiga,sem);
+  if(m<=0)return "racio";
+  if(recebida===m)return "firme";
+  if(antiga===m)return "antiga";
+  return "racio";
+}
 const ORC_ESTADOS=[
   {k:"racio",lbl:"Rácio histórico",cls:"e-racio",cb:"cb-racio",solido:false},
   {k:"consulta",lbl:"Em consulta",cls:"e-consulta",cb:"cb-consulta",solido:false},
@@ -1648,10 +1711,184 @@ const ORC_ESTADOS=[
   {k:"adjudicado",lbl:"Adjudicado",cls:"e-adjudicado",cb:"cb-adjudicado",solido:true}
 ];
 const ORC_EST=Object.fromEntries(ORC_ESTADOS.map(e=>[e.k,e]));
-let ORC_ROWS=[], ORC_META={};
+let ORC_ROWS=[], ORC_META={}, ORC_DIRTY=false;
+window.addEventListener('beforeunload',e=>{
+  if(ORC_DIRTY&&ORC_ROWS.length){e.preventDefault();e.returnValue="Tens alterações por gravar no orçamento.";}
+});
+async function saveOrcBoard(){
+  if(!SESSION){toast("Inicia sessão para gravar o orçamento em curso.");return}
+  if(!ORC_ROWS.length){toast("Nada para gravar — arranca o orçamento primeiro.");return}
+  const nome=(ORC_META.nome||document.getElementById('orcNome').value.trim()||"Projeto");
+  const {error}=await sb.from('orcamentos').upsert({projeto_nome:nome,meta:ORC_META,linhas:ORC_ROWS,atualizado:new Date().toISOString()},{onConflict:'projeto_nome'});
+  if(error){alert("Erro a gravar o orçamento: "+error.message+"\n(Corre o supabase_update_orcamentos.sql se ainda não o fizeste.)");return}
+  ORC_DIRTY=false; renderOrcKpis();
+  toast("Orçamento em curso gravado — "+nome+".");
+}
+async function loadOrcBoard(nome){
+  if(!SESSION||!nome)return false;
+  const {data}=await sb.from('orcamentos').select('*').eq('projeto_nome',nome).maybeSingle();
+  if(!data)return false;
+  ORC_META=data.meta||{nome};
+  ORC_ROWS=data.linhas||[];
+  if(ORC_META.abc)document.getElementById('orcAbc').value=ORC_META.abc;
+  if(ORC_META.fogos)document.getElementById('orcFogos').value=ORC_META.fogos;
+  document.getElementById('orcBoard').classList.remove('hidden');
+  document.getElementById('orcTag').textContent=nome+" · retomado ("+new Date(data.atualizado).toLocaleDateString('pt-PT')+")";
+  renderOrc(); ORC_DIRTY=false;
+  toast("Orçamento em curso retomado — "+nome+".");
+  return true;
+}
 function refreshOrcamento(){
   const dl=document.getElementById('orcProjList');
   if(SESSION&&dl) dl.innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+}
+document.addEventListener('change',e=>{
+  if(e.target&&e.target.id==='orcNome'&&SESSION){ loadOrcBoard(e.target.value.trim()); }
+});
+document.addEventListener('input',e=>{
+  if(e.target&&e.target.id==='pNome'){
+    const p=PROJETOS.find(x=>norm(x.nome)===norm(e.target.value));
+    if(p){
+      const map={pGFA:'gfa',pGCA:'gca',pAbaixo:'ac_abaixo',pFogos:'fogos',pPisosAcima:'pisos_acima',pPisosAbaixo:'pisos_enterrados',pImplantacao:'area_implantacao',pLote:'area_lote',pEstacionamento:'estacionamento'};
+      Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(el&&!el.value&&p[k]!=null)el.value=p[k];});
+    }
+  }
+});
+let ORC_RESUMO_WB=null;
+(function wireOrcResumo(){
+  const drop=document.getElementById('orcResumoDrop'), fi=document.getElementById('orcResumoFile');
+  if(!drop) return;
+  drop.onclick=()=>fi.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])loadOrcResumo(e.dataTransfer.files[0])};
+  fi.onchange=()=>{if(fi.files[0])loadOrcResumo(fi.files[0])};
+})();
+function loadOrcResumo(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{ ORC_RESUMO_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){alert("Não foi possível ler o ficheiro.");return}
+    document.getElementById('orcResumoDrop').innerHTML="Resumo carregado: <b>"+esc(f.name)+"</b> — clica para trocar";
+    const pick=document.getElementById('orcResumoSheet'), pills=document.getElementById('orcResumoPills');
+    if(ORC_RESUMO_WB.SheetNames.length>1){
+      pick.classList.remove('hidden'); pills.innerHTML="";
+      const guess=ORC_RESUMO_WB.SheetNames.find(n=>/summary|resumo/i.test(n))||ORC_RESUMO_WB.SheetNames[0];
+      ORC_RESUMO_WB.SheetNames.forEach(n=>{
+        const b=document.createElement('button');b.className='pill'+(n===guess?' on':'');b.textContent=n;
+        b.onclick=()=>{[...pills.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');processOrcResumo(n);};
+        pills.appendChild(b);
+      });
+      processOrcResumo(guess);
+    } else { pick.classList.add('hidden'); processOrcResumo(ORC_RESUMO_WB.SheetNames[0]); }
+  };
+  r.readAsArrayBuffer(f);
+}
+function processOrcResumo(sheet){
+  const rows=XLSX.utils.sheet_to_json(ORC_RESUMO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
+  const data=extractSummary(rows);
+  if(!data||!data.length){alert("Não encontrei colunas de fonte (RECEIVED OFFER / NO SOURCE) neste ficheiro. Confirma que é o resumo com o semáforo de fonte.");return}
+  const nome=document.getElementById('orcNome').value.trim()||"Projeto";
+  const abc=parseFloat(document.getElementById('orcAbc').value)||null;
+  const fogos=parseFloat(document.getElementById('orcFogos').value)||null;
+  ORC_META={nome,abc,fogos};
+  // construir linhas a partir do resumo: mapear ao capítulo standard, estado pela fonte dominante
+  const byCap={};
+  data.forEach(d=>{
+    const std=CAPS33.find(c=>norm(c)===norm(d.name))||mapCapitulo(d.name);
+    if(!std)return;
+    byCap[std]=byCap[std]||{total:0,recebida:0,antiga:0,sem:0};
+    byCap[std].total+=d.total; byCap[std].recebida+=d.recebida; byCap[std].antiga+=d.antiga; byCap[std].sem+=d.sem;
+  });
+  ORC_ROWS=CAPS33.map(cap=>{
+    const b=byCap[cap];
+    if(!b) return {cap,valor:0,estado:"racio",nota:"",origem:"—"};
+    const pct=v=>b.total?Math.round(v/b.total*100):0;
+    const remainder=Math.max(0,b.total-b.recebida-b.antiga-b.sem);
+    const nota="Recebida "+pct(b.recebida)+"% · <2 anos "+pct(b.antiga)+"% · sem fonte "+pct(b.sem+remainder)+"%";
+    return {cap,valor:Math.round(b.total),estado:estadoPorFonte(b.recebida,b.antiga,b.sem+remainder),nota,origem:"resumo importado"};
+  });
+  document.getElementById('orcBoard').classList.remove('hidden');
+  document.getElementById('orcTag').textContent=nome+" · resumo importado"+(abc?" · ABC "+fmt(abc)+" m²":"");
+  renderOrc();
+  document.getElementById('orcBoard').scrollIntoView({behavior:'smooth'});
+}
+let ORC_PROP_WB=null;
+(function wireOrcProp(){
+  const drop=document.getElementById('orcPropDrop'), fi=document.getElementById('orcPropFile');
+  if(!drop) return;
+  drop.onclick=()=>fi.click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])loadOrcProp(e.dataTransfer.files[0])};
+  fi.onchange=()=>{if(fi.files[0])loadOrcProp(fi.files[0])};
+})();
+// Corre o parser de custos num ficheiro sem perturbar o estado do Analisador
+function parseCostsFrom(wb,sheet){
+  const savW=workbook,savS=chosenSheet,savH=MANUAL_H;
+  workbook=wb; chosenSheet=sheet; MANUAL_H=null;
+  let out={};
+  try{ const it=parseSheet(); const arts=it?it.filter(x=>x.tipo==='art'):[]; out=extractCustos(arts).out; }
+  catch(e){ out={}; }
+  workbook=savW; chosenSheet=savS; MANUAL_H=savH;
+  return out;
+}
+function loadOrcProp(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{ ORC_PROP_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){alert("Não foi possível ler o ficheiro.");return}
+    document.getElementById('orcPropDrop').innerHTML="Proposta carregada: <b>"+esc(f.name)+"</b> — clica para trocar";
+    const pick=document.getElementById('orcPropSheet'), pills=document.getElementById('orcPropPills');
+    if(ORC_PROP_WB.SheetNames.length>1){
+      pick.classList.remove('hidden'); pills.innerHTML="";
+      const guess=ORC_PROP_WB.SheetNames[0];
+      ORC_PROP_WB.SheetNames.forEach(n=>{
+        const b=document.createElement('button');b.className='pill'+(n===guess?' on':'');b.textContent=n;
+        b.onclick=()=>{[...pills.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');processOrcProp(n,f.name);};
+        pills.appendChild(b);
+      });
+      processOrcProp(guess,f.name);
+    } else { pick.classList.add('hidden'); processOrcProp(ORC_PROP_WB.SheetNames[0],f.name); }
+  };
+  r.readAsArrayBuffer(f);
+}
+function processOrcProp(sheet,fname){
+  const custos=parseCostsFrom(ORC_PROP_WB,sheet);
+  const caps=Object.entries(custos).filter(([c,v])=>c!=="(sem capítulo)"&&v>0);
+  if(!caps.length){alert("Não encontrei preços por capítulo nesta proposta. Confirma que o ficheiro tem colunas de preço.");return}
+  // garantir board: se ainda não há, inicializar vazio com os 33 capítulos
+  if(!ORC_ROWS.length){
+    ORC_META={nome:document.getElementById('orcNome').value.trim()||"Projeto",abc:parseFloat(document.getElementById('orcAbc').value)||null,fogos:parseFloat(document.getElementById('orcFogos').value)||null};
+    ORC_ROWS=CAPS33.map(cap=>({cap,valor:0,estado:"racio",nota:"",origem:"—"}));
+    document.getElementById('orcBoard').classList.remove('hidden');
+    document.getElementById('orcTag').textContent=ORC_META.nome;
+  }
+  const forn=document.getElementById('orcForn').value.trim()||"Fornecedor";
+  // mapear cada capítulo da proposta ao standard e atualizar o board
+  const cobertos=[]; let totalProp=0;
+  caps.forEach(([cap,v])=>{
+    const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
+    if(!std)return;
+    const row=ORC_ROWS.find(r=>r.cap===std);
+    if(row){
+      row.valor=Math.round(v);
+      row.estado="firme";
+      row.origem="proposta:"+forn;
+      row.nota="Proposta "+forn;
+      cobertos.push(std); totalProp+=v;
+    }
+  });
+  // capítulos NÃO cobertos pela proposta (potenciais exclusões a confirmar)
+  const naoCobertos=CAPS33.filter(c=>!cobertos.includes(c));
+  renderOrc();
+  const box=document.getElementById('orcPropCober');
+  box.className="note";
+  box.innerHTML="<b>"+forn+"</b> cobre <b>"+cobertos.length+" capítulo(s)</b> ("+fmt(totalProp,0)+" €), marcados como proposta recebida: "+
+    cobertos.map(esc).join(", ")+".<br><span style='color:#8794a8'>Não abrangidos por esta proposta (confirmar se são exclusões ou de outro fornecedor): "+
+    naoCobertos.slice(0,12).map(esc).join(", ")+(naoCobertos.length>12?"…":"")+".</span><br><span style='color:#8794a8;font-size:11px'>Exclusões e condições escritas em texto livre não são extraídas automaticamente — regista-as na nota de cada capítulo.</span>";
+  document.getElementById('orcBoard').scrollIntoView({behavior:'smooth'});
+  ORC_DIRTY=true;
 }
 async function orcSeed(){
   const nome=document.getElementById('orcNome').value.trim()||"Projeto";
@@ -1687,12 +1924,14 @@ function renderOrc(){
       <td><input type="text" class="orcNota" data-i="${i}" value="${esc(r.nota||'')}" placeholder="fornecedor, exclusões…" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px"></td>`;
     tb.appendChild(tr);
   });
-  tb.querySelectorAll('.orcVal').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].valor=parseFloat(e.target.value)||0;renderOrcKpis();}));
-  tb.querySelectorAll('.orcEst').forEach(el=>el.addEventListener('change',e=>{const i=+e.target.dataset.i;ORC_ROWS[i].estado=e.target.value;e.target.className='estado-sel '+ORC_EST[e.target.value].cls+' orcEst';renderOrcKpis();}));
-  tb.querySelectorAll('.orcNota').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].nota=e.target.value;}));
+  tb.querySelectorAll('.orcVal').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].valor=parseFloat(e.target.value)||0;ORC_DIRTY=true;renderOrcKpis();}));
+  tb.querySelectorAll('.orcEst').forEach(el=>el.addEventListener('change',e=>{const i=+e.target.dataset.i;ORC_ROWS[i].estado=e.target.value;ORC_DIRTY=true;e.target.className='estado-sel '+ORC_EST[e.target.value].cls+' orcEst';renderOrcKpis();}));
+  tb.querySelectorAll('.orcNota').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].nota=e.target.value;ORC_DIRTY=true;}));
   renderOrcKpis();
 }
 function renderOrcKpis(){
+  const tag=document.getElementById('orcTag');
+  if(tag){const base=tag.textContent.replace(/ · por gravar$/,"");tag.textContent=ORC_DIRTY?base+" · por gravar":base;}
   const abc=ORC_META.abc;
   const total=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0);
   const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
@@ -1712,7 +1951,7 @@ function renderOrcKpis(){
   }
 }
 function exportOrcamento(){
-  if(!ORC_ROWS.length){alert("Arranca o orçamento primeiro.");return}
+  if(!ORC_ROWS.length){toast("Arranca o orçamento primeiro.");return}
   const abc=ORC_META.abc;
   const total=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0);
   const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
@@ -1832,7 +2071,7 @@ async function runEstimador(){
 }
 let EST_LAST=null;
 function exportEstimativa(){
-  if(!EST_LAST){alert("Corre uma estimativa primeiro.");return}
+  if(!EST_LAST){toast("Corre uma estimativa primeiro.");return}
   const E=EST_LAST;
   const baseLbl=E.base==='abc'?"€/m² ABC":E.base==='fogo'?"€/fogo":"média ABC+fogo";
   const head=[["SOLIVE — ESTIMATIVA PRELIMINAR (Business Plan)"],
@@ -1990,8 +2229,67 @@ async function renderLibFase(){
   LIB_SHOWN=proj?{nome:proj.nome,local:proj.local||"",fase:faseSel?faseSel.textContent:"",gfa:proj.gfa,gca:proj.gca,fogos:proj.fogos,caps:(caps||[]).map(c=>({cap:c.cap,total:+c.total}))}:null;
 }
 let LIB_SHOWN=null;
+/* Mapa 33 capítulos -> categorias Legendre (frações derivadas das fórmulas do Wrap up L'Urbain) */
+const LEGENDRE_DIRECT=['Enabling Works','Foundations inc. underpinning','Groundworks & Substructure','RC Frame','Roofing','Metalworks','Facades','Windows','Internal Walls','Drylining','Internal doors','Wall Finishes','Floor Finishes','Joinery','Kitchens','Sanitaryware and fittings','MEP','Lifts','Landscape inc. ancillary building','Utilities / Misc.'];
+const LEGENDRE_MAP={
+ 'ESTABILIDADE':[['RC Frame',0.882],['Metalworks',0.117],['Enabling Works',0.001]],
+ 'MOVIMENTO DE TERRAS E CONTENCAO PERIFERICA':[['Foundations inc. underpinning',0.74],['Enabling Works',0.26]],
+ 'VAOS':[['Windows',0.555],['Internal doors',0.332],['Metalworks',0.113]],
+ 'CERAMICOS':[['Wall Finishes',0.579],['Floor Finishes',0.421]],
+ 'CARPINTARIAS':[['Joinery',0.912],['Floor Finishes',0.071],['Wall Finishes',0.017]],
+ 'COBERTURAS':[['Roofing',1]],'IMPERMEABILIZACOES E ISOLAMENTOS':[['Roofing',1]],
+ 'ALVENARIAS':[['Facades',1]],'ETICS':[['Facades',1]],'PEDRA':[['Facades',1]],
+ 'ARGAMASSAS':[['Wall Finishes',1]],'PINTURAS':[['Wall Finishes',1]],
+ 'GESSO CARTONADO':[['Drylining',1]],
+ 'BETONILHAS':[['Floor Finishes',1]],'PAVIMENTOS DIVERSOS':[['Floor Finishes',1]],'CANTARIAS':[['Floor Finishes',1]],
+ 'SERRALHARIAS':[['Metalworks',1]],'EQUIPAMENTOS SANITARIOS':[['Sanitaryware and fittings',1]],'COZINHAS':[['Kitchens',1]],
+ 'ELEVADORES':[['Lifts',1]],'PAISAGISMO':[['Landscape inc. ancillary building',1]],
+ 'DIVERSOS':[['Utilities / Misc.',1]],'PISCINA':[['Utilities / Misc.',1]],
+ 'REDE DE ESGOTOS':[['MEP',1]],'REDE DE AGUAS':[['MEP',1]],'REDE DE AGUAS PLUVIAIS':[['MEP',1]],'REDE DE GAS':[['MEP',1]],
+ 'ELETRICIDADE E ILUMINACAO':[['MEP',1]],'SEGURANCA INTEGRADA':[['MEP',1]],'ITED':[['MEP',1]],'SCIE':[['MEP',1]],'AVAC':[['MEP',1]],
+ 'ESTALEIRO':[['Site costs',1]]
+};
+function exportWrapUpLegendre(){
+  if(!LIB_SHOWN||!LIB_SHOWN.caps.length){toast("Escolhe um projeto e fase com capítulos para exportar.");return}
+  const S=LIB_SHOWN;
+  const leg={}; let semMapa=[];
+  S.caps.forEach(c=>{
+    const m=LEGENDRE_MAP[norm(c.cap)];
+    if(!m){ leg['Utilities / Misc.']=(leg['Utilities / Misc.']||0)+c.total; if(c.total>0)semMapa.push(c.cap); return; }
+    m.forEach(([cat,frac])=>{ leg[cat]=(leg[cat]||0)+c.total*frac; });
+  });
+  const dch=Object.values(leg).reduce((s,v)=>s+v,0);
+  const site=leg['Site costs']||0;
+  const rGCA=v=>S.gca?v/S.gca:null, rAPT=v=>S.fogos?v/S.fogos:null, rGFA=v=>S.gfa?v/S.gfa:null;
+  const nn=v=>v==null?"":Math.round(v*100)/100;
+  const line=(name,val)=>[name,Math.round(val),dch?Math.round(val/dch*1000)/10+"%":"",nn(rGCA(val)),nn(rAPT(val)),nn(rGFA(val))];
+  const head=[
+    ["SOLIVE — WRAP UP (formato Legendre)"],
+    ["PROJECT:",S.nome,"",S.local||""],
+    ["Fase:",S.fase||"","Data:",new Date().toLocaleDateString('pt-PT')],
+    ["GFA (m²):",S.gfa||"—","GCA AG (m²):",S.gca||"—","Fogos:",S.fogos||"—"],
+    [],
+    ["Categoria","Total (€)","% DCH","€/m² GCA AG","€/apartamento","€/m² GFA"],
+    ["DIRECT COSTS"]
+  ];
+  const body=[];
+  LEGENDRE_DIRECT.forEach(cat=>{ body.push(line(cat, leg[cat]||0)); });
+  const direct=LEGENDRE_DIRECT.reduce((s,cat)=>s+(leg[cat]||0),0);
+  body.push(line("DIRECT COSTS HARD",direct));
+  body.push([]);
+  body.push(["SITE COSTS"]);
+  body.push(line("Site costs (Estaleiro)",site));
+  body.push([]);
+  body.push(line("TOTAL",dch));
+  if(semMapa.length) body.push([],["Nota: capítulos sem correspondência Legendre atribuídos a Utilities/Misc.: "+semMapa.join(", ")]);
+  body.push([],["As frações de repartição dos capítulos mistos (Estabilidade, Vãos, Cerâmicos, Carpintarias, Mov. Terras) derivam do Wrap up do L'Urbain — exatas para esse projeto, aproximadas para outros."]);
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:36},{wch:15},{wch:9},{wch:14},{wch:15},{wch:12}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Wrap up Legendre");
+  XLSX.writeFile(wb,("WrapUp_Legendre_"+S.nome).replace(/[^\w]+/g,"_")+".xlsx");
+}
 function exportWrapUp(){
-  if(!LIB_SHOWN||!LIB_SHOWN.caps.length){alert("Escolhe um projeto e fase com capítulos para exportar.");return}
+  if(!LIB_SHOWN||!LIB_SHOWN.caps.length){toast("Escolhe um projeto e fase com capítulos para exportar.");return}
   const S=LIB_SHOWN;
   const dch=S.caps.reduce((s,c)=>s+c.total,0);
   const rGCA=v=>S.gca?v/S.gca:null, rAPT=v=>S.fogos?v/S.fogos:null, rGFA=v=>S.gfa?v/S.gfa:null;
