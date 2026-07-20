@@ -81,6 +81,22 @@ td.num{text-align:right;font-family:'Roboto Mono',monospace}
 .hidden{display:none !important}
 .note{background:#eef6f7;border-left:3px solid var(--teal);padding:10px 14px;border-radius:0 7px 7px 0;font-size:12.5px;color:#2b4a52;margin-top:12px}
 .note.red{background:#fdf0f1;border-left-color:var(--red);color:#6b2b32}
+/* painel de propósito de cada separador */
+.purpose{background:#fff;border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:10px;padding:16px 20px;margin-bottom:18px}
+.purpose.red{border-left-color:var(--red)} .purpose.teal{border-left-color:var(--teal)} .purpose.amber{border-left-color:var(--warn)}
+.purpose .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#8794a8;margin-bottom:3px}
+.purpose h1{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.purpose p{font-size:13px;color:#48566b;max-width:820px;margin-bottom:10px}
+.purpose .io{display:flex;gap:8px;flex-wrap:wrap}
+.purpose .io span{font-size:11.5px;padding:4px 11px;border-radius:20px;font-weight:500}
+.io .in{background:#eef1f6;color:var(--navy)}
+.io .out{background:#eef6f7;color:var(--teal)}
+.io .step{background:#fdf0f1;color:var(--red)}
+.flowbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 16px;margin-bottom:18px;font-size:12px}
+.flowbar b{color:#8794a8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;margin-right:6px}
+.flowbar .fstep{padding:4px 10px;border-radius:6px;background:#f0f3f8;color:var(--navy);font-weight:500}
+.flowbar .fstep.cur{background:var(--navy);color:#fff}
+.flowbar .arr{color:#c4ccd8}
 footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-size:12px}
 .overlay{position:fixed;inset:0;background:rgba(20,58,103,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal{background:#fff;border-radius:12px;padding:28px;width:100%;max-width:460px}
@@ -105,6 +121,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   <nav>
     <button id="nav-analisador" class="on" onclick="showView('analisador')">Analisador</button>
     <button id="nav-fecho" onclick="showView('fecho')">Fecho de Obra</button>
+    <button id="nav-comparar" onclick="showView('comparar')">Comparar</button>
     <button id="nav-biblioteca" onclick="showView('biblioteca')">Biblioteca</button>
     <button id="btnLogout" class="hidden" onclick="logout()" title="Terminar sessão">Sair</button>
   </nav>
@@ -151,15 +168,31 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 <main>
 <!-- ===================== VISTA: ANALISADOR ===================== -->
 <div id="view-analisador">
+  <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep cur">1 · Rever MQ</span><span class="arr">→</span><span class="fstep">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
+  <div class="purpose red">
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Rever o mapa de quantidades</h1>
+    <p>Carrega o mapa de quantidades que o projetista entregou. A plataforma deteta erros e omissões, extrai as quantidades físicas e prepara os comentários para devolveres à equipa de projeto. Preenche os descritores do projeto — são eles que tornam a comparação rigorosa.</p>
+    <div class="io"><span class="in">Entra: MQ do projetista (.xlsx)</span><span class="out">Produz: comentários para projetistas (.xlsx)</span><span class="out">Alimenta: Biblioteca e Comparação</span></div>
+  </div>
+
   <div class="card">
-    <div class="step"><div class="n">1</div><h2>Projeto e métricas</h2></div>
-    <div class="hint">As métricas ativam os testes de rácio contra o histórico. Podem ficar em branco — os restantes testes correm na mesma.</div>
+    <div class="step"><div class="n">1</div><h2>Projeto e descritores do envelope</h2></div>
+    <div class="hint">Os descritores são o denominador da análise comparativa — introduz o que souberes (vêm do programa/licenciamento, não do MQ). As quantidades físicas (escavação, betão, acabamentos…) são extraídas automaticamente do mapa. A ABC ativa também os testes de rácio.</div>
     <div class="grid g6">
       <div style="grid-column:span 2"><label>Nome do projeto</label><input type="text" id="pNome" list="projList" placeholder="Ex.: Projeto X"><datalist id="projList"></datalist></div>
-      <div><label>GFA (m²)</label><input type="number" id="pGFA" placeholder="4552"></div>
-      <div><label>GCA AG (m²)</label><input type="number" id="pGCA" placeholder="2882.6"></div>
-      <div><label>Nº de fogos</label><input type="number" id="pFogos" placeholder="30"></div>
+      <div><label>ABC total (m²)</label><input type="number" id="pGFA" placeholder="4552" title="Área Bruta de Construção total"></div>
+      <div><label>Ac. acima solo (m²)</label><input type="number" id="pGCA" placeholder="2882.6" title="Área de construção acima do solo"></div>
+      <div><label>Ac. abaixo solo (m²)</label><input type="number" id="pAbaixo" placeholder="1669"></div>
       <div><label>Fase</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
+    </div>
+    <div class="grid g6" style="margin-top:12px">
+      <div><label>Nº de fogos</label><input type="number" id="pFogos" placeholder="30"></div>
+      <div><label>Pisos elevados</label><input type="number" id="pPisosAcima" placeholder="7"></div>
+      <div><label>Pisos enterrados</label><input type="number" id="pPisosAbaixo" placeholder="2"></div>
+      <div><label>Área implantação (m²)</label><input type="number" id="pImplantacao" placeholder="820"></div>
+      <div><label>Área do lote (m²)</label><input type="number" id="pLote" placeholder="1100"></div>
+      <div><label>Estacionamento (lug.)</label><input type="number" id="pEstacionamento" placeholder="45"></div>
     </div>
   </div>
 
@@ -218,6 +251,18 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
       <div class="empty hidden" id="noFindings">Sem alertas para os filtros selecionados.</div>
     </div>
 
+    <div class="card" id="physCard">
+      <h2>Quantidades físicas extraídas do mapa</h2>
+      <div class="hint">Somadas automaticamente a partir dos artigos medidos, por unidade. São o numerador dos rácios físicos na comparação. Nota: os acabamentos refletem o total do mapa — num edifício residencial correspondem sobretudo aos pisos tipo acima do solo.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Grandeza</th><th style="width:70px">Un</th><th style="text-align:right;width:150px">Quantidade</th><th style="text-align:right;width:170px">Por m² ABC</th></tr></thead>
+        <tbody id="tbPhys"></tbody>
+      </table>
+      </div>
+      <div class="empty hidden" id="noPhys">Não foram encontradas quantidades físicas reconhecíveis neste mapa.</div>
+    </div>
+
     <div class="card">
       <h2>Verificação de rácios vs. histórico</h2>
       <div class="hint">Quantidades agregadas por capítulo comparadas com os rácios do L'Urbain (normalizados por GFA). Desvios acima de ±50% geram aviso.</div>
@@ -234,6 +279,14 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 
 <!-- ===================== VISTA: FECHO DE OBRA ===================== -->
 <div id="view-fecho" class="hidden">
+  <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep">2 · Orçamentar</span><span class="arr">→</span><span class="fstep cur">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
+  <div class="purpose teal">
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Fechar a obra com custos reais</h1>
+    <p>No fim da empreitada, gera o modelo para a equipa de obra preencher com os custos reais por capítulo. Importa o ficheiro devolvido e a plataforma calcula os desvios face ao orçamento. Os valores reais são o dado mais valioso da biblioteca — passam a ter peso na estimativa de projetos futuros.</p>
+    <div class="io"><span class="out">Produz: modelo de fecho para a obra (.xlsx)</span><span class="in">Entra: conta final preenchida pela obra</span><span class="out">Alimenta: Biblioteca (fase Real) e Comparação</span></div>
+  </div>
+
   <div class="card">
     <div class="step"><div class="n">1</div><h2>Projeto</h2></div>
     <div class="hint">Os valores reais por capítulo vêm da equipa de obra. Gera o modelo, envia aos colegas da produção, e importa o ficheiro devolvido — a plataforma calcula os desvios face ao orçamento e passa os rácios reais para a biblioteca.</div>
@@ -279,10 +332,40 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   </div>
 </div>
 
+<!-- ===================== VISTA: COMPARAR ===================== -->
+<div id="view-comparar" class="hidden">
+  <div class="purpose amber">
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Comparar projetos lado a lado</h1>
+    <p>Confronta os projetos da biblioteca em descritores, custos e quantidades físicas, tudo normalizado por m² de ABC, por fogo ou por implantação. Serve para perceber onde um projeto novo se afasta do histórico e para calibrar estimativas. O L'Urbain está sempre presente como referência.</p>
+    <div class="io"><span class="in">Usa: projetos gravados na Biblioteca</span><span class="out">Produz: leitura comparativa de rácios</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Análise comparativa entre projetos</h2>
+    <div class="hint">Projetos em colunas, indicadores em linhas. Os descritores do envelope vêm do que introduziste; as quantidades físicas e os rácios são calculados a partir dos mapas analisados e gravados. O L'Urbain está sempre presente como referência.</div>
+    <div class="note" id="cmpOffline"></div>
+    <div style="overflow-x:auto" id="cmpWrap">
+    <table id="cmpTable">
+      <thead><tr id="cmpHead"></tr></thead>
+      <tbody id="cmpBody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== VISTA: BIBLIOTECA ===================== -->
 <div id="view-biblioteca" class="hidden">
-  <div class="card">
-    <h2>Biblioteca de rácios de custo</h2>
+  <div class="purpose">
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Biblioteca de rácios — o conhecimento acumulado da Solive</h1>
+    <p>É o repositório central que consultas ao preparar um orçamento novo: rácios de custo e de quantidades por capítulo, para cada projeto e cada fase. Não se preenche aqui diretamente — cada projeto entra automaticamente a partir do <b>Analisador</b> (descritores e quantidades, ao gravar uma análise) e do <b>Fecho de Obra</b> (custos reais). Quantos mais projetos fechares, mais rigorosa fica a estimativa.</p>
+    <div class="io"><span class="in">Entra: Analisador + Fecho de Obra</span><span class="out">Serve: orçamentação e Comparação</span></div>
+  </div>
+  <div class="card" style="padding:14px 20px">
+    <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler as fases:</b> cada projeto pode ter três fases — <b>Orçamento</b> (a estimativa preliminar), <b>Contrato</b> (o valor adjudicado) e <b>Real</b> (a conta final da obra). Escolhe o projeto e a fase abaixo para ver os rácios por capítulo.</div>
+  </div>
+    <div class="card">
     <div class="hint" id="libHint"></div>
     <div class="filters">
       <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
@@ -371,6 +454,11 @@ const CAPS_ESPERADOS = ["COBERTURAS","IMPERMEABILIZAÇÕES E ISOLAMENTOS","PARED
 
 const CAP_MAP = [
  [/ESTALEIRO/,"ESTALEIRO"],
+ [/HIDR[ÁA]ULICAS|INSTALA[ÇC][ÕO]ES HIDR/,"REDE DE ÁGUAS"],
+ [/INSTALA[ÇC][ÕO]ES EL[ÉE][CT]TRICAS/,"ELETRICIDADE E ILUMINAÇÃO"],
+ [/INSTALA[ÇC][ÕO]ES MEC[ÂA]NICAS/,"AVAC"],
+ [/INSTALA[ÇC][ÕO]ES ELECTROMEC[ÂA]NICAS/,"ELEVADORES"],
+ [/ARQUITETURA|ARQUITECTURA/,"ARQUITETURA (agregado)"],
  [/EQUIPAMENTO MEC[ÂA]NICO|ELEVADOR|PLATAFORMA ELEVAT/,"ELEVADORES"],
  [/BET[ÃA]O LEVE|BETONILHA/,"BETONILHAS"],
  [/ACABAMENTO DE SUPERF[ÍI]CIES/,"ARGAMASSAS"],
@@ -417,12 +505,13 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','fecho','biblioteca'].forEach(x=>{
+  ['analisador','fecho','comparar','biblioteca'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
   if(v==='biblioteca') refreshLib();
   if(v==='fecho') refreshFecho();
+  if(v==='comparar') renderComparar();
 }
 
 /* ================= AUTENTICAÇÃO ================= */
@@ -600,17 +689,24 @@ function esc(s){const d=document.createElement('div');d.textContent=s==null?"":S
 function fmt(n,d){return n==null||isNaN(n)?"—":Number(n).toLocaleString('pt-PT',{minimumFractionDigits:d??0,maximumFractionDigits:d??2})}
 
 function detectHeader(rows){
+  const reDesc=/DESIGNACAO|DESCRICAO|REFERENCIA DOS MATERIAIS|ARTIGO/;
+  const reUn=/^UN\.?\b|^UNID/, reQt=/QUANT|^QT/, reCode=/CODIGO|^CAP|^ART|^N\.?º|^ITEM/;
   for(let i=0;i<Math.min(rows.length,40);i++){
     const cells=(rows[i]||[]).map(norm);
-    const hasDesc=cells.findIndex(c=>/DESIGNACAO|DESCRICAO|REFERENCIA DOS MATERIAIS|DESIGNAÇÃO|ARTIGO/.test(c));
-    const hasUn=cells.findIndex(c=>/^UN\b|^UNID/.test(c));
-    const hasQt=cells.findIndex(c=>/QUANT|^QT/.test(c));
-    if(hasDesc>-1&&hasUn>-1&&hasQt>-1){
-      let code=cells.findIndex(c=>/CODIGO|^CAP|^ART|^N\.?º|^ITEM/.test(c));
+    const hasDesc=cells.findIndex(c=>reDesc.test(c));
+    if(hasDesc===-1) continue;
+    // procurar UN/QUANT na mesma linha; se faltarem, tentar a linha seguinte (cabeçalho a 2 níveis)
+    const nxt=(rows[i+1]||[]).map(norm);
+    const findIn=(re)=>{let j=cells.findIndex(c=>re.test(c));if(j>-1)return[j,i];j=nxt.findIndex(c=>re.test(c));if(j>-1)return[j,i+1];return[-1,i];};
+    const [un,unRow]=findIn(reUn), [qt,qtRow]=findIn(reQt);
+    if(un>-1&&qt>-1){
+      const hdrRow=Math.max(i,unRow,qtRow);
+      let code=cells.findIndex(c=>reCode.test(c));
       if(code===-1) code=Math.max(0,hasDesc-1);
-      const qcols=[];
-      cells.forEach((c,j)=>{if(/QUANT|^QT|REV/.test(c))qcols.push(j)});
-      return {row:i,code,desc:hasDesc,un:hasUn,qt:hasQt,qcols};
+      const qcols=[]; cells.forEach((c,j)=>{if(reQt.test(c)||/REV/.test(c))qcols.push(j)});
+      nxt.forEach((c,j)=>{if(reQt.test(c)&&!qcols.includes(j))qcols.push(j)});
+      if(!qcols.length)qcols.push(qt);
+      return {row:hdrRow,code,desc:hasDesc,un,qt,qcols};
     }
   }
   return null;
@@ -626,33 +722,51 @@ function parseSheet(){
   const rows=sheetRows();
   const H=MANUAL_H||detectHeader(rows);
   if(!H) return null;
-  const itens=[]; let curCap=null, curCapRaw=null, curTopMapped=false;
+  const itens=[]; let curCap=null, curCapRaw=null, letterActive=false;
+  // 1ª designação da linha pode ter "TÍTULO\ndescrição" — usar só a 1ª linha para deteção de capítulo
+  const firstLine=s=>String(s||"").split(/\r?\n/)[0].trim();
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
     const code=r[H.code]!=null?String(r[H.code]).trim():"";
-    const desc=r[H.desc]!=null?String(r[H.desc]).trim():"";
+    const descRaw=r[H.desc]!=null?String(r[H.desc]).trim():"";
+    const desc=firstLine(descRaw);
     const un=r[H.un]!=null?String(r[H.un]).trim():"";
     let qt=null;
     for(let k=H.qcols.length-1;k>=0;k--){const v=r[H.qcols[k]];if(typeof v==='number'){qt=v;break}}
     if(qt===null){const v=r[H.qt];if(typeof v==='number')qt=v}
-    if(!code&&!desc) continue;
+    if(!code&&!descRaw) continue;
     if(/^TOTAL/i.test(desc)||/^TOTAL/i.test(code)) continue;
-    const isCapCode=/^(CAP\.?\s*[IVX\d]*|\d{1,2}\.?)$/i.test(code);
-    if(isCapCode&&desc&&!un){
+    const nd=norm(desc);
+    // cabeçalho verdadeiro = MAIÚSCULAS no texto original (não title case como "Blocos de Betão")
+    const letras=desc.replace(/[^A-Za-zÀ-ÿ]/g,"");
+    const upper=letras.length>=3 && letras===letras.toUpperCase();
+    const isLetter=/^[A-Z]$/.test(code);
+    const isNumTop=/^\d{1,2}\.?$/.test(code);
+    const isNumSub=/^\d+\.\d+(\.\d+)*$/.test(code);
+
+    // Capítulo de topo por LETRA (LPU) — trava a hierarquia
+    if(isLetter&&desc&&upper&&!un&&qt===null){
       const m=mapCapitulo(desc);
-      curCapRaw=desc; curCap=m||norm(desc); curTopMapped=!!m;
+      curCapRaw=desc; curCap=m||norm(desc); letterActive=true;
       itens.push({tipo:'cap',linha:i+1,code,desc,cap:curCap,capRaw:curCapRaw});
       continue;
     }
-    const isSub=/^\d+\.\d+(\.\d+)*$/.test(code)&&!un&&qt===null;
-    if(isSub&&desc){
-      const m=mapCapitulo(desc);
-      if(m&&!curTopMapped){curCap=m;curCapRaw=desc}
+    // Cabeçalho de secção sem unidade (número de topo OU sub numérico com título em maiúsculas)
+    if((isNumTop||isNumSub)&&desc&&!un&&qt===null){
+      if(upper){
+        // cabeçalho de secção em maiúsculas
+        const m=mapCapitulo(desc);
+        if(isNumTop&&!letterActive){ curCap=m||norm(desc); curCapRaw=desc; }
+        else if(m){ curCap=m; curCapRaw=desc; }         // sub mapeável dá granularidade
+        else if(!letterActive){ curCap=norm(desc); curCapRaw=desc; }
+      }
+      // se não for maiúsculas (title case) = agrupamento interno: mantém capítulo-pai
       itens.push({tipo:'sub',linha:i+1,code,desc,cap:curCap,capRaw:curCapRaw});
       continue;
     }
+    // Artigo medível
     if(un||qt!==null){
-      itens.push({tipo:'art',linha:i+1,code,desc,un,qt,cap:curCap,capRaw:curCapRaw});
+      itens.push({tipo:'art',linha:i+1,code,desc:descRaw,un,qt,cap:curCap,capRaw:curCapRaw});
     }
   }
   return itens;
@@ -743,6 +857,63 @@ function runChecks(itens){
   return {F,emFalta};
 }
 
+/* ================= QUANTIDADES FÍSICAS ================= */
+let PHYS={};
+// Grandezas físicas: [rótulo, unidade alvo, regex na descrição (ou null), capítulos (ou null)]
+const PHYS_DEFS=[
+  ["Escavação","m³",/escava/i,null],
+  ["Aterro","m³",/aterro/i,null],
+  ["Transporte a vazadouro","m³",/vazadouro|transporte a dep|transporte de terras/i,null],
+  ["Betão e estruturas","m³",/bet[ãa]o|maci[çc]o|sapata|\blaje|pilar|\bviga|estaca|parede moldada|muro de|fund[aã]/i,["ESTABILIDADE"]],
+  ["Cofragem","m²",/cofrag/i,null],
+  ["Aço em varão","kg",/var[ãa]o|armadura|a[çc]o a500/i,null],
+  ["Fachada / ETICS","m²",/fachada|etics|capoto|revestimento exterior/i,["ETICS"]],
+  // acabamentos (sobretudo pisos tipo acima do solo)
+  ["Cerâmicos","m²",null,["CERÂMICOS"]],
+  ["Revestimentos de pavimentos","m²",null,["REVESTIMENTOS DE PAVIMENTOS","PAVIMENTOS DIVERSOS"]],
+  ["Revestimentos de paredes","m²",null,["REVESTIMENTOS DE PAREDES"]],
+  ["Revestimentos de tectos","m²",null,["REVESTIMENTOS DE TECTOS"]],
+  ["Pinturas","m²",null,["PINTURAS"]],
+  ["Gesso cartonado","m²",null,["GESSO CARTONADO"]],
+  ["Carpintarias","un",null,["CARPINTARIAS"]],
+  ["Vãos / caixilharia","un",null,["VÃOS"]]
+];
+function uEq(u,alvo){
+  u=norm(u).replace("2","²").replace("3","³").toLowerCase();
+  if(u==="ml")u="m";
+  return u===alvo||u===alvo.replace("²","2").replace("³","3");
+}
+function extractPhys(arts){
+  const out={};
+  PHYS_DEFS.forEach(([rot,un,rx,caps])=>{
+    let soma=0,houve=false;
+    arts.forEach(a=>{
+      if(a.qt==null||!a.un||!uEq(a.un,un))return;
+      const okDesc=rx?rx.test(a.desc||""):true;
+      const okCap=caps?caps.includes(a.cap):true;
+      // se há regex E capítulos, basta um deles; se só um critério, usa esse
+      const match = rx&&caps ? (okDesc||okCap) : (rx?okDesc:okCap);
+      if(match){soma+=a.qt;houve=true;}
+    });
+    if(houve)out[rot]={un,q:soma};
+  });
+  return out;
+}
+function renderPhys(){
+  const tb=document.getElementById('tbPhys');tb.innerHTML="";
+  const abc=parseFloat(document.getElementById('pGFA').value)||null;
+  const keys=Object.keys(PHYS);
+  document.getElementById('noPhys').classList.toggle('hidden',keys.length>0);
+  keys.forEach(k=>{
+    const m=PHYS[k];
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(k)}</td><td class="mono">${esc(m.un)}</td>
+      <td class="num">${fmt(m.q,1)}</td>
+      <td class="num">${abc?fmt(m.q/abc,3):"—"}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
 /* ================= EXECUÇÃO (analisador) ================= */
 function runAnalysis(){
   if(!workbook||!chosenSheet){alert("Carrega primeiro o ficheiro do mapa de quantidades.");return}
@@ -782,7 +953,8 @@ function runAnalysis(){
   const fC=document.getElementById('fCap');
   fC.innerHTML='<option value="">Todos</option>'+caps.map(c=>`<option>${esc(c)}</option>`).join("");
 
-  renderFindings(); renderRatios();
+  PHYS=extractPhys(arts);
+  renderFindings(); renderRatios(); renderPhys();
   document.getElementById('results').scrollIntoView({behavior:'smooth'});
 }
 
@@ -821,16 +993,20 @@ function renderRatios(){
 }
 
 /* ================= EXPORTS / GRAVAÇÃO ================= */
+function envelopeInputs(){
+  const n=id=>+document.getElementById(id).value||null;
+  return {gfa:n('pGFA'),gca:n('pGCA'),ac_abaixo:n('pAbaixo'),fogos:n('pFogos'),
+    pisos_acima:n('pPisosAcima'),pisos_enterrados:n('pPisosAbaixo'),
+    area_implantacao:n('pImplantacao'),area_lote:n('pLote'),estacionamento:n('pEstacionamento')};
+}
 function analysisPayload(){
   return {
     plataforma:"Solive Orçamentação v2", exportado:new Date().toISOString(),
-    projeto:{nome:document.getElementById('pNome').value||"Projeto",
-      gfa:+document.getElementById('pGFA').value||null,gca:+document.getElementById('pGCA').value||null,
-      fogos:+document.getElementById('pFogos').value||null,fase:document.getElementById('pFase').value},
+    projeto:Object.assign({nome:document.getElementById('pNome').value||"Projeto",fase:document.getElementById('pFase').value},envelopeInputs()),
     ficheiro:wbName,folha:chosenSheet,
     artigos:ITENS.filter(x=>x.tipo==='art'),
     alertas:FINDINGS.map(f=>({code:f.it.code,desc:f.it.desc,un:f.it.un,qt:f.it.qt,cap:f.it.cap,tipo:f.tipo,sev:f.sev,comentario:f.comentario})),
-    racios:RATIOS
+    racios:RATIOS, quantidades_fisicas:PHYS
   };
 }
 function exportComentarios(){
@@ -855,18 +1031,24 @@ async function saveAnalysis(){
   if(!SESSION){toast("Sem sessão ativa.");return}
   const nome=document.getElementById('pNome').value.trim();
   if(!nome){alert("Indica o nome do projeto (passo 1) antes de gravar.");return}
+  const env=envelopeInputs();
+  const attrs=Object.assign({nome},env,{metricas:PHYS});
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
-    const {data,error}=await sb.from('projetos').insert({
-      nome, gfa:+document.getElementById('pGFA').value||null, gca:+document.getElementById('pGCA').value||null,
-      fogos:+document.getElementById('pFogos').value||null
-    }).select().single();
+    const {data,error}=await sb.from('projetos').insert(attrs).select().single();
     if(error){alert("Erro a criar o projeto: "+error.message);return}
-    proj=data; await loadProjetos();
+    proj=data;
+  }else{
+    // atualizar descritores/métricas do projeto existente (só campos preenchidos)
+    const upd={metricas:PHYS};
+    Object.keys(env).forEach(k=>{if(env[k]!=null)upd[k]=env[k]});
+    const {error}=await sb.from('projetos').update(upd).eq('id',proj.id);
+    if(error){alert("Erro a atualizar o projeto: "+error.message);return}
   }
+  await loadProjetos();
   const {error}=await sb.from('analises').insert({projeto_id:proj.id,nome,ficheiro:wbName,payload:analysisPayload()});
   if(error){alert("Erro a gravar a análise: "+error.message);return}
-  toast("Análise gravada na biblioteca — projeto "+proj.nome+".");
+  toast("Análise e descritores gravados — projeto "+proj.nome+".");
 }
 
 /* ================= FECHO DE OBRA ================= */
@@ -1006,6 +1188,80 @@ async function renderDesvios(proj,linhas){
   tb.appendChild(tr);
   document.getElementById('foDesvCard').classList.remove('hidden');
   document.getElementById('foDesvCard').scrollIntoView({behavior:'smooth'});
+}
+
+/* ================= COMPARAR ================= */
+async function renderComparar(){
+  const off=document.getElementById('cmpOffline');
+  // coluna de referência L'Urbain (embutida)
+  const lurbTotal=REF.capitulos.reduce((s,c)=>s+c.total,0);
+  const ref={
+    nome:"L'Urbain (ref.)", gfa:REF.gfa, gca:REF.gca, ac_abaixo:null, fogos:REF.fogos,
+    pisos_acima:null, pisos_enterrados:2, area_implantacao:null, area_lote:null, estacionamento:null,
+    metricas:Object.fromEntries(Object.entries(REF.qty).flatMap(([cap,us])=>Object.entries(us).map(([u,q])=>[cap+" ("+u+")",{un:u,q}]))),
+    _total:lurbTotal
+  };
+  let cols=[ref];
+  if(SESSION){
+    off.className='note'; off.textContent="A comparar todos os projetos gravados na biblioteca.";
+    // totais de orçamento por projeto (fase mais recente Orçamento/Contrato)
+    for(const p of PROJETOS){
+      let total=null;
+      const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id).in('fase',['Orçamento','Contrato']).order('data',{ascending:false}).limit(1);
+      if(fs&&fs.length) total=+fs[0].total||null;
+      cols.push(Object.assign({},p,{_total:total}));
+    }
+  } else {
+    off.className='note red'; off.textContent="Sem sessão — a mostrar apenas a referência L'Urbain. Inicia sessão e grava análises para comparar vários projetos.";
+  }
+
+  // definição das linhas: [secção, rótulo, função(col)->valor, casas decimais]
+  const num=(v,d)=>v==null||isNaN(v)?"—":fmt(v,d);
+  const mq=(c,chave,unPref)=>{ // quantidade física por nome aproximado (unidade preferida opcional)
+    if(!c.metricas)return null;
+    const cands=Object.keys(c.metricas).filter(k=>norm(k).startsWith(norm(chave)));
+    if(!cands.length)return null;
+    if(unPref){const pk=cands.find(k=>norm(c.metricas[k].un||"").replace("2","²").replace("3","³")===unPref);if(pk)return c.metricas[pk].q;}
+    // preferir maior grandeza (área costuma dominar sobre remates lineares)
+    return cands.map(k=>c.metricas[k].q).reduce((a,b)=>Math.max(a,b),0);
+  };
+  const rows=[
+    ["DESCRITORES","Nº de fogos",c=>c.fogos,0],
+    [null,"ABC total (m²)",c=>c.gfa,0],
+    [null,"Acima do solo (m²)",c=>c.gca,0],
+    [null,"Abaixo do solo (m²)",c=>c.ac_abaixo,0],
+    [null,"Pisos elevados",c=>c.pisos_acima,0],
+    [null,"Pisos enterrados",c=>c.pisos_enterrados,0],
+    [null,"Área implantação (m²)",c=>c.area_implantacao,0],
+    [null,"Área do lote (m²)",c=>c.area_lote,0],
+    [null,"Estacionamento (lug.)",c=>c.estacionamento,0],
+    ["CUSTO","Custo total (€)",c=>c._total,0],
+    [null,"€/m² ABC",c=>c._total&&c.gfa?c._total/c.gfa:null,0],
+    [null,"€/fogo",c=>c._total&&c.fogos?c._total/c.fogos:null,0],
+    ["QUANTIDADES FÍSICAS","Escavação (m³)",c=>mq(c,"Escava","m³"),0],
+    [null,"Betão e estruturas (m³)",c=>mq(c,"Betão","m³"),0],
+    [null,"Fachada / ETICS (m²)",c=>mq(c,"Fachada","m²")||mq(c,"ETICS","m²"),0],
+    [null,"Cerâmicos (m²)",c=>mq(c,"Cerâmic","m²"),0],
+    [null,"Rev. pavimentos (m²)",c=>mq(c,"Revestimentos de pav","m²"),0],
+    [null,"Carpintarias (un)",c=>mq(c,"Carpint","un"),0],
+    ["RÁCIOS FÍSICOS","Escavação / m² implantação",c=>{const e=mq(c,"Escava","m³");return e&&c.area_implantacao?e/c.area_implantacao:null},2],
+    [null,"Betão / m² ABC",c=>{const b=mq(c,"Betão","m³");return b&&c.gfa?b/c.gfa:null},3],
+    [null,"Fachada / m² ABC",c=>{const f=mq(c,"Fachada","m²")||mq(c,"ETICS","m²");return f&&c.gfa?f/c.gfa:null},3],
+    [null,"Rev. pavimentos / m² ABC",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.gfa?x/c.gfa:null},3]
+  ];
+
+  document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}</th>`).join("");
+  const body=document.getElementById('cmpBody');body.innerHTML="";
+  rows.forEach(([sec,label,fn,d])=>{
+    if(sec){
+      const trs=document.createElement('tr');
+      trs.innerHTML=`<td colspan="${cols.length+1}" style="background:#f0f3f8;font-weight:700;color:var(--navy);font-size:11px;letter-spacing:.5px;text-transform:uppercase">${esc(sec)}</td>`;
+      body.appendChild(trs);
+    }
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(label)}</td>`+cols.map(c=>`<td class="num">${num(fn(c),d)}</td>`).join("");
+    body.appendChild(tr);
+  });
 }
 
 /* ================= BIBLIOTECA ================= */
