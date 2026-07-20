@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solive · Orçamentação</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#E62336; --navy:#143A67; --teal:#298893; --grey:#C4C4C4;
+  --ink:#16233a; --bg:#F4F6F9; --card:#ffffff; --line:#E3E8F0;
+  --warn:#D97E00; --ok:#298893; --err:#E62336; --info:#5A6B85;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+header{background:var(--navy);color:#fff;padding:0 28px;display:flex;align-items:center;gap:22px;height:60px;position:sticky;top:0;z-index:50}
+header .brand{font-weight:700;font-size:17px;letter-spacing:.4px}
+header .brand span{color:var(--red)}
+header .sub{font-weight:300;font-size:12.5px;opacity:.75;border-left:1px solid rgba(255,255,255,.25);padding-left:18px}
+.badge{font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;background:rgba(255,255,255,.15);letter-spacing:.3px}
+.badge.on{background:var(--teal)}
+nav{margin-left:auto;display:flex;gap:4px}
+nav button{background:none;border:none;color:#fff;opacity:.7;font:inherit;font-weight:500;padding:8px 14px;cursor:pointer;border-radius:6px}
+nav button:hover{opacity:1;background:rgba(255,255,255,.08)}
+nav button.on{opacity:1;background:rgba(230,35,54,.9)}
+main{max-width:1280px;margin:0 auto;padding:26px 28px 80px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:18px}
+.card h2{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.card .hint{color:#69788f;font-size:12.5px;margin-bottom:14px}
+.grid{display:grid;gap:14px}
+.g6{grid-template-columns:repeat(6,1fr)}
+label{display:block;font-size:11.5px;font-weight:500;color:#5a6b85;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],textarea{width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font:inherit;background:#fff;color:var(--ink)}
+select{width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 32px 8px 10px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(20,58,103,.35);outline-offset:0}
+.btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:7px;padding:9px 18px;font:inherit;font-weight:500;cursor:pointer;color:#fff}
+.btn.red{background:var(--red)} .btn.red:hover{background:#c91d2e}
+.btn.navy{background:var(--navy)} .btn.navy:hover{background:#0f2d52}
+.btn.teal{background:var(--teal)} .btn.teal:hover{background:#20707a}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--navy)}
+.btn.ghost:hover{border-color:var(--navy)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.drop{border:2px dashed var(--grey);border-radius:10px;padding:34px;text-align:center;color:#69788f;cursor:pointer;transition:.15s}
+.drop.over,.drop:hover{border-color:var(--red);background:#fdf3f4}
+.drop b{color:var(--navy)}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.pill{border:1px solid var(--line);border-radius:20px;padding:5px 13px;font-size:12.5px;background:#fff;cursor:pointer;color:var(--ink)}
+.pill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:6px 0 4px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi .v{font-size:24px;font-weight:700;color:var(--navy);font-family:'Roboto Mono',monospace}
+.kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#69788f;margin-top:3px}
+.kpi.err .v{color:var(--err)} .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
+.sevchip{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.3px}
+.sev-erro{background:#fbe5e8;color:var(--err)}
+.sev-aviso{background:#fdf1df;color:var(--warn)}
+.sev-info{background:#e9eef6;color:var(--info)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f0f3f8;color:var(--navy);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:2px solid var(--line);position:sticky;top:60px}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#f8fafc}
+td.mono,.mono{font-family:'Roboto Mono',monospace;font-size:12px}
+td.num{text-align:right;font-family:'Roboto Mono',monospace}
+.riskbar{display:flex;height:10px;border-radius:5px;overflow:hidden;min-width:110px;background:#eef1f6}
+.riskbar div{height:100%}
+.rb-ok{background:var(--teal)} .rb-mid{background:#E9B44C} .rb-bad{background:var(--red)}
+.legend{display:flex;gap:16px;font-size:12px;color:#5a6b85;margin:8px 0 14px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.fcomment{width:100%;border:1px solid transparent;background:transparent;font:inherit;font-size:12.5px;padding:4px 6px;border-radius:5px;resize:vertical;min-height:28px}
+.fcomment:hover{border-color:var(--line);background:#fff}
+.fcomment:focus{border-color:var(--navy);background:#fff}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
+.filters>div{min-width:160px}
+.empty{padding:40px;text-align:center;color:#8794a8}
+.tag{font-size:11px;background:#eef1f6;color:var(--navy);border-radius:5px;padding:2px 7px;margin-left:6px;font-weight:500}
+.step{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.step .n{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.hidden{display:none !important}
+.note{background:#eef6f7;border-left:3px solid var(--teal);padding:10px 14px;border-radius:0 7px 7px 0;font-size:12.5px;color:#2b4a52;margin-top:12px}
+.note.red{background:#fdf0f1;border-left-color:var(--red);color:#6b2b32}
+footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-size:12px}
+.overlay{position:fixed;inset:0;background:rgba(20,58,103,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:12px;padding:28px;width:100%;max-width:460px}
+.modal.wide{max-width:1000px;max-height:88vh;overflow:auto}
+.modal h3{color:var(--navy);font-size:17px;margin-bottom:4px}
+.modal .hint{color:#69788f;font-size:12.5px;margin-bottom:16px}
+.preview{overflow:auto;border:1px solid var(--line);border-radius:8px;margin:12px 0;max-height:280px}
+.preview table{font-size:11.5px}
+.preview th{position:static;padding:5px 8px}
+.preview td{padding:4px 8px;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.preview tr.hl td{background:#fdf3f4}
+.err-line{color:var(--err);font-size:12.5px;margin-top:10px;min-height:16px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 22px;border-radius:8px;font-size:13px;z-index:300;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+@media(max-width:900px){.g6{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}main{padding:16px}header .sub{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">SOLIVE<span>.</span></div>
+  <div class="sub">Plataforma de Orçamentação</div>
+  <span class="badge" id="connBadge">Modo local</span>
+  <nav>
+    <button id="nav-analisador" class="on" onclick="showView('analisador')">Analisador</button>
+    <button id="nav-fecho" onclick="showView('fecho')">Fecho de Obra</button>
+    <button id="nav-biblioteca" onclick="showView('biblioteca')">Biblioteca</button>
+    <button id="btnLogout" class="hidden" onclick="logout()" title="Terminar sessão">Sair</button>
+  </nav>
+</header>
+
+<!-- LOGIN -->
+<div class="overlay hidden" id="loginOverlay">
+  <div class="modal">
+    <h3>SOLIVE<span style="color:var(--red)">.</span> Orçamentação</h3>
+    <div class="hint">Inicia sessão para aceder à biblioteca de rácios.</div>
+    <label>Email</label><input type="email" id="loginEmail" autocomplete="username">
+    <label style="margin-top:12px">Palavra-passe</label><input type="password" id="loginPass" autocomplete="current-password">
+    <div class="err-line" id="loginErr"></div>
+    <button class="btn red" style="width:100%;justify-content:center;margin-top:8px" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- MAPEADOR MANUAL DE COLUNAS -->
+<div class="overlay hidden" id="mapOverlay">
+  <div class="modal wide">
+    <h3>Mapear colunas do mapa de quantidades</h3>
+    <div class="hint">Indica onde estão o cabeçalho e cada campo. Podes guardar este padrão associado ao gabinete de arquitetura — na próxima entrega do mesmo gabinete, a plataforma aplica-o automaticamente.</div>
+    <div class="grid g6">
+      <div><label>Linha do cabeçalho</label><select id="mRow"></select></div>
+      <div><label>Código</label><select id="mCode"></select></div>
+      <div style="grid-column:span 2"><label>Designação dos trabalhos</label><select id="mDesc"></select></div>
+      <div><label>Unidade</label><select id="mUn"></select></div>
+      <div><label>Quantidade</label><select id="mQt"></select></div>
+    </div>
+    <div class="grid g6" style="margin-top:12px">
+      <div style="grid-column:span 2"><label>Quantidade (revisão, opcional)</label><select id="mQtRev"></select></div>
+      <div style="grid-column:span 3"><label>Gabinete / padrão (para memorizar)</label><input type="text" id="mGab" placeholder="Ex.: Atelier XYZ"></div>
+    </div>
+    <div class="preview"><table id="mPreview"></table></div>
+    <div class="err-line" id="mErr"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+      <button class="btn ghost" onclick="closeMapper()">Cancelar</button>
+      <button class="btn navy" onclick="applyMapper(false)">Aplicar</button>
+      <button class="btn red" id="mSaveBtn" onclick="applyMapper(true)">Aplicar e memorizar padrão</button>
+    </div>
+  </div>
+</div>
+
+<main>
+<!-- ===================== VISTA: ANALISADOR ===================== -->
+<div id="view-analisador">
+  <div class="card">
+    <div class="step"><div class="n">1</div><h2>Projeto e métricas</h2></div>
+    <div class="hint">As métricas ativam os testes de rácio contra o histórico. Podem ficar em branco — os restantes testes correm na mesma.</div>
+    <div class="grid g6">
+      <div style="grid-column:span 2"><label>Nome do projeto</label><input type="text" id="pNome" list="projList" placeholder="Ex.: Projeto X"><datalist id="projList"></datalist></div>
+      <div><label>GFA (m²)</label><input type="number" id="pGFA" placeholder="4552"></div>
+      <div><label>GCA AG (m²)</label><input type="number" id="pGCA" placeholder="2882.6"></div>
+      <div><label>Nº de fogos</label><input type="number" id="pFogos" placeholder="30"></div>
+      <div><label>Fase</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step"><div class="n">2</div><h2>Mapa de quantidades</h2></div>
+    <div class="hint">Excel (.xlsx) com código, designação dos trabalhos, unidade e quantidade. A deteção do formato é automática; se o layout do gabinete for atípico, usa o mapeador manual.</div>
+    <div class="drop" id="drop">Larga aqui o ficheiro <b>.xlsx</b> ou clica para escolher</div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden">
+    <div id="sheetPick" class="hidden">
+      <label style="margin-top:14px">Folha a analisar</label>
+      <div class="pills" id="sheetPills"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn red" onclick="runAnalysis()">Analisar mapa de quantidades</button>
+        <button class="btn ghost" onclick="openMapper()">Mapear colunas manualmente</button>
+      </div>
+      <div class="note hidden" id="mapNote"></div>
+    </div>
+  </div>
+
+  <div id="results" class="hidden">
+    <div class="card">
+      <div class="step"><div class="n">3</div><h2>Resultado da análise <span class="tag" id="rFicheiro"></span></h2></div>
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="kArtigos">0</div><div class="l">Artigos medidos</div></div>
+        <div class="kpi"><div class="v" id="kCaps">0</div><div class="l">Capítulos detetados</div></div>
+        <div class="kpi err"><div class="v" id="kErros">0</div><div class="l">Erros</div></div>
+        <div class="kpi warn"><div class="v" id="kAvisos">0</div><div class="l">Avisos</div></div>
+        <div class="kpi ok"><div class="v" id="kInfo">0</div><div class="l">Notas</div></div>
+      </div>
+      <div class="note" id="capsFalta"></div>
+    </div>
+
+    <div class="card">
+      <h2>Alertas e comentários para a equipa projetista</h2>
+      <div class="hint">Edita o comentário de cada linha antes de exportar — o texto pré-preenchido é uma sugestão.</div>
+      <div class="filters">
+        <div><label>Severidade</label><select id="fSev" onchange="renderFindings()"><option value="">Todas</option><option value="erro">Erro</option><option value="aviso">Aviso</option><option value="info">Nota</option></select></div>
+        <div><label>Tipo de teste</label><select id="fTipo" onchange="renderFindings()"><option value="">Todos</option></select></div>
+        <div><label>Capítulo</label><select id="fCap" onchange="renderFindings()"><option value="">Todos</option></select></div>
+        <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn teal hidden" id="btnGravarAnalise" onclick="saveAnalysis()">Gravar na biblioteca</button>
+          <button class="btn ghost" onclick="exportJSON()">Guardar análise (.json)</button>
+          <button class="btn navy" onclick="exportComentarios()">Exportar comentários (.xlsx)</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th style="width:70px">Código</th><th>Descrição</th><th style="width:56px">Un</th>
+          <th style="width:80px;text-align:right">Qt.</th><th style="width:150px">Capítulo</th>
+          <th style="width:170px">Teste</th><th style="width:72px">Sev.</th><th style="width:280px">Comentário</th>
+        </tr></thead>
+        <tbody id="tbFindings"></tbody>
+      </table>
+      </div>
+      <div class="empty hidden" id="noFindings">Sem alertas para os filtros selecionados.</div>
+    </div>
+
+    <div class="card">
+      <h2>Verificação de rácios vs. histórico</h2>
+      <div class="hint">Quantidades agregadas por capítulo comparadas com os rácios do L'Urbain (normalizados por GFA). Desvios acima de ±50% geram aviso.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Capítulo</th><th style="width:56px">Un</th><th style="text-align:right">Qt. no MQ</th><th style="text-align:right">Rácio MQ /m² GFA</th><th style="text-align:right">Rácio L'Urbain /m² GFA</th><th style="text-align:right">Desvio</th></tr></thead>
+        <tbody id="tbRatios"></tbody>
+      </table>
+      </div>
+      <div class="empty hidden" id="noRatios">Introduz o GFA do projeto (passo 1) para ativar a verificação de rácios.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== VISTA: FECHO DE OBRA ===================== -->
+<div id="view-fecho" class="hidden">
+  <div class="card">
+    <div class="step"><div class="n">1</div><h2>Projeto</h2></div>
+    <div class="hint">Os valores reais por capítulo vêm da equipa de obra. Gera o modelo, envia aos colegas da produção, e importa o ficheiro devolvido — a plataforma calcula os desvios face ao orçamento e passa os rácios reais para a biblioteca.</div>
+    <div class="grid g6">
+      <div style="grid-column:span 3"><label>Projeto</label><select id="foProjeto"></select></div>
+      <div><label>Data de fecho</label><input type="date" id="foData"></div>
+      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="genModelo()">Descarregar modelo para a equipa de obra (.xlsx)</button></div>
+    </div>
+    <div class="note" id="foOffline" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card">
+    <div class="step"><div class="n">2</div><h2>Importar conta final da obra</h2></div>
+    <div class="hint">Carrega o modelo devolvido pela equipa de obra (folha "Fecho de Obra"). Também aceita mapas próprios da obra desde que tenham colunas de capítulo e total — a plataforma tenta mapear os capítulos para a estrutura standard.</div>
+    <div class="drop" id="foDrop">Larga aqui o ficheiro <b>.xlsx</b> da obra ou clica para escolher</div>
+    <input type="file" id="foFile" accept=".xlsx,.xls" class="hidden">
+  </div>
+
+  <div class="card hidden" id="foPreviewCard">
+    <div class="step"><div class="n">3</div><h2>Conferir e gravar <span class="tag" id="foFich"></span></h2></div>
+    <div class="hint">Confere o mapeamento e os totais antes de gravar. Podes corrigir qualquer valor diretamente na tabela.</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Capítulo (ficheiro da obra)</th><th>Capítulo standard</th><th style="text-align:right;width:150px">Total real (€)</th><th>Comentário da obra</th></tr></thead>
+      <tbody id="tbFoPrev"></tbody>
+    </table>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+      <div style="margin-right:auto;font-weight:700;color:var(--navy)">Total: <span class="mono" id="foTotal">—</span></div>
+      <button class="btn red" id="btnGravarReal" onclick="saveReal()">Gravar fase Real na biblioteca</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="foDesvCard">
+    <h2>Desvios — orçamento vs. real <span class="tag" id="foDesvTag"></span></h2>
+    <div class="hint">Comparação por capítulo entre a fase de orçamento mais recente e os valores reais da obra.</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² GFA</th></tr></thead>
+      <tbody id="tbDesvios"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== VISTA: BIBLIOTECA ===================== -->
+<div id="view-biblioteca" class="hidden">
+  <div class="card">
+    <h2>Biblioteca de rácios de custo</h2>
+    <div class="hint" id="libHint"></div>
+    <div class="filters">
+      <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
+      <div style="min-width:200px"><label>Fase</label><select id="libFase" onchange="renderLibFase()"></select></div>
+    </div>
+    <div class="legend" id="libLegend">
+      <span><i style="background:var(--teal)"></i>Proposta recebida</span>
+      <span><i style="background:#E9B44C"></i>Proposta &lt; 2 anos</span>
+      <span><i style="background:var(--red)"></i>Sem fonte de preço</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Capítulo</th><th style="text-align:right">Total (€)</th><th style="text-align:right">€/m² GFA</th><th style="text-align:right">€/m² GCA</th><th style="text-align:right">€/fogo</th><th style="width:130px" id="thLast">Fiabilidade da fonte</th></tr></thead>
+      <tbody id="tbLib"></tbody>
+    </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Rácios de quantidades — Arquitetura (L'Urbain, BOQ-Arq REV_01)</h2>
+    <div class="hint">Quantidades agregadas por capítulo e unidade, normalizadas por m² de GFA e por fogo. São as referências usadas pelo analisador.</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Capítulo (arquitetura)</th><th style="width:60px">Un</th><th style="text-align:right">Quantidade</th><th style="text-align:right">/m² GFA</th><th style="text-align:right">/fogo</th></tr></thead>
+      <tbody id="tbLibQty"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+</main>
+<footer>Solive · Plataforma de Orçamentação v2.0 · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive.</footer>
+
+<script>
+/* ================= CONFIGURAÇÃO SUPABASE =================
+   Preencher após criar o projeto em supabase.com e correr o supabase_setup.sql */
+const SUPA = { url: "https://jzkyrsiylrpkgewuuexb.supabase.co", key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6a3lyc2l5bHJwa2dld3V1ZXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1Mjk2MjcsImV4cCI6MjEwMDEwNTYyN30.R4oHPXsicqS37hNjjdgWTVgsmU31hzT0VoNj4IYeLfY" };
+
+/* ================= REFERÊNCIA L'URBAIN (embutida) ================= */
+const REF = {
+ projeto:"L'Urbain", gfa:4552, gca:2882.6, fogos:30,
+ capitulos:[
+  {cap:"ESTALEIRO",total:1019750.12,r:[0,0,1019750.12]},
+  {cap:"ESTABILIDADE",total:765409.09,r:[523025.72,144389.71,97993.66]},
+  {cap:"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",total:383331.08,r:[348944.63,27460.44,6926]},
+  {cap:"COBERTURAS",total:18991.98,r:[0,0,18991.98]},
+  {cap:"IMPERMEABILIZAÇÕES E ISOLAMENTOS",total:66377.63,r:[30520.66,26388,9468.97]},
+  {cap:"ALVENARIAS",total:63302.91,r:[0,63302.91,0]},
+  {cap:"PEDRA",total:0,r:[0,0,0]},
+  {cap:"ETICS",total:77773.88,r:[64907.19,0,12866.69]},
+  {cap:"ARGAMASSAS",total:62156.95,r:[0,62156.95,0]},
+  {cap:"CERÂMICOS",total:71892.68,r:[27558.21,44334.47,0]},
+  {cap:"GESSO CARTONADO",total:307166.54,r:[302166.54,0,5000]},
+  {cap:"BETONILHAS",total:42116.8,r:[38023.71,0,4093.09]},
+  {cap:"PAVIMENTOS DIVERSOS",total:61155.47,r:[51283.3,6494.39,3377.78]},
+  {cap:"PINTURAS",total:80601.23,r:[76501.23,0,4100]},
+  {cap:"CANTARIAS",total:10803.69,r:[0,10803.69,0]},
+  {cap:"SERRALHARIAS",total:127830.6,r:[0,0,127830.6]},
+  {cap:"VÃOS",total:261788.2,r:[145223.37,111564.83,5000]},
+  {cap:"CARPINTARIAS",total:193368.21,r:[2987.32,190140.89,240]},
+  {cap:"EQUIPAMENTOS SANITÁRIOS",total:116884.3,r:[0,30553.4,86330.9]},
+  {cap:"COZINHAS",total:306736.15,r:[306736.15,0,0]},
+  {cap:"PISCINA",total:0,r:[0,0,0]},
+  {cap:"ELEVADORES",total:71400,r:[70800,0,600]},
+  {cap:"REDE DE ESGOTOS",total:134285.51,r:[98798.94,0,35486.56]},
+  {cap:"REDE DE ÁGUAS",total:102870.73,r:[92750.28,0,10120.45]},
+  {cap:"REDE DE ÁGUAS PLUVIAIS",total:0,r:[0,0,0]},
+  {cap:"REDE DE GÁS",total:0,r:[0,0,0]},
+  {cap:"ELETRICIDADE E ILUMINAÇÃO",total:337555,r:[0,0,337555]},
+  {cap:"SEGURANÇA INTEGRADA",total:36886.4,r:[0,0,36886.4]},
+  {cap:"ITED",total:53535.3,r:[0,0,53535.3]},
+  {cap:"SCIE",total:14650,r:[0,0,14650]},
+  {cap:"AVAC",total:605381.83,r:[602791.83,0,2590]},
+  {cap:"PAISAGISMO",total:54919.38,r:[29060.78,0,25858.6]},
+  {cap:"DIVERSOS",total:53173.54,r:[10664,37979.54,4530]}
+ ],
+ qty:{
+  "CANTARIAS":{"m":317.14},"CARPINTARIAS":{"un":138},"COBERTURAS":{"m":124.86,"m²":317.17},
+  "DIVERSOS":{"m":59.86,"m²":282.84,"un":590},"EQUIPAMENTOS SANITÁRIOS":{"un":643},
+  "IMPERMEABILIZAÇÕES E ISOLAMENTOS":{"m":103.96,"m²":4670.56},"PAREDES":{"m":221.16,"m²":6927.38},
+  "PINTURAS":{"m":87.1,"m²":10684.5,"un":353},"REVESTIMENTOS DE PAREDES":{"m":630.5,"m²":5534.35},
+  "REVESTIMENTOS DE PAVIMENTOS":{"m":2583.4,"m²":6828.22},"REVESTIMENTOS DE TECTOS":{"m²":2950.32},
+  "SERRALHARIAS":{"m":538.12,"un":13},"VÃOS":{"un":325}
+ }
+};
+const CAPS33 = REF.capitulos.map(c=>c.cap);
+const CAPS_ESPERADOS = ["COBERTURAS","IMPERMEABILIZAÇÕES E ISOLAMENTOS","PAREDES","REVESTIMENTOS DE PAREDES","REVESTIMENTOS DE PAVIMENTOS","REVESTIMENTOS DE TECTOS","PINTURAS","CANTARIAS","SERRALHARIAS","VÃOS","CARPINTARIAS","EQUIPAMENTOS SANITÁRIOS","COZINHAS","DIVERSOS"];
+
+const CAP_MAP = [
+ [/ESTALEIRO/,"ESTALEIRO"],[/ESTABILIDADE|\bESTRUTURAS?\b|BET[ÃA]O ARMADO/,"ESTABILIDADE"],
+ [/MOVIMENTO DE TERRAS|CONTEN[ÇC][ÃA]O|ESCAVA/,"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA"],
+ [/COBERTURA/,"COBERTURAS"],[/IMPERMEABILIZA|ISOLAMENTO/,"IMPERMEABILIZAÇÕES E ISOLAMENTOS"],
+ [/ALVENARIA/,"ALVENARIAS"],[/REVESTIMENTOS? DE PAREDES/,"REVESTIMENTOS DE PAREDES"],[/^PAREDES/,"PAREDES"],[/PEDRA/,"PEDRA"],[/ETICS|CAPOTO/,"ETICS"],
+ [/ARGAMASSA|REBOCO/,"ARGAMASSAS"],[/CER[ÂA]MICO/,"CERÂMICOS"],[/GESSO CARTONADO|PLADUR/,"GESSO CARTONADO"],
+ [/BETONILHA/,"BETONILHAS"],[/PAVIMENTOS DIVERSOS/,"PAVIMENTOS DIVERSOS"],
+ [/REVESTIMENTOS? DE PAVIMENTOS/,"REVESTIMENTOS DE PAVIMENTOS"],
+ [/REVESTIMENTOS? DE TE[CT]TOS/,"REVESTIMENTOS DE TECTOS"],
+ [/PINTURA/,"PINTURAS"],[/CANTARIA/,"CANTARIAS"],[/SERRALHARIA/,"SERRALHARIAS"],
+ [/V[ÃA]OS|CAIXILHARIA/,"VÃOS"],[/CARPINTARIA/,"CARPINTARIAS"],
+ [/SANIT[ÁA]RIO/,"EQUIPAMENTOS SANITÁRIOS"],[/COZINHA/,"COZINHAS"],[/PISCINA/,"PISCINA"],
+ [/ELEVADOR/,"ELEVADORES"],[/ESGOTO/,"REDE DE ESGOTOS"],[/PLUVIA/,"REDE DE ÁGUAS PLUVIAIS"],
+ [/REDE DE [ÁA]GUAS|ABASTECIMENTO DE [ÁA]GUA/,"REDE DE ÁGUAS"],[/REDE DE G[ÁA]S|\bG[ÁA]S\b/,"REDE DE GÁS"],
+ [/ELE[CT]TRICIDADE|ILUMINA/,"ELETRICIDADE E ILUMINAÇÃO"],[/SEGURAN[ÇC]A/,"SEGURANÇA INTEGRADA"],
+ [/ITED|TELECOM/,"ITED"],[/SCIE|INC[ÊE]NDIO/,"SCIE"],[/AVAC|CLIMATIZA|VENTILA/,"AVAC"],
+ [/PAISAGISMO|ARRANJOS EXTERIORES/,"PAISAGISMO"],[/DIVERSOS/,"DIVERSOS"]
+];
+
+const UNIT_RULES = [
+ {re:/impermeabiliza[çc][ãa]o|pintura de paredes|pintura de te[ct]|reboco|betonilha|gesso cartonado|assentamento de mosaico|revestimento cer[âa]mico|isolamento t[ée]rmico|lajeta|lajes? flutuante/i, skip:/pontos|zonas singulares|caleira|rufo|remate|refor[çc]o/i, esperado:["m²","m2"], msg:"trabalho medido em área"},
+ {re:/\brufo|rodap[ée]|caleira|perfil met|calha|tubo de queda|junta de dilata|remate linear|corrim[ãa]o/i, esperado:["m","ml"], msg:"trabalho de natureza linear"},
+ {re:/\bporta\b|\bjanela\b|caixilho|arm[áa]rio|bancada|louça|sanita|lavat[óo]rio|banheira|base de duche|luminária|equipamento|aparelho|exaustor|forno|frigor[íi]fico|placa de indu/i, esperado:["un","und","uni","vg","cj"], msg:"elemento contável"}
+];
+
+/* ================= ESTADO ================= */
+let workbook=null, wbName="", chosenSheet=null;
+let ITENS=[], FINDINGS=[], RATIOS=[];
+let MANUAL_H=null, MAPPINGS=[];
+let sb=null, SESSION=null;
+let PROJETOS=[], FO_ROWS=[], FO_PROJ=null;
+
+const online=()=>!!(SUPA.url&&SUPA.key);
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
+
+/* ================= NAVEGAÇÃO ================= */
+function showView(v){
+  ['analisador','fecho','biblioteca'].forEach(x=>{
+    document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
+    document.getElementById('nav-'+x).classList.toggle('on', v===x);
+  });
+  if(v==='biblioteca') refreshLib();
+  if(v==='fecho') refreshFecho();
+}
+
+/* ================= AUTENTICAÇÃO ================= */
+async function initSupa(){
+  const badge=document.getElementById('connBadge');
+  if(!online()){
+    badge.textContent="Modo local";
+    document.getElementById('btnGravarAnalise').classList.add('hidden');
+    return;
+  }
+  sb=window.supabase.createClient(SUPA.url,SUPA.key);
+  const {data}=await sb.auth.getSession();
+  SESSION=data.session;
+  if(!SESSION){document.getElementById('loginOverlay').classList.remove('hidden');}
+  else afterLogin();
+}
+async function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginErr'); err.textContent="";
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){err.textContent="Credenciais inválidas. Verifica o email e a palavra-passe.";return}
+  SESSION=data.session;
+  document.getElementById('loginOverlay').classList.add('hidden');
+  afterLogin();
+}
+async function logout(){await sb.auth.signOut();location.reload()}
+async function afterLogin(){
+  const badge=document.getElementById('connBadge');
+  badge.textContent="Ligado · "+(SESSION.user.email||"");
+  badge.classList.add('on');
+  document.getElementById('btnLogout').classList.remove('hidden');
+  document.getElementById('btnGravarAnalise').classList.remove('hidden');
+  await loadProjetos(); await loadMappings();
+}
+async function loadProjetos(){
+  const {data,error}=await sb.from('projetos').select('*').order('nome');
+  if(error){console.error(error);return}
+  PROJETOS=data||[];
+  document.getElementById('projList').innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+}
+async function loadMappings(){
+  const {data}=await sb.from('mapeamentos').select('*');
+  MAPPINGS=data||[];
+}
+
+/* ================= UPLOAD (analisador) ================= */
+const drop=document.getElementById('drop'), fi=document.getElementById('fileInput');
+drop.onclick=()=>fi.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
+drop.ondragleave=()=>drop.classList.remove('over');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])};
+fi.onchange=()=>{if(fi.files[0])loadFile(fi.files[0])};
+
+function loadFile(f){
+  wbName=f.name; MANUAL_H=null;
+  document.getElementById('mapNote').classList.add('hidden');
+  const r=new FileReader();
+  r.onload=e=>{
+    try{ workbook=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){alert("Não foi possível ler o ficheiro. Confirma que é um .xlsx válido.");return}
+    drop.innerHTML="Ficheiro carregado: <b>"+esc(wbName)+"</b> — clica para trocar";
+    const pills=document.getElementById('sheetPills');
+    pills.innerHTML="";
+    const names=workbook.SheetNames.slice();
+    names.forEach(n=>{
+      const b=document.createElement('button');
+      b.className='pill'; b.textContent=n;
+      b.onclick=()=>{chosenSheet=n;MANUAL_H=null;tryStoredMapping();[...pills.children].forEach(c=>c.classList.remove('on'));b.classList.add('on')};
+      pills.appendChild(b);
+    });
+    const guess=names.find(n=>/boq|mapa|mq|quantidades/i.test(n))||names[0];
+    chosenSheet=guess;
+    [...pills.children].forEach(c=>{if(c.textContent===guess)c.classList.add('on')});
+    document.getElementById('sheetPick').classList.remove('hidden');
+    tryStoredMapping();
+  };
+  r.readAsArrayBuffer(f);
+}
+
+/* aplica automaticamente um padrão memorizado, se corresponder */
+function tryStoredMapping(){
+  if(!MAPPINGS.length||!workbook||!chosenSheet) return;
+  const rows=sheetRows();
+  for(const m of MAPPINGS){
+    const a=m.assinatura; if(!a||a.row==null) continue;
+    const r=rows[a.row]||[];
+    const okDesc=norm(r[a.desc]||"")===norm(a.txtDesc||"");
+    const okUn=norm(r[a.un]||"")===norm(a.txtUn||"");
+    if(okDesc&&okUn&&a.txtDesc){
+      MANUAL_H={row:a.row,code:a.code,desc:a.desc,un:a.un,qt:a.qt,qcols:a.qcols||[a.qt]};
+      const n=document.getElementById('mapNote');
+      n.classList.remove('hidden');
+      n.innerHTML="Padrão de colunas do gabinete <b>"+esc(m.gabinete)+"</b> aplicado automaticamente.";
+      return;
+    }
+  }
+}
+
+/* ================= MAPEADOR MANUAL ================= */
+function sheetRows(){return XLSX.utils.sheet_to_json(workbook.Sheets[chosenSheet],{header:1,raw:true,defval:null})}
+function colName(i){let s="";i++;while(i>0){s=String.fromCharCode(65+(i-1)%26)+s;i=Math.floor((i-1)/26)}return s}
+
+function openMapper(){
+  if(!workbook||!chosenSheet){alert("Carrega primeiro o ficheiro do mapa de quantidades.");return}
+  const rows=sheetRows();
+  const ncols=Math.min(14,Math.max(...rows.slice(0,30).map(r=>(r||[]).length),1));
+  const auto=detectHeader(rows);
+  const hr=auto?auto.row:0;
+  const selRow=document.getElementById('mRow');
+  selRow.innerHTML=rows.slice(0,30).map((r,i)=>{
+    const t=(r||[]).filter(x=>x!=null).slice(0,4).join(" · ").slice(0,60);
+    return `<option value="${i}" ${i===hr?'selected':''}>Linha ${i+1} — ${esc(t||'(vazia)')}</option>`;
+  }).join("");
+  const colOpts=(sel,extra)=>{
+    const r=rows[+selRow.value]||[];
+    let h=extra?`<option value="-1">— não existe —</option>`:"";
+    for(let j=0;j<ncols;j++) h+=`<option value="${j}" ${sel===j?'selected':''}>${colName(j)} — ${esc(String(r[j]??'').slice(0,24))}</option>`;
+    return h;
+  };
+  const fill=()=>{
+    document.getElementById('mCode').innerHTML=colOpts(auto?auto.code:0);
+    document.getElementById('mDesc').innerHTML=colOpts(auto?auto.desc:1);
+    document.getElementById('mUn').innerHTML=colOpts(auto?auto.un:2);
+    document.getElementById('mQt').innerHTML=colOpts(auto?auto.qt:3);
+    document.getElementById('mQtRev').innerHTML=colOpts(auto&&auto.qcols.length>1?auto.qcols[auto.qcols.length-1]:-1,true);
+    renderMapPreview(rows,ncols);
+  };
+  selRow.onchange=fill; fill();
+  document.getElementById('mSaveBtn').classList.toggle('hidden',!online()||!SESSION);
+  document.getElementById('mErr').textContent="";
+  document.getElementById('mapOverlay').classList.remove('hidden');
+}
+function renderMapPreview(rows,ncols){
+  const hr=+document.getElementById('mRow').value;
+  const t=document.getElementById('mPreview');
+  let h="<tr><th></th>"; for(let j=0;j<ncols;j++)h+="<th>"+colName(j)+"</th>"; h+="</tr>";
+  const from=Math.max(0,hr-1);
+  rows.slice(from,from+12).forEach((r,k)=>{
+    const i=from+k;
+    h+=`<tr class="${i===hr?'hl':''}"><td class="mono">${i+1}</td>`;
+    for(let j=0;j<ncols;j++)h+=`<td>${esc(String((r||[])[j]??''))}</td>`;
+    h+="</tr>";
+  });
+  t.innerHTML=h;
+}
+function closeMapper(){document.getElementById('mapOverlay').classList.add('hidden')}
+async function applyMapper(save){
+  const row=+document.getElementById('mRow').value;
+  const code=+document.getElementById('mCode').value, desc=+document.getElementById('mDesc').value;
+  const un=+document.getElementById('mUn').value, qt=+document.getElementById('mQt').value;
+  const qrev=+document.getElementById('mQtRev').value;
+  if(desc===un||desc===qt||un===qt){document.getElementById('mErr').textContent="As colunas de designação, unidade e quantidade têm de ser diferentes.";return}
+  const qcols=qrev>=0?[qt,qrev]:[qt];
+  MANUAL_H={row,code,desc,un,qt,qcols};
+  const rows=sheetRows(); const r=rows[row]||[];
+  if(save){
+    const gab=document.getElementById('mGab').value.trim();
+    if(!gab){document.getElementById('mErr').textContent="Indica o nome do gabinete para memorizar o padrão.";return}
+    const assinatura={row,code,desc,un,qt,qcols,txtDesc:String(r[desc]??''),txtUn:String(r[un]??'')};
+    const {error}=await sb.from('mapeamentos').insert({gabinete:gab,assinatura});
+    if(error){document.getElementById('mErr').textContent="Não foi possível guardar o padrão: "+error.message;return}
+    await loadMappings();
+    toast("Padrão de \""+gab+"\" memorizado.");
+  }
+  closeMapper();
+  const n=document.getElementById('mapNote');
+  n.classList.remove('hidden');
+  n.innerHTML="Mapeamento manual aplicado (cabeçalho na linha "+(row+1)+").";
+}
+
+/* ================= PARSING ================= */
+function norm(s){return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim()}
+function esc(s){const d=document.createElement('div');d.textContent=s==null?"":String(s);return d.innerHTML}
+function fmt(n,d){return n==null||isNaN(n)?"—":Number(n).toLocaleString('pt-PT',{minimumFractionDigits:d??0,maximumFractionDigits:d??2})}
+
+function detectHeader(rows){
+  for(let i=0;i<Math.min(rows.length,40);i++){
+    const cells=(rows[i]||[]).map(norm);
+    const hasDesc=cells.findIndex(c=>/DESIGNACAO|DESCRICAO/.test(c));
+    const hasUn=cells.findIndex(c=>/^UN\b|^UNID/.test(c));
+    const hasQt=cells.findIndex(c=>/QUANT|^QT/.test(c));
+    if(hasDesc>-1&&hasUn>-1&&hasQt>-1){
+      let code=cells.findIndex(c=>/CODIGO|^CAP|^ART|^N\.?º|^ITEM/.test(c));
+      if(code===-1) code=Math.max(0,hasDesc-1);
+      const qcols=[];
+      cells.forEach((c,j)=>{if(/QUANT|^QT|REV/.test(c))qcols.push(j)});
+      return {row:i,code,desc:hasDesc,un:hasUn,qt:hasQt,qcols};
+    }
+  }
+  return null;
+}
+
+function mapCapitulo(txt){
+  const t=norm(txt);
+  for(const [re,cap] of CAP_MAP){ if(re.test(t)) return cap; }
+  return null;
+}
+
+function parseSheet(){
+  const rows=sheetRows();
+  const H=MANUAL_H||detectHeader(rows);
+  if(!H) return null;
+  const itens=[]; let curCap=null, curCapRaw=null, curTopMapped=false;
+  for(let i=H.row+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const code=r[H.code]!=null?String(r[H.code]).trim():"";
+    const desc=r[H.desc]!=null?String(r[H.desc]).trim():"";
+    const un=r[H.un]!=null?String(r[H.un]).trim():"";
+    let qt=null;
+    for(let k=H.qcols.length-1;k>=0;k--){const v=r[H.qcols[k]];if(typeof v==='number'){qt=v;break}}
+    if(qt===null){const v=r[H.qt];if(typeof v==='number')qt=v}
+    if(!code&&!desc) continue;
+    if(/^TOTAL/i.test(desc)||/^TOTAL/i.test(code)) continue;
+    const isCapCode=/^(CAP\.?\s*[IVX\d]*|\d{1,2}\.)$/i.test(code);
+    if(isCapCode&&desc&&!un){
+      const m=mapCapitulo(desc);
+      curCapRaw=desc; curCap=m||norm(desc); curTopMapped=!!m;
+      itens.push({tipo:'cap',linha:i+1,code,desc,cap:curCap,capRaw:curCapRaw});
+      continue;
+    }
+    const isSub=/^\d+\.\d+(\.\d+)*$/.test(code)&&!un&&qt===null;
+    if(isSub&&desc){
+      const m=mapCapitulo(desc);
+      if(m&&!curTopMapped){curCap=m;curCapRaw=desc}
+      itens.push({tipo:'sub',linha:i+1,code,desc,cap:curCap,capRaw:curCapRaw});
+      continue;
+    }
+    if(un||qt!==null){
+      itens.push({tipo:'art',linha:i+1,code,desc,un,qt,cap:curCap,capRaw:curCapRaw});
+    }
+  }
+  return itens;
+}
+
+/* ================= TESTES ================= */
+function runChecks(itens){
+  const F=[]; const arts=itens.filter(x=>x.tipo==='art');
+  const add=(it,tipo,sev,msg,comentario)=>F.push({it,tipo,sev,msg,comentario,incl:true});
+
+  arts.forEach(a=>{
+    if(!a.un) add(a,"Unidade em falta","erro","Artigo medível sem unidade definida.","Favor indicar a unidade de medição deste artigo.");
+    if(a.qt===null) add(a,"Quantidade em falta","erro","Artigo sem quantidade.","Favor indicar a quantidade deste artigo — em falta no MQ.");
+    else if(a.qt===0) add(a,"Quantidade nula","aviso","Quantidade igual a zero.","Quantidade a zero — confirmar se o artigo foi suprimido ou se é omissão de medição.");
+    else if(a.qt<0) add(a,"Quantidade negativa","erro","Quantidade negativa.","Quantidade negativa — corrigir medição.");
+  });
+
+  arts.forEach(a=>{
+    if(/^vg$|^v\.g/i.test(a.un||"")) add(a,"Valor global (vg)","aviso","Artigo em valor global — sem medição verificável.","Artigo em vg: solicitar decomposição em quantidades mensuráveis para permitir consulta ao mercado.");
+  });
+
+  arts.forEach(a=>{
+    if(!a.un||!a.desc) return;
+    const u=norm(a.un).replace("2","²").toLowerCase();
+    for(const rule of UNIT_RULES){
+      if(rule.skip&&rule.skip.test(a.desc)) continue;
+      if(rule.re.test(a.desc)){
+        const ok=rule.esperado.some(e=>u===e||u===e.replace("²","2"));
+        if(!ok) add(a,"Unidade improvável","aviso",`Descrição sugere ${rule.msg} (${rule.esperado[0]}), mas a unidade é "${a.un}".`,`Confirmar unidade de medição: a descrição sugere medição em ${rule.esperado[0]}, mas o MQ indica "${a.un}".`);
+        break;
+      }
+    }
+  });
+
+  const seen={};
+  arts.forEach(a=>{
+    if(!a.desc) return;
+    const key=(a.cap||"")+"|"+norm(a.desc).replace(/\s+/g," ").trim();
+    if(seen[key]) add(a,"Possível duplicado","aviso",`Descrição praticamente igual ao artigo ${seen[key].code} (linha ${seen[key].linha}).`,`Verificar possível duplicação com o artigo ${seen[key].code}.`);
+    else seen[key]=a;
+  });
+
+  arts.forEach(a=>{
+    if(a.qt===null) return;
+    const u=norm(a.un||"").toLowerCase();
+    if((u==="un"||u==="und"||u==="uni")&&Math.abs(a.qt%1)>1e-9)
+      add(a,"Quantidade fracionada","aviso",`Quantidade ${a.qt} com casas decimais em unidades contáveis.`,"Quantidade fracionada em artigo unitário — confirmar medição.");
+    if(a.qt>100000) add(a,"Ordem de grandeza","aviso",`Quantidade invulgarmente elevada (${fmt(a.qt)}).`,"Confirmar ordem de grandeza da quantidade.");
+  });
+
+  const capsPresentes=new Set(arts.map(a=>a.cap).filter(Boolean));
+  const emFalta=CAPS_ESPERADOS.filter(c=>!capsPresentes.has(c));
+
+  RATIOS=[];
+  const gfa=parseFloat(document.getElementById('pGFA').value);
+  if(gfa>0){
+    const agg={};
+    arts.forEach(a=>{
+      if(!a.cap||a.qt===null||!a.un) return;
+      const u=norm(a.un).replace("2","²").toLowerCase();
+      if(u!=="m²"&&u!=="m"&&u!=="un") return;
+      const k=a.cap+"|"+u; agg[k]=(agg[k]||0)+a.qt;
+    });
+    Object.keys(agg).forEach(k=>{
+      const [cap,u]=k.split("|");
+      const refQ=REF.qty[cap]&&REF.qty[cap][u==="un"?"un":u];
+      if(!refQ) return;
+      const rMQ=agg[k]/gfa, rRef=refQ/REF.gfa;
+      const desvio=(rMQ-rRef)/rRef;
+      RATIOS.push({cap,u,q:agg[k],rMQ,rRef,desvio});
+      if(Math.abs(desvio)>0.5){
+        const dir=desvio>0?"acima":"abaixo";
+        add({tipo:'art',code:"—",desc:`Agregado do capítulo ${cap} (${u})`,un:u,qt:agg[k],cap,linha:"—"},
+          "Rácio fora do intervalo","aviso",
+          `${fmt(rMQ,3)} ${u}/m² GFA vs. ${fmt(rRef,3)} no L'Urbain (${fmt(desvio*100,0)}% ${dir}).`,
+          `Quantidade total de ${cap} (${u}) ${fmt(desvio*100,0)}% ${dir} do rácio histórico por m² de GFA — validar medições do capítulo.`);
+      }
+    });
+  }
+  return {F,emFalta};
+}
+
+/* ================= EXECUÇÃO (analisador) ================= */
+function runAnalysis(){
+  if(!workbook||!chosenSheet){alert("Carrega primeiro o ficheiro do mapa de quantidades.");return}
+  const itens=parseSheet();
+  if(!itens){
+    openMapper();
+    document.getElementById('mErr').textContent="Não reconheci automaticamente o cabeçalho desta folha — indica as colunas manualmente.";
+    return;
+  }
+  ITENS=itens;
+  const arts=itens.filter(x=>x.tipo==='art');
+  if(!arts.length){
+    openMapper();
+    document.getElementById('mErr').textContent="Não encontrei artigos medíveis com o mapeamento atual — confirma as colunas.";
+    return;
+  }
+  const caps=[...new Set(arts.map(a=>a.cap).filter(Boolean))];
+  const {F,emFalta}=runChecks(itens);
+  FINDINGS=F;
+
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('rFicheiro').textContent=wbName+" · "+chosenSheet;
+  document.getElementById('kArtigos').textContent=arts.length;
+  document.getElementById('kCaps').textContent=caps.length;
+  document.getElementById('kErros').textContent=F.filter(f=>f.sev==='erro').length;
+  document.getElementById('kAvisos').textContent=F.filter(f=>f.sev==='aviso').length;
+  document.getElementById('kInfo').textContent=F.filter(f=>f.sev==='info').length;
+
+  const cf=document.getElementById('capsFalta');
+  if(emFalta.length){
+    cf.classList.remove('hidden');
+    cf.innerHTML="<b>Capítulos esperados sem artigos neste MQ:</b> "+emFalta.map(esc).join(" · ")+".<br>Se algum for aplicável ao projeto, trata-se de uma omissão a reportar aos projetistas.";
+  } else { cf.classList.add('hidden'); }
+
+  const fT=document.getElementById('fTipo');
+  fT.innerHTML='<option value="">Todos</option>'+[...new Set(F.map(f=>f.tipo))].map(t=>`<option>${esc(t)}</option>`).join("");
+  const fC=document.getElementById('fCap');
+  fC.innerHTML='<option value="">Todos</option>'+caps.map(c=>`<option>${esc(c)}</option>`).join("");
+
+  renderFindings(); renderRatios();
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+
+function renderFindings(){
+  const sev=document.getElementById('fSev').value, tipo=document.getElementById('fTipo').value, cap=document.getElementById('fCap').value;
+  const tb=document.getElementById('tbFindings'); tb.innerHTML="";
+  const rows=FINDINGS.map((f,i)=>({f,i})).filter(({f})=>(!sev||f.sev===sev)&&(!tipo||f.tipo===tipo)&&(!cap||f.it.cap===cap));
+  document.getElementById('noFindings').classList.toggle('hidden',rows.length>0);
+  const sevLabel={erro:"Erro",aviso:"Aviso",info:"Nota"};
+  rows.forEach(({f,i})=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono">${esc(f.it.code||"—")}</td>
+      <td>${esc((f.it.desc||"").slice(0,140))}<div style="color:#8794a8;font-size:11.5px;margin-top:2px">${esc(f.msg)}</div></td>
+      <td class="mono">${esc(f.it.un||"—")}</td>
+      <td class="num">${f.it.qt==null?"—":fmt(f.it.qt)}</td>
+      <td style="font-size:12px">${esc(f.it.cap||f.it.capRaw||"—")}</td>
+      <td style="font-size:12px">${esc(f.tipo)}</td>
+      <td><span class="sevchip sev-${f.sev}">${sevLabel[f.sev]}</span></td>
+      <td><textarea class="fcomment" data-i="${i}">${esc(f.comentario)}</textarea></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.fcomment').forEach(t=>t.addEventListener('input',e=>{FINDINGS[+e.target.dataset.i].comentario=e.target.value}));
+}
+
+function renderRatios(){
+  const tb=document.getElementById('tbRatios'); tb.innerHTML="";
+  document.getElementById('noRatios').classList.toggle('hidden',RATIOS.length>0);
+  RATIOS.sort((a,b)=>Math.abs(b.desvio)-Math.abs(a.desvio)).forEach(r=>{
+    const c=Math.abs(r.desvio)>0.5?"var(--err)":Math.abs(r.desvio)>0.25?"var(--warn)":"var(--ok)";
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.cap)}</td><td class="mono">${esc(r.u)}</td>
+      <td class="num">${fmt(r.q)}</td><td class="num">${fmt(r.rMQ,3)}</td><td class="num">${fmt(r.rRef,3)}</td>
+      <td class="num" style="color:${c};font-weight:700">${r.desvio>0?"+":""}${fmt(r.desvio*100,0)}%</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ================= EXPORTS / GRAVAÇÃO ================= */
+function analysisPayload(){
+  return {
+    plataforma:"Solive Orçamentação v2", exportado:new Date().toISOString(),
+    projeto:{nome:document.getElementById('pNome').value||"Projeto",
+      gfa:+document.getElementById('pGFA').value||null,gca:+document.getElementById('pGCA').value||null,
+      fogos:+document.getElementById('pFogos').value||null,fase:document.getElementById('pFase').value},
+    ficheiro:wbName,folha:chosenSheet,
+    artigos:ITENS.filter(x=>x.tipo==='art'),
+    alertas:FINDINGS.map(f=>({code:f.it.code,desc:f.it.desc,un:f.it.un,qt:f.it.qt,cap:f.it.cap,tipo:f.tipo,sev:f.sev,comentario:f.comentario})),
+    racios:RATIOS
+  };
+}
+function exportComentarios(){
+  if(!FINDINGS.length){alert("Sem alertas para exportar.");return}
+  const nome=document.getElementById('pNome').value||"Projeto";
+  const hdr=["Código","Descrição do artigo","Un","Qt.","Capítulo","Tipo de alerta","Severidade","Comentário para projetista"];
+  const sevLabel={erro:"Erro",aviso:"Aviso",info:"Nota"};
+  const data=FINDINGS.map(f=>[f.it.code||"",f.it.desc||"",f.it.un||"",f.it.qt==null?"":f.it.qt,f.it.cap||f.it.capRaw||"",f.tipo,sevLabel[f.sev],f.comentario||""]);
+  const ws=XLSX.utils.aoa_to_sheet([["SOLIVE — Revisão do Mapa de Quantidades"],["Projeto: "+nome+"   ·   Ficheiro: "+wbName+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],[],hdr,...data]);
+  ws['!cols']=[{wch:10},{wch:70},{wch:6},{wch:10},{wch:26},{wch:22},{wch:10},{wch:70}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Comentários MQ");
+  XLSX.writeFile(wb,("Comentarios_MQ_"+nome).replace(/\s+/g,"_")+".xlsx");
+}
+function exportJSON(){
+  const nome=document.getElementById('pNome').value||"Projeto";
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(analysisPayload(),null,1)],{type:'application/json'}));
+  a.download=("Analise_MQ_"+nome).replace(/\s+/g,"_")+".json"; a.click();
+}
+async function saveAnalysis(){
+  if(!SESSION){toast("Sem sessão ativa.");return}
+  const nome=document.getElementById('pNome').value.trim();
+  if(!nome){alert("Indica o nome do projeto (passo 1) antes de gravar.");return}
+  let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){
+    const {data,error}=await sb.from('projetos').insert({
+      nome, gfa:+document.getElementById('pGFA').value||null, gca:+document.getElementById('pGCA').value||null,
+      fogos:+document.getElementById('pFogos').value||null
+    }).select().single();
+    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    proj=data; await loadProjetos();
+  }
+  const {error}=await sb.from('analises').insert({projeto_id:proj.id,nome,ficheiro:wbName,payload:analysisPayload()});
+  if(error){alert("Erro a gravar a análise: "+error.message);return}
+  toast("Análise gravada na biblioteca — projeto "+proj.nome+".");
+}
+
+/* ================= FECHO DE OBRA ================= */
+const foDrop=document.getElementById('foDrop'), foFi=document.getElementById('foFile');
+foDrop.onclick=()=>foFi.click();
+foDrop.ondragover=e=>{e.preventDefault();foDrop.classList.add('over')};
+foDrop.ondragleave=()=>foDrop.classList.remove('over');
+foDrop.ondrop=e=>{e.preventDefault();foDrop.classList.remove('over');if(e.dataTransfer.files[0])loadFecho(e.dataTransfer.files[0])};
+foFi.onchange=()=>{if(foFi.files[0])loadFecho(foFi.files[0])};
+
+function refreshFecho(){
+  const sel=document.getElementById('foProjeto');
+  const off=document.getElementById('foOffline');
+  if(!online()){off.className='note red';off.textContent="Sem ligação ao Supabase — o fecho de obra só fica disponível depois de configurar a biblioteca (URL e chave no topo do ficheiro).";sel.innerHTML='<option value="">—</option>';return}
+  if(!SESSION){off.className='note red';off.textContent="Inicia sessão para usar o fecho de obra.";return}
+  off.className='note';off.textContent="O modelo gerado contém os 33 capítulos standard — a equipa de obra só preenche o total real e os comentários.";
+  sel.innerHTML=PROJETOS.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join("")||'<option value="">Sem projetos — cria um gravando uma análise</option>';
+}
+function genModelo(){
+  const sel=document.getElementById('foProjeto');
+  const pnome=sel.selectedOptions[0]?sel.selectedOptions[0].textContent:"Projeto";
+  const rows=[["SOLIVE — FECHO DE OBRA · CONTA FINAL POR CAPÍTULO"],["Projeto: "+pnome+"   ·   Preencher pela equipa de obra: total real por capítulo e comentários"],[],["CAPÍTULO","TOTAL REAL (€)","COMENTÁRIOS DA OBRA"]];
+  CAPS33.forEach(c=>rows.push([c,null,null]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:48},{wch:18},{wch:60}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Fecho de Obra");
+  XLSX.writeFile(wb,("Fecho_Obra_"+pnome).replace(/\s+/g,"_")+".xlsx");
+}
+function loadFecho(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    let wb;
+    try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){alert("Não foi possível ler o ficheiro.");return}
+    const sheet=wb.SheetNames.find(n=>/fecho/i.test(n))||wb.SheetNames[0];
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,raw:true,defval:null});
+    // localizar cabeçalho: CAPÍTULO + TOTAL
+    let hr=-1,cCap=-1,cTot=-1,cCom=-1;
+    for(let i=0;i<Math.min(rows.length,20);i++){
+      const cells=(rows[i]||[]).map(norm);
+      const a=cells.findIndex(c=>/CAPITULO|DESIGNACAO|DESCRICAO/.test(c));
+      const b=cells.findIndex(c=>/TOTAL|CUSTO|VALOR/.test(c));
+      if(a>-1&&b>-1){hr=i;cCap=a;cTot=b;cCom=cells.findIndex(c=>/COMENT|OBS/.test(c));break}
+    }
+    if(hr===-1){alert("Não encontrei colunas de capítulo e total no ficheiro. Usa o modelo gerado pela plataforma ou confirma o layout.");return}
+    FO_ROWS=[];
+    for(let i=hr+1;i<rows.length;i++){
+      const r2=rows[i]||[];
+      const raw=r2[cCap]!=null?String(r2[cCap]).trim():"";
+      if(!raw) continue;
+      const tot=typeof r2[cTot]==='number'?r2[cTot]:null;
+      const std=CAPS33.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
+      FO_ROWS.push({raw,std,total:tot,com:cCom>-1&&r2[cCom]!=null?String(r2[cCom]):""});
+    }
+    if(!FO_ROWS.length){alert("O ficheiro não tem linhas de capítulos preenchidas.");return}
+    document.getElementById('foFich').textContent=f.name;
+    foDrop.innerHTML="Ficheiro carregado: <b>"+esc(f.name)+"</b> — clica para trocar";
+    renderFoPreview();
+    document.getElementById('foPreviewCard').classList.remove('hidden');
+    document.getElementById('foDesvCard').classList.add('hidden');
+  };
+  r.readAsArrayBuffer(f);
+}
+function renderFoPreview(){
+  const tb=document.getElementById('tbFoPrev'); tb.innerHTML="";
+  FO_ROWS.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    const opts=['<option value="">— ignorar —</option>'].concat(CAPS33.map(c=>`<option ${r.std===c?'selected':''}>${esc(c)}</option>`)).join("");
+    tr.innerHTML=`<td>${esc(r.raw)}</td>
+      <td><select data-i="${i}" class="foStd">${opts}</select></td>
+      <td class="num"><input type="number" step="0.01" data-i="${i}" class="foTot" value="${r.total==null?'':r.total}" style="text-align:right"></td>
+      <td>${esc(r.com)}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.foStd').forEach(s=>s.addEventListener('change',e=>{FO_ROWS[+e.target.dataset.i].std=e.target.value||null;updFoTotal()}));
+  tb.querySelectorAll('.foTot').forEach(s=>s.addEventListener('input',e=>{const v=parseFloat(e.target.value);FO_ROWS[+e.target.dataset.i].total=isNaN(v)?null:v;updFoTotal()}));
+  updFoTotal();
+}
+function updFoTotal(){
+  const t=FO_ROWS.filter(r=>r.std&&r.total!=null).reduce((s,r)=>s+r.total,0);
+  document.getElementById('foTotal').textContent=fmt(t,0)+" €";
+}
+async function saveReal(){
+  if(!SESSION){toast("Sem sessão ativa — configura o Supabase para gravar.");return}
+  const pid=+document.getElementById('foProjeto').value;
+  const proj=PROJETOS.find(p=>p.id===pid);
+  if(!proj){alert("Seleciona o projeto no passo 1.");return}
+  const linhas=FO_ROWS.filter(r=>r.std&&r.total!=null);
+  if(!linhas.length){alert("Sem capítulos mapeados com total preenchido.");return}
+  const total=linhas.reduce((s,r)=>s+r.total,0);
+  const {data:fase,error}=await sb.from('fases').insert({
+    projeto_id:pid,fase:'Real',etiqueta:'Conta final da obra',
+    data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
+  }).select().single();
+  if(error){alert("Erro a criar a fase: "+error.message);return}
+  const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,total:r.total,comentario:r.com||null}));
+  const {error:e2}=await sb.from('capitulos').insert(caps);
+  if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
+  toast("Fase Real gravada — "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
+  renderDesvios(proj,linhas);
+}
+async function renderDesvios(proj,linhas){
+  // fase de orçamento mais recente do projeto
+  const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',proj.id).in('fase',['Orçamento','Contrato']).order('data',{ascending:false}).limit(1);
+  let base={}; let baseTag="sem orçamento na biblioteca";
+  if(fases&&fases.length){
+    const {data:caps}=await sb.from('capitulos').select('*').eq('fase_id',fases[0].id);
+    (caps||[]).forEach(c=>base[c.cap]=(base[c.cap]||0)+ +c.total);
+    baseTag=fases[0].fase+(fases[0].data?" · "+fases[0].data:"");
+  } else if(norm(proj.nome).includes("URBAIN")){
+    REF.capitulos.forEach(c=>base[c.cap]=c.total);
+    baseTag="Orçamento PE (embutido)";
+  }
+  const tb=document.getElementById('tbDesvios'); tb.innerHTML="";
+  document.getElementById('foDesvTag').textContent=proj.nome+" · base: "+baseTag;
+  const gfa=proj.gfa||null;
+  let tOrc=0,tReal=0;
+  linhas.forEach(r=>{
+    const orc=base[r.std]!=null?base[r.std]:null;
+    if(orc!=null)tOrc+=orc; tReal+=r.total;
+    const dv=orc!=null&&orc>0?(r.total-orc)/orc:null;
+    const c=dv==null?"#8794a8":dv>0.05?"var(--err)":dv<-0.05?"var(--ok)":"var(--ink)";
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.std)}</td><td class="num">${orc==null?"—":fmt(orc,0)}</td><td class="num">${fmt(r.total,0)}</td>
+      <td class="num" style="color:${c}">${orc==null?"—":(r.total-orc>0?"+":"")+fmt(r.total-orc,0)}</td>
+      <td class="num" style="color:${c};font-weight:700">${dv==null?"—":(dv>0?"+":"")+fmt(dv*100,1)+"%"}</td>
+      <td class="num">${gfa?fmt(r.total/gfa,2):"—"}</td>`;
+    tb.appendChild(tr);
+  });
+  const dvT=tOrc>0?(tReal-tOrc)/tOrc:null;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td style="font-weight:700">TOTAL</td><td class="num" style="font-weight:700">${fmt(tOrc,0)}</td><td class="num" style="font-weight:700">${fmt(tReal,0)}</td>
+    <td class="num" style="font-weight:700">${(tReal-tOrc>0?"+":"")+fmt(tReal-tOrc,0)}</td>
+    <td class="num" style="font-weight:700;color:${dvT!=null&&dvT>0.05?'var(--err)':'var(--ok)'}">${dvT==null?"—":(dvT>0?"+":"")+fmt(dvT*100,1)+"%"}</td>
+    <td class="num" style="font-weight:700">${gfa?fmt(tReal/gfa,2):"—"}</td>`;
+  tb.appendChild(tr);
+  document.getElementById('foDesvCard').classList.remove('hidden');
+  document.getElementById('foDesvCard').scrollIntoView({behavior:'smooth'});
+}
+
+/* ================= BIBLIOTECA ================= */
+async function refreshLib(){
+  const selP=document.getElementById('libProjeto');
+  const opts=['<option value="emb">L\'Urbain — Orçamento PE (embutido)</option>'];
+  if(SESSION){
+    PROJETOS.forEach(p=>opts.push(`<option value="${p.id}">${esc(p.nome)}</option>`));
+  }
+  selP.innerHTML=opts.join("");
+  renderLibProj();
+  renderLibQty();
+}
+async function renderLibProj(){
+  const v=document.getElementById('libProjeto').value;
+  const selF=document.getElementById('libFase');
+  if(v==='emb'){
+    selF.innerHTML='<option value="emb">Orçamento PE · Out 2024</option>';
+    renderLibFase(); return;
+  }
+  const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',+v).order('data',{ascending:false});
+  selF.innerHTML=(fases||[]).map(f=>`<option value="${f.id}">${esc(f.fase)}${f.data?' · '+f.data:''}${f.etiqueta?' · '+esc(f.etiqueta):''}</option>`).join("")||'<option value="">Sem fases gravadas</option>';
+  renderLibFase();
+}
+async function renderLibFase(){
+  const vP=document.getElementById('libProjeto').value;
+  const vF=document.getElementById('libFase').value;
+  const tb=document.getElementById('tbLib'); tb.innerHTML="";
+  const hint=document.getElementById('libHint');
+  const legend=document.getElementById('libLegend');
+  const thLast=document.getElementById('thLast');
+  if(vP==='emb'){
+    legend.classList.remove('hidden'); thLast.textContent="Fiabilidade da fonte";
+    hint.textContent="L'Urbain — Benfica, Lisboa · 30 fogos · GFA 4.552 m² · GCA AG 2.882,6 m² · 2 pisos enterrados · 18 meses · DCH €5.362.285 (€1.178/m² GFA · €1.860/m² GCA) · Preço de contrato €6.059.079.";
+    REF.capitulos.forEach(c=>{
+      const tot=c.r[0]+c.r[1]+c.r[2];
+      const seg=tot>0?c.r.map(x=>Math.round(x/tot*100)):[0,0,0];
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${esc(c.cap)}</td><td class="num">${fmt(c.total,0)}</td>
+        <td class="num">${fmt(c.total/REF.gfa,2)}</td><td class="num">${fmt(c.total/REF.gca,2)}</td><td class="num">${fmt(c.total/REF.fogos,0)}</td>
+        <td>${tot>0?`<div class="riskbar" title="Recebida ${seg[0]}% · <2 anos ${seg[1]}% · Sem fonte ${seg[2]}%"><div class="rb-ok" style="width:${seg[0]}%"></div><div class="rb-mid" style="width:${seg[1]}%"></div><div class="rb-bad" style="width:${seg[2]}%"></div></div>`:"—"}</td>`;
+      tb.appendChild(tr);
+    });
+    return;
+  }
+  legend.classList.add('hidden'); thLast.textContent="Comentário";
+  const proj=PROJETOS.find(p=>p.id===+vP);
+  hint.textContent=proj?`${proj.nome} · ${proj.fogos||'—'} fogos · GFA ${proj.gfa?fmt(proj.gfa):'—'} m² · GCA ${proj.gca?fmt(proj.gca):'—'} m²`:"";
+  if(!vF) return;
+  const {data:caps}=await sb.from('capitulos').select('*').eq('fase_id',+vF).order('id');
+  (caps||[]).forEach(c=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(c.cap)}</td><td class="num">${fmt(+c.total,0)}</td>
+      <td class="num">${proj&&proj.gfa?fmt(c.total/proj.gfa,2):"—"}</td>
+      <td class="num">${proj&&proj.gca?fmt(c.total/proj.gca,2):"—"}</td>
+      <td class="num">${proj&&proj.fogos?fmt(c.total/proj.fogos,0):"—"}</td>
+      <td style="font-size:12px">${esc(c.comentario||"")}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function renderLibQty(){
+  const tq=document.getElementById('tbLibQty'); tq.innerHTML="";
+  Object.keys(REF.qty).sort().forEach(cap=>{
+    Object.keys(REF.qty[cap]).forEach(u=>{
+      const q=REF.qty[cap][u];
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${esc(cap)}</td><td class="mono">${esc(u)}</td><td class="num">${fmt(q)}</td>
+        <td class="num">${fmt(q/REF.gfa,3)}</td><td class="num">${fmt(q/REF.fogos,2)}</td>`;
+      tq.appendChild(tr);
+    });
+  });
+}
+
+initSupa();
+refreshLib();
+</script>
+</body>
+</html>
