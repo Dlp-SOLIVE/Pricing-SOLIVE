@@ -670,7 +670,7 @@ let workbook=null, wbName="", chosenSheet=null;
 let ITENS=[], FINDINGS=[], RATIOS=[];
 let MANUAL_H=null, MAPPINGS=[];
 let sb=null, SESSION=null;
-let PROJETOS=[], FO_ROWS=[], FO_PROJ=null;
+let PROJETOS=[], FO_ROWS=[], FO_PROJ=null, FO_METRICAS=null;
 
 const online=()=>!!(SUPA.url&&SUPA.key);
 function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3200)}
@@ -1363,23 +1363,31 @@ async function saveAnalysis(){
   const nome=document.getElementById('pNome').value.trim();
   if(!nome){toast("Indica o nome do projeto (passo 1) antes de gravar.");return}
   const env=envelopeInputs();
-  const attrs=Object.assign({nome},env,{metricas:PHYS});
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  // Hierarquia: as quantidades reais do auto (fase Real) mandam sobre as de um MQ preliminar.
+  let temReal=false;
+  if(proj){
+    const {data:fr}=await sb.from('fases').select('id').eq('projeto_id',proj.id).eq('fase','Real').limit(1);
+    temReal=!!(fr&&fr.length);
+  }
+  const attrs=Object.assign({nome},env, temReal?{}:{metricas:PHYS});
   if(!proj){
     const {data,error}=await sb.from('projetos').insert(attrs).select().single();
     if(error){alert("Erro a criar o projeto: "+error.message);return}
     proj=data;
   }else{
-    // atualizar descritores/métricas do projeto existente (só campos preenchidos)
-    const upd={metricas:PHYS};
+    // atualizar descritores; métricas só se a obra ainda não estiver fechada
+    const upd={}; if(!temReal)upd.metricas=PHYS;
     Object.keys(env).forEach(k=>{if(env[k]!=null)upd[k]=env[k]});
-    const {error}=await sb.from('projetos').update(upd).eq('id',proj.id);
-    if(error){alert("Erro a atualizar o projeto: "+error.message);return}
+    if(Object.keys(upd).length){
+      const {error}=await sb.from('projetos').update(upd).eq('id',proj.id);
+      if(error){alert("Erro a atualizar o projeto: "+error.message);return}
+    }
   }
   await loadProjetos();
   const {error}=await sb.from('analises').insert({projeto_id:proj.id,nome,ficheiro:wbName,payload:analysisPayload()});
   if(error){alert("Erro a gravar a análise: "+error.message);return}
-  toast("Análise e descritores gravados — projeto "+proj.nome+".");
+  toast("Análise e descritores gravados — projeto "+proj.nome+"."+(temReal?" (quantidades reais da obra preservadas)":""));
 }
 
 async function saveOrcamento(){
@@ -1422,24 +1430,29 @@ function isAutoSheet(rows){
   return false;
 }
 function extractAuto(rows){
-  let H=-1,cCode=-1,cDesc=-1,cUn=-1,cF=-1;
+  let H=-1,cCode=-1,cDesc=-1,cUn=-1,cQt=-1,cF=-1;
   for(let i=0;i<Math.min(rows.length,30);i++){
     const cells=(rows[i]||[]).map(norm);
     const d=cells.findIndex(c=>/DESIGNACAO|DESCRICAO/.test(c));
     const f=cells.findIndex(c=>/TOTAIS FINAIS|TOTAL FINAL/.test(c));
-    if(d>-1&&f>-1){H=i;cDesc=d;cF=f;cCode=cells.findIndex(c=>/^ART|CODIGO/.test(c));if(cCode<0)cCode=Math.max(0,d-1);cUn=cells.findIndex(c=>/^UN/.test(c));break;}
+    if(d>-1&&f>-1){H=i;cDesc=d;cF=f;cCode=cells.findIndex(c=>/^ART|CODIGO/.test(c));if(cCode<0)cCode=Math.max(0,d-1);cUn=cells.findIndex(c=>/^UN/.test(c));cQt=cells.findIndex(c=>/^QUANT/.test(c));break;}
   }
   if(H<0)return null;
-  const out={}; let cur=null;
+  const out={}; let cur=null; const arts=[];
   for(let i=H+1;i<rows.length;i++){
     const r=rows[i]||[];
     const code=r[cCode]!=null?String(r[cCode]).trim():'';
     const desc=r[cDesc]!=null?String(r[cDesc]).trim():'';
     const un=cUn>-1&&r[cUn]!=null?String(r[cUn]).trim():'';
+    const qt=cQt>-1&&typeof r[cQt]==='number'?r[cQt]:null;
     const f=typeof r[cF]==='number'?r[cF]:null;
     if(ROMAN.test(code)&&desc&&desc===desc.toUpperCase()){const m=mapCapitulo(desc);cur=m||norm(desc);continue;}
     if(un&&f!=null&&cur)out[cur]=(out[cur]||0)+f;
+    if(un&&qt!=null&&qt!==0)arts.push({desc,un,qt,cap:cur});
   }
+  // quantidades físicas reais (executadas) a partir dos artigos do auto
+  const metricas=arts.length?extractPhys(arts):{};
+  out.__metricas=metricas;
   return out;
 }
 
@@ -1501,15 +1514,17 @@ function loadFecho(f){
 }
 function processFecho(sheet){
   const rows=XLSX.utils.sheet_to_json(FO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
-  FO_ROWS=[];
+  FO_ROWS=[]; FO_METRICAS=null;
   if(isAutoSheet(rows)){
-    // auto de medição: agregação automática por capítulo (Totais Finais)
+    // auto de medição: agregação automática por capítulo (Totais Finais) + quantidades físicas reais
     const out=extractAuto(rows)||{};
+    FO_METRICAS=out.__metricas||null; delete out.__metricas;
     Object.entries(out).forEach(([cap,total])=>{
       const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
       FO_ROWS.push({raw:cap,std:std||(CAPS33.includes(cap)?cap:null),total,com:""});
     });
-    document.getElementById('foFich').innerHTML='<span class="tag">auto de medição · Totais Finais</span>';
+    const nq=FO_METRICAS?Object.keys(FO_METRICAS).length:0;
+    document.getElementById('foFich').innerHTML='<span class="tag">auto de medição · Totais Finais'+(nq?" · "+nq+" quantidades físicas":"")+'</span>';
   } else {
     // modelo de fecho ou mapa próprio: procurar colunas capítulo + total
     let hr=-1,cCap=-1,cTot=-1,cCom=-1;
@@ -1576,11 +1591,12 @@ async function saveReal(){
   const abc=+document.getElementById('foAbc').value||null, fogos=+document.getElementById('foFogos').value||null;
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
-    const {data,error}=await sb.from('projetos').insert({nome,gfa:abc,fogos}).select().single();
+    const {data,error}=await sb.from('projetos').insert({nome,gfa:abc,fogos,metricas:FO_METRICAS||null}).select().single();
     if(error){alert("Erro a criar o projeto: "+error.message);return}
     proj=data;
   } else {
     const upd={}; if(abc)upd.gfa=abc; if(fogos)upd.fogos=fogos;
+    if(FO_METRICAS&&Object.keys(FO_METRICAS).length)upd.metricas=FO_METRICAS; // quantidades reais do auto substituem quaisquer preliminares
     if(Object.keys(upd).length)await sb.from('projetos').update(upd).eq('id',proj.id);
     if(abc)proj.gfa=abc; if(fogos)proj.fogos=fogos;
   }
@@ -2096,26 +2112,39 @@ function exportEstimativa(){
 /* ================= COMPARAR ================= */
 async function renderComparar(){
   const off=document.getElementById('cmpOffline');
-  // coluna de referência L'Urbain (embutida)
+  // referência embutida (só usada isolada offline, ou como preenchimento do L'Urbain gravado)
   const lurbTotal=REF.capitulos.reduce((s,c)=>s+c.total,0);
+  const refMetricas=Object.fromEntries(Object.entries(REF.qty).flatMap(([cap,us])=>Object.entries(us).map(([u,q])=>[cap+" ("+u+")",{un:u,q}])));
   const ref={
     nome:"L'Urbain (ref.)", gfa:REF.gfa, gca:REF.gca, ac_abaixo:null, fogos:REF.fogos,
     pisos_acima:null, pisos_enterrados:2, area_implantacao:null, area_lote:null, estacionamento:null,
-    metricas:Object.fromEntries(Object.entries(REF.qty).flatMap(([cap,us])=>Object.entries(us).map(([u,q])=>[cap+" ("+u+")",{un:u,q}]))),
-    _total:lurbTotal
+    metricas:refMetricas, _total:lurbTotal, _fonte:"referência"
   };
-  let cols=[ref];
-  if(SESSION){
-    off.className='note'; off.textContent="A comparar todos os projetos gravados na biblioteca.";
-    // totais de orçamento por projeto (fase mais recente Orçamento/Contrato)
+  let cols=[];
+  if(SESSION && PROJETOS.length){
+    off.className='note'; off.textContent="A comparar os projetos gravados na biblioteca. O custo usa a fase mais sólida disponível (Real › Contrato › Orçamento).";
     for(const p of PROJETOS){
-      let total=null;
-      const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id).in('fase',['Orçamento','Contrato']).order('data',{ascending:false}).limit(1);
-      if(fs&&fs.length) total=+fs[0].total||null;
-      cols.push(Object.assign({},p,{_total:total}));
+      // custo: preferir a fase Real (auto), depois Contrato, depois Orçamento
+      const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id);
+      let total=null, fonte=null;
+      if(fs&&fs.length){
+        for(const tipo of ['Real','Contrato','Orçamento']){
+          const m=fs.filter(x=>x.fase===tipo);
+          if(m.length){ const f=m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]; total=+f.total||null; fonte=tipo; break; }
+        }
+      }
+      const col=Object.assign({},p,{_total:total,_fonte:fonte});
+      // completar o L'Urbain gravado com a referência embutida onde estiver vazio
+      if(norm(p.nome).includes("URBAIN")){
+        ['gfa','gca','fogos','pisos_enterrados','ac_abaixo','area_implantacao','area_lote','estacionamento'].forEach(k=>{ if(col[k]==null && ref[k]!=null) col[k]=ref[k]; });
+        if(!col.metricas || !Object.keys(col.metricas).length) col.metricas=refMetricas;
+        if(col._total==null) col._total=lurbTotal;
+      }
+      cols.push(col);
     }
   } else {
-    off.className='note red'; off.textContent="Sem sessão — a mostrar apenas a referência L'Urbain. Inicia sessão e grava análises para comparar vários projetos.";
+    off.className='note red'; off.textContent="Sem sessão — a mostrar apenas a referência L'Urbain. Inicia sessão para comparar os projetos da biblioteca.";
+    cols=[ref];
   }
 
   // definição das linhas: [secção, rótulo, função(col)->valor, casas decimais]
@@ -2153,7 +2182,7 @@ async function renderComparar(){
     [null,"Rev. pavimentos / m² ABC",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.gfa?x/c.gfa:null},3]
   ];
 
-  document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}</th>`).join("");
+  document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}${c._fonte&&c._fonte!=="referência"?`<div style="font-weight:400;font-size:10px;color:#8794a8">custo: ${esc(c._fonte)}</div>`:""}</th>`).join("");
   const body=document.getElementById('cmpBody');body.innerHTML="";
   rows.forEach(([sec,label,fn,d])=>{
     if(sec){
