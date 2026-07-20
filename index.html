@@ -97,6 +97,13 @@ td.num{text-align:right;font-family:'Roboto Mono',monospace}
 .flowbar .fstep{padding:4px 10px;border-radius:6px;background:#f0f3f8;color:var(--navy);font-weight:500}
 .flowbar .fstep.cur{background:var(--navy);color:#fff}
 .flowbar .arr{color:#c4ccd8}
+/* semáforo de orçamentação */
+.estado-sel{border:none;border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;font-weight:600;color:#fff;cursor:pointer;width:100%}
+.e-racio{background:#E62336} .e-consulta{background:#E86A2C} .e-antiga{background:#D9A400} .e-firme{background:#5FA85B} .e-adjudicado{background:#298893}
+.consbar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#eef1f6;font-size:0}
+.consbar div{height:100%}
+.cb-racio{background:#E62336} .cb-consulta{background:#E86A2C} .cb-antiga{background:#D9A400} .cb-firme{background:#5FA85B} .cb-adjudicado{background:#298893}
+.dotleg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-size:12px}
 .overlay{position:fixed;inset:0;background:rgba(20,58,103,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal{background:#fff;border-radius:12px;padding:28px;width:100%;max-width:460px}
@@ -120,6 +127,8 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   <span class="badge" id="connBadge">Modo local</span>
   <nav>
     <button id="nav-analisador" class="on" onclick="showView('analisador')">Analisador</button>
+    <button id="nav-estimador" onclick="showView('estimador')">Estimador</button>
+    <button id="nav-orcamento" onclick="showView('orcamento')">Orçamentação</button>
     <button id="nav-fecho" onclick="showView('fecho')">Fecho de Obra</button>
     <button id="nav-comparar" onclick="showView('comparar')">Comparar</button>
     <button id="nav-biblioteca" onclick="showView('biblioteca')">Biblioteca</button>
@@ -172,7 +181,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   <div class="purpose red">
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Rever o mapa de quantidades</h1>
-    <p>Carrega o mapa de quantidades que o projetista entregou. A plataforma deteta erros e omissões, extrai as quantidades físicas e prepara os comentários para devolveres à equipa de projeto. Preenche os descritores do projeto — são eles que tornam a comparação rigorosa.</p>
+    <p>Carrega o mapa de quantidades que o projetista entregou. A plataforma verifica a <b>coerência interna</b> do mapa e sinaliza capítulos fora do padrão histórico, para orientar a tua revisão. Não substitui o confronto com as peças desenhadas — aponta onde olhar primeiro. Preenche os descritores do projeto: são eles que tornam a comparação rigorosa.</p>
     <div class="io"><span class="in">Entra: MQ do projetista (.xlsx)</span><span class="out">Produz: comentários para projetistas (.xlsx)</span><span class="out">Alimenta: Biblioteca e Comparação</span></div>
   </div>
 
@@ -251,6 +260,21 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
       <div class="empty hidden" id="noFindings">Sem alertas para os filtros selecionados.</div>
     </div>
 
+    <div class="card hidden" id="custoCard">
+      <h2>Custos por capítulo <span class="tag">extraído do orçamento</span></h2>
+      <div class="hint">Detetei preços neste mapa. Podes gravar como fase de <b>Orçamento</b> na biblioteca — passa a alimentar os rácios de custo (€/m², €/fogo) e a Comparação. Linhas sem capítulo reconhecido (ex.: honorários de projeto) ficam de fora dos hard costs gravados.</div>
+      <div class="note" id="custoResumo" style="margin-bottom:14px"></div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Capítulo</th><th style="text-align:right">Total (€)</th><th style="text-align:right">% do total</th><th style="text-align:right">€/m² ABC</th></tr></thead>
+        <tbody id="tbCusto"></tbody>
+      </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button class="btn teal hidden" id="btnGravarOrcamento" onclick="saveOrcamento()">Gravar orçamento na biblioteca</button>
+      </div>
+    </div>
+
     <div class="card" id="physCard">
       <h2>Quantidades físicas extraídas do mapa</h2>
       <div class="hint">Somadas automaticamente a partir dos artigos medidos, por unidade. São o numerador dos rácios físicos na comparação. Nota: os acabamentos refletem o total do mapa — num edifício residencial correspondem sobretudo aos pisos tipo acima do solo.</div>
@@ -264,8 +288,8 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </div>
 
     <div class="card">
-      <h2>Verificação de rácios vs. histórico</h2>
-      <div class="hint">Quantidades agregadas por capítulo comparadas com os rácios do L'Urbain (normalizados por GFA). Desvios acima de ±50% geram aviso.</div>
+      <h2>Sinais de rácio vs. histórico</h2>
+      <div class="hint">Quantidades agregadas por capítulo comparadas com os rácios do L'Urbain (normalizadas por ABC). Desvios acima de ±50% são <b>sinais a verificar contra as peças desenhadas</b>, não erros confirmados — o mapa mediu a mais, a menos, ou o projeto é simplesmente diferente. Servem para focar a revisão.</div>
       <div style="overflow-x:auto">
       <table>
         <thead><tr><th>Capítulo</th><th style="width:56px">Un</th><th style="text-align:right">Qt. no MQ</th><th style="text-align:right">Rácio MQ /m² GFA</th><th style="text-align:right">Rácio L'Urbain /m² GFA</th><th style="text-align:right">Desvio</th></tr></thead>
@@ -273,6 +297,134 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
       </table>
       </div>
       <div class="empty hidden" id="noRatios">Introduz o GFA do projeto (passo 1) para ativar a verificação de rácios.</div>
+    </div>
+
+    <div class="card">
+      <h2>Track changes vs. revisão anterior <span class="tag" id="trackTag"></span>
+        <button class="btn navy hidden" id="btnExportTrack" style="float:right;padding:6px 14px" onclick="exportTrack()">Exportar (.xlsx)</button>
+      </h2>
+      <div class="hint">Compara este mapa com a última análise gravada do mesmo projeto (por nome), artigo a artigo: o que foi adicionado, removido ou alterado (quantidade, unidade ou descrição). Útil para verificar se a revisão do projetista respondeu aos teus comentários.</div>
+      <div style="margin-bottom:12px"><button class="btn teal" id="btnTrack" onclick="compareRevisions()">Comparar com revisão anterior gravada</button></div>
+      <div class="kpis hidden" id="trackKpis" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi ok"><div class="v" id="tkAdd">0</div><div class="l">Adicionados</div></div>
+        <div class="kpi err"><div class="v" id="tkRem">0</div><div class="l">Removidos</div></div>
+        <div class="kpi warn"><div class="v" id="tkChg">0</div><div class="l">Alterados</div></div>
+      </div>
+      <div style="overflow-x:auto"><table id="trackTable" class="hidden">
+        <thead><tr><th style="width:70px">Código</th><th>Descrição</th><th style="width:150px">Capítulo</th><th style="width:90px">Alteração</th><th style="width:220px">Detalhe</th></tr></thead>
+        <tbody id="tbTrack"></tbody>
+      </table></div>
+      <div class="empty hidden" id="trackEmpty"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== VISTA: ESTIMADOR ===================== -->
+<div id="view-estimador" class="hidden">
+  <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep cur">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
+  <div class="purpose red">
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Estimativa rápida para o Business Plan</h1>
+    <p>Na fase inicial só tens os descritores do projeto e o budget do BP. O estimador aplica os rácios de custo da biblioteca aos teus descritores e devolve uma estimativa por capítulo, com o intervalo do que os projetos históricos implicam — e confronta o total com o teu budget. Idealmente alimentado por custos reais de obra; quanto mais projetos fechados, mais fiável.</p>
+    <div class="io"><span class="in">Usa: rácios da Biblioteca</span><span class="in">Entra: descritores + budget do BP</span><span class="out">Produz: estimativa por capítulo com intervalo</span></div>
+  </div>
+
+  <div class="card">
+    <div class="step"><div class="n">1</div><h2>Descritores do projeto a estimar</h2></div>
+    <div class="grid g6">
+      <div style="grid-column:span 2"><label>Nome / referência</label><input type="text" id="estNome" placeholder="Projeto novo"></div>
+      <div><label>ABC total (m²)</label><input type="number" id="estAbc" placeholder="5000"></div>
+      <div><label>Nº de fogos</label><input type="number" id="estFogos" placeholder="40"></div>
+      <div style="grid-column:span 2"><label>Budget do BP p/ hard costs (€) — opcional</label><input type="number" id="estBudget" placeholder="6000000"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="step"><div class="n">2</div><h2>Parâmetros do cálculo</h2></div>
+    <div class="grid g6">
+      <div><label>Base de cálculo</label><select id="estBase"><option value="abc">€/m² ABC</option><option value="fogo">€/fogo</option><option value="media">Média dos dois</option></select></div>
+      <div style="grid-column:span 2"><label>Fonte dos rácios</label><select id="estFonte"><option value="real">Preferir Real (auto de medição)</option><option value="contrato">Preferir Contrato</option><option value="orcamento">Preferir Orçamento</option><option value="todas">Todas as fases</option></select></div>
+      <div><label>Inflação (%/ano)</label><input type="number" id="estInfl" value="4" step="0.5" title="Pôr 0 para não ajustar"></div>
+      <div><label>Ano-alvo</label><input type="number" id="estAno" placeholder="2026"></div>
+      <div style="display:flex;align-items:end"><button class="btn red" style="width:100%;justify-content:center" onclick="runEstimador()">Estimar</button></div>
+    </div>
+    <div class="hint" style="margin-top:10px">Inflação a 0 desativa o ajuste temporal. Cada rácio antigo é levado ao ano-alvo por <span class="mono">(1+inflação)^(anos)</span>.</div>
+  </div>
+
+  <div id="estResults" class="hidden">
+    <div class="card">
+      <h2>Estimativa <span class="tag" id="estTag"></span>
+        <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportEstimativa()">Exportar (.xlsx)</button>
+      </h2>
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="estKTotal">—</div><div class="l">Estimativa central</div></div>
+        <div class="kpi"><div class="v" id="estKRange">—</div><div class="l">Intervalo histórico</div></div>
+        <div class="kpi"><div class="v" id="estKM2">—</div><div class="l">€/m² ABC</div></div>
+        <div class="kpi" id="estKBudgetBox"><div class="v" id="estKBudget">—</div><div class="l">vs. budget do BP</div></div>
+        <div class="kpi"><div class="v" id="estKProj">—</div><div class="l">Projetos na base</div></div>
+      </div>
+      <div class="note" id="estNota"></div>
+    </div>
+    <div class="card">
+      <h2>Estimativa por capítulo</h2>
+      <div class="hint">Central = mediana dos rácios históricos (ajustados à inflação). Intervalo = mínimo a máximo observado entre projetos. Nº = quantos projetos suportam cada capítulo — quanto mais, mais fiável.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Capítulo</th><th style="text-align:right;width:50px">Nº</th><th style="text-align:right">Rácio central</th><th style="text-align:right">Estimativa (€)</th><th style="text-align:right">Mín (€)</th><th style="text-align:right">Máx (€)</th></tr></thead>
+        <tbody id="tbEst"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== VISTA: ORÇAMENTAÇÃO ===================== -->
+<div id="view-orcamento" class="hidden">
+  <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep cur">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
+  <div class="purpose red">
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Orçamentar com semáforo de consolidação</h1>
+    <p>Cada capítulo começa em estimativa por rácio (vermelho) e vai ganhando solidez à medida que consultas o mercado e recebes propostas. Marca o estado de cada capítulo e vê, a qualquer momento, quanto do orçamento já é sólido e quanto ainda é aposta. A cor segue a melhor evidência disponível: rácio → em consulta → proposta antiga → proposta firme → adjudicado.</p>
+    <div class="io"><span class="in">Arranca de: estimativa por rácios</span><span class="out">Produz: orçamento com índice de consolidação</span></div>
+  </div>
+
+  <div class="card">
+    <div class="step"><div class="n">1</div><h2>Projeto e arranque</h2></div>
+    <div class="grid g6">
+      <div style="grid-column:span 2"><label>Projeto</label><input type="text" id="orcNome" list="orcProjList" placeholder="Projeto"><datalist id="orcProjList"></datalist></div>
+      <div><label>ABC total (m²)</label><input type="number" id="orcAbc" placeholder="5000"></div>
+      <div><label>Nº de fogos</label><input type="number" id="orcFogos" placeholder="40"></div>
+      <div style="grid-column:span 2;display:flex;align-items:end;gap:8px">
+        <button class="btn navy" style="flex:1;justify-content:center" onclick="orcSeed()">Arrancar dos rácios (estimador)</button>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:10px">"Arrancar dos rácios" preenche cada capítulo com a estimativa da biblioteca no estado inicial "Rácio" (vermelho). Depois marcas o estado e ajustas o valor à medida que consultas.</div>
+  </div>
+
+  <div class="card hidden" id="orcBoard">
+    <h2>Consolidação do orçamento <span class="tag" id="orcTag"></span>
+      <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportOrcamento()">Exportar (.xlsx)</button>
+    </h2>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="kpi"><div class="v" id="orcKTotal">—</div><div class="l">Total do orçamento</div></div>
+      <div class="kpi ok"><div class="v" id="orcKValor">—</div><div class="l">% valor consolidado</div></div>
+      <div class="kpi"><div class="v" id="orcKCaps">—</div><div class="l">Capítulos consolidados</div></div>
+      <div class="kpi"><div class="v" id="orcKm2">—</div><div class="l">€/m² ABC</div></div>
+    </div>
+    <div style="margin:14px 0 6px"><div class="consbar" id="orcConsBar"></div></div>
+    <div class="legend" style="margin-bottom:14px">
+      <span><i class="dotleg e-racio"></i>Rácio histórico</span>
+      <span><i class="dotleg e-consulta"></i>Em consulta</span>
+      <span><i class="dotleg e-antiga"></i>Proposta antiga (&gt;2 anos)</span>
+      <span><i class="dotleg e-firme"></i>Proposta firme</span>
+      <span><i class="dotleg e-adjudicado"></i>Adjudicado</span>
+    </div>
+    <div class="hint">"Consolidado" = valor em proposta firme ou adjudicado. Edita o valor e o estado de cada capítulo; o semáforo e os indicadores atualizam-se na hora. A coluna de origem mostra de onde veio a estimativa inicial.</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Capítulo</th><th style="text-align:right;width:140px">Valor (€)</th><th style="width:180px">Estado</th><th style="text-align:right;width:110px">€/m² ABC</th><th style="width:220px">Nota / fornecedor</th></tr></thead>
+      <tbody id="tbOrc"></tbody>
+    </table>
     </div>
   </div>
 </div>
@@ -289,20 +441,23 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 
   <div class="card">
     <div class="step"><div class="n">1</div><h2>Projeto</h2></div>
-    <div class="hint">Os valores reais por capítulo vêm da equipa de obra. Gera o modelo, envia aos colegas da produção, e importa o ficheiro devolvido — a plataforma calcula os desvios face ao orçamento e passa os rácios reais para a biblioteca.</div>
+    <div class="hint">Escolhe um projeto existente ou escreve um nome novo para o criar. Se for novo, preenche os descritores (ABC, fogos) para os custos reais virarem rácios. O modelo em branco serve para a equipa de obra preencher; se já tens um <b>auto de medição</b>, salta para o passo 2.</div>
     <div class="grid g6">
-      <div style="grid-column:span 3"><label>Projeto</label><select id="foProjeto"></select></div>
+      <div style="grid-column:span 2"><label>Projeto (existente ou novo)</label><input type="text" id="foProjeto" list="foProjList" placeholder="Ex.: Parque Atlântico"><datalist id="foProjList"></datalist></div>
+      <div><label>ABC total (m²)</label><input type="number" id="foAbc" placeholder="—"></div>
+      <div><label>Nº de fogos</label><input type="number" id="foFogos" placeholder="—"></div>
       <div><label>Data de fecho</label><input type="date" id="foData"></div>
-      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="genModelo()">Descarregar modelo para a equipa de obra (.xlsx)</button></div>
+      <div style="display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="genModelo()">Modelo em branco (.xlsx)</button></div>
     </div>
     <div class="note" id="foOffline" style="margin-top:14px"></div>
   </div>
 
   <div class="card">
-    <div class="step"><div class="n">2</div><h2>Importar conta final da obra</h2></div>
-    <div class="hint">Carrega o modelo devolvido pela equipa de obra (folha "Fecho de Obra"). Também aceita mapas próprios da obra desde que tenham colunas de capítulo e total — a plataforma tenta mapear os capítulos para a estrutura standard.</div>
-    <div class="drop" id="foDrop">Larga aqui o ficheiro <b>.xlsx</b> da obra ou clica para escolher</div>
+    <div class="step"><div class="n">2</div><h2>Importar custos reais da obra</h2></div>
+    <div class="hint">Aceita três formatos: o <b>auto de medição</b> (deteta a coluna "Totais Finais" e agrega por capítulo automaticamente), o modelo de fecho preenchido, ou um mapa próprio da obra com colunas de capítulo e total. Confere sempre o mapeamento no passo 3 antes de gravar.</div>
+    <div class="drop" id="foDrop">Larga aqui o <b>auto de medição</b> ou a conta final <b>.xlsx</b>, ou clica para escolher</div>
     <input type="file" id="foFile" accept=".xlsx,.xls" class="hidden">
+    <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
   </div>
 
   <div class="card hidden" id="foPreviewCard">
@@ -321,7 +476,9 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   </div>
 
   <div class="card hidden" id="foDesvCard">
-    <h2>Desvios — orçamento vs. real <span class="tag" id="foDesvTag"></span></h2>
+    <h2>Desvios — orçamento vs. real <span class="tag" id="foDesvTag"></span>
+      <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportDesvios()">Exportar (.xlsx)</button>
+    </h2>
     <div class="hint">Comparação por capítulo entre a fase de orçamento mais recente e os valores reais da obra.</div>
     <div style="overflow-x:auto">
     <table>
@@ -370,6 +527,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <div class="filters">
       <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
       <div style="min-width:200px"><label>Fase</label><select id="libFase" onchange="renderLibFase()"></select></div>
+      <div style="margin-left:auto;display:flex;align-items:end"><button class="btn navy" onclick="exportWrapUp()">Exportar wrap-up (formato Solive)</button></div>
     </div>
     <div class="legend" id="libLegend">
       <span><i style="background:var(--teal)"></i>Proposta recebida</span>
@@ -458,7 +616,6 @@ const CAP_MAP = [
  [/INSTALA[ÇC][ÕO]ES EL[ÉE][CT]TRICAS/,"ELETRICIDADE E ILUMINAÇÃO"],
  [/INSTALA[ÇC][ÕO]ES MEC[ÂA]NICAS/,"AVAC"],
  [/INSTALA[ÇC][ÕO]ES ELECTROMEC[ÂA]NICAS/,"ELEVADORES"],
- [/ARQUITETURA|ARQUITECTURA/,"ARQUITETURA (agregado)"],
  [/EQUIPAMENTO MEC[ÂA]NICO|ELEVADOR|PLATAFORMA ELEVAT/,"ELEVADORES"],
  [/BET[ÃA]O LEVE|BETONILHA/,"BETONILHAS"],
  [/ACABAMENTO DE SUPERF[ÍI]CIES/,"ARGAMASSAS"],
@@ -505,13 +662,15 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','fecho','comparar','biblioteca'].forEach(x=>{
+  ['analisador','estimador','orcamento','fecho','comparar','biblioteca'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
   if(v==='biblioteca') refreshLib();
   if(v==='fecho') refreshFecho();
   if(v==='comparar') renderComparar();
+  if(v==='estimador') document.getElementById('estAno').value=document.getElementById('estAno').value||new Date().getFullYear();
+  if(v==='orcamento') refreshOrcamento();
 }
 
 /* ================= AUTENTICAÇÃO ================= */
@@ -706,7 +865,7 @@ function detectHeader(rows){
       const qcols=[]; cells.forEach((c,j)=>{if(reQt.test(c)||/REV/.test(c))qcols.push(j)});
       nxt.forEach((c,j)=>{if(reQt.test(c)&&!qcols.includes(j))qcols.push(j)});
       if(!qcols.length)qcols.push(qt);
-      return {row:hdrRow,code,desc:hasDesc,un,qt,qcols};
+      return {row:hdrRow,code,desc:hasDesc,un,qt,qcols,pUnit:-1,pTot:-1};
     }
   }
   return null;
@@ -718,11 +877,40 @@ function mapCapitulo(txt){
   return null;
 }
 
+function detectPriceCols(rows,H){
+  const qt=H.qt;
+  const sample=[];
+  for(let i=H.row+1;i<rows.length&&sample.length<400;i++){
+    const r=rows[i]||[];
+    let q=typeof r[qt]==='number'?r[qt]:null;
+    if(q==null)for(const c of H.qcols){if(typeof r[c]==='number'){q=r[c];break}}
+    if(typeof q==='number'&&q!==0)sample.push({q,r});
+  }
+  if(sample.length<10) return {pUnit:-1,pTot:-1};
+  let maxCol=0; rows.slice(H.row,H.row+60).forEach(r=>{if(r&&r.length>maxCol)maxCol=r.length});
+  const excl=new Set([H.code,H.desc,H.un,H.qt,...H.qcols]); // nunca são colunas de preço
+  let best=null;
+  for(let a=qt+1;a<maxCol;a++){
+    if(excl.has(a))continue;
+    for(let b=qt+1;b<maxCol;b++){
+      if(a===b||excl.has(b))continue;
+      let hits=0,tot=0,somaTot=0;
+      for(const s of sample){const ua=s.r[a],tb=s.r[b];
+        if(typeof ua==='number'&&typeof tb==='number'&&ua>0&&tb>0){tot++;somaTot+=tb;if(Math.abs(s.q*ua-tb)/Math.abs(tb)<0.02)hits++;}}
+      // exigir: relação qt×unit=total consistente, muitos artigos, e valores com dimensão de dinheiro
+      const medTot=tot?somaTot/tot:0;
+      if(tot>=15 && hits/tot>0.85 && medTot>=5 && (!best||hits>best.hits)) best={pUnit:a,pTot:b,hits};
+    }
+  }
+  return best?{pUnit:best.pUnit,pTot:best.pTot}:{pUnit:-1,pTot:-1};
+}
+
 function parseSheet(){
   const rows=sheetRows();
   const H=MANUAL_H||detectHeader(rows);
   if(!H) return null;
-  const itens=[]; let curCap=null, curCapRaw=null, letterActive=false;
+  if(H.pUnit===-1&&H.pTot===-1){const pc=detectPriceCols(rows,H);H.pUnit=pc.pUnit;H.pTot=pc.pTot;}
+  const itens=[]; let curCap=null, curCapRaw=null, letterActive=false, letterMapped=false;
   // 1ª designação da linha pode ter "TÍTULO\ndescrição" — usar só a 1ª linha para deteção de capítulo
   const firstLine=s=>String(s||"").split(/\r?\n/)[0].trim();
   for(let i=H.row+1;i<rows.length;i++){
@@ -743,22 +931,26 @@ function parseSheet(){
     const isLetter=/^[A-Z]$/.test(code);
     const isNumTop=/^\d{1,2}\.?$/.test(code);
     const isNumSub=/^\d+\.\d+(\.\d+)*$/.test(code);
+    const isAlnumSec=/^[A-ZÇ]{2,5}\.\d+(\.\d+)*\.?$/i.test(code);
 
     // Capítulo de topo por LETRA (LPU) — trava a hierarquia
     if(isLetter&&desc&&upper&&!un&&qt===null){
       const m=mapCapitulo(desc);
-      curCapRaw=desc; curCap=m||norm(desc); letterActive=true;
+      letterActive=true; letterMapped=!!m;
+      curCap=m||null; curCapRaw=desc;   // container que não mapeia (ex.: Arquitetura) → sub-secções preenchem
       itens.push({tipo:'cap',linha:i+1,code,desc,cap:curCap,capRaw:curCapRaw});
       continue;
     }
     // Cabeçalho de secção sem unidade (número de topo OU sub numérico com título em maiúsculas)
-    if((isNumTop||isNumSub)&&desc&&!un&&qt===null){
+    if((isNumTop||isNumSub||isAlnumSec)&&desc&&!un&&qt===null){
       if(upper){
-        // cabeçalho de secção em maiúsculas
         const m=mapCapitulo(desc);
-        if(isNumTop&&!letterActive){ curCap=m||norm(desc); curCapRaw=desc; }
-        else if(m){ curCap=m; curCapRaw=desc; }         // sub mapeável dá granularidade
-        else if(!letterActive){ curCap=norm(desc); curCapRaw=desc; }
+        if(letterActive){
+          // sob uma letra container (não mapeada): a secção define o capítulo (mapeado ou o seu próprio título)
+          if(!letterMapped){ curCap=m||norm(desc); curCapRaw=desc; }
+        } else if(isNumTop){ curCap=m||norm(desc); curCapRaw=desc; }
+        else if(m){ curCap=m; curCapRaw=desc; }          // sub mapeável dá granularidade
+        else { curCap=norm(desc); curCapRaw=desc; }
       }
       // se não for maiúsculas (title case) = agrupamento interno: mantém capítulo-pai
       itens.push({tipo:'sub',linha:i+1,code,desc,cap:curCap,capRaw:curCapRaw});
@@ -766,7 +958,12 @@ function parseSheet(){
     }
     // Artigo medível
     if(un||qt!==null){
-      itens.push({tipo:'art',linha:i+1,code,desc:descRaw,un,qt,cap:curCap,capRaw:curCapRaw});
+      let custo=null;
+      const pu=H.pUnit>-1&&typeof r[H.pUnit]==='number'?r[H.pUnit]:null;
+      const pt=H.pTot>-1&&typeof r[H.pTot]==='number'?r[H.pTot]:null;
+      if(pt!=null&&pt!==0) custo=pt;
+      else if(pu!=null&&pu!==0) custo=qt!=null?pu*qt:pu;
+      itens.push({tipo:'art',linha:i+1,code,desc:descRaw,un,qt,custo,cap:curCap,capRaw:curCapRaw});
     }
   }
   return itens;
@@ -850,11 +1047,43 @@ function runChecks(itens){
         add({tipo:'art',code:"—",desc:`Agregado do capítulo ${cap} (${u})`,un:u,qt:agg[k],cap,linha:"—"},
           "Rácio fora do intervalo","aviso",
           `${fmt(rMQ,3)} ${u}/m² GFA vs. ${fmt(rRef,3)} no L'Urbain (${fmt(desvio*100,0)}% ${dir}).`,
-          `Quantidade total de ${cap} (${u}) ${fmt(desvio*100,0)}% ${dir} do rácio histórico por m² de GFA — validar medições do capítulo.`);
+          `Quantidade total de ${cap} (${u}) ${fmt(desvio*100,0)}% ${dir} do rácio histórico por m² de ABC — sinal a confirmar contra as peças desenhadas.`);
       }
     });
   }
   return {F,emFalta};
+}
+
+/* ================= CUSTOS POR CAPÍTULO ================= */
+let CUSTOS={}, CUSTO_TOTAL=0;
+function extractCustos(arts){
+  const out={}; let tot=0, comPreco=0;
+  arts.forEach(a=>{
+    if(a.custo!=null){comPreco++; const cap=a.cap||"(sem capítulo)"; out[cap]=(out[cap]||0)+a.custo; tot+=a.custo;}
+  });
+  return {out,tot,comPreco};
+}
+function renderCustos(){
+  const card=document.getElementById('custoCard');
+  const {out,tot,comPreco}=extractCustos(ITENS.filter(x=>x.tipo==='art'));
+  CUSTOS=out; CUSTO_TOTAL=tot;
+  if(comPreco===0){card.classList.add('hidden');return}
+  card.classList.remove('hidden');
+  const abc=parseFloat(document.getElementById('pGFA').value)||null;
+  const fogos=parseFloat(document.getElementById('pFogos').value)||null;
+  document.getElementById('custoResumo').innerHTML=
+    `<b>${fmt(tot,0)} €</b> em ${comPreco} artigos com preço`+
+    (abc?` · <b>${fmt(tot/abc,0)} €/m² ABC</b>`:"")+
+    (fogos?` · <b>${fmt(tot/fogos,0)} €/fogo</b>`:"");
+  const tb=document.getElementById('tbCusto'); tb.innerHTML="";
+  // ordenar por capítulo standard, maiores primeiro
+  Object.entries(out).sort((a,b)=>b[1]-a[1]).forEach(([cap,v])=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(cap)}</td><td class="num">${fmt(v,0)}</td>
+      <td class="num">${tot?fmt(v/tot*100,1)+"%":"—"}</td>
+      <td class="num">${abc?fmt(v/abc,0):"—"}</td>`;
+    tb.appendChild(tr);
+  });
 }
 
 /* ================= QUANTIDADES FÍSICAS ================= */
@@ -945,7 +1174,7 @@ function runAnalysis(){
   const cf=document.getElementById('capsFalta');
   if(emFalta.length){
     cf.classList.remove('hidden');
-    cf.innerHTML="<b>Capítulos esperados sem artigos neste MQ:</b> "+emFalta.map(esc).join(" · ")+".<br>Se algum for aplicável ao projeto, trata-se de uma omissão a reportar aos projetistas.";
+    cf.innerHTML="<b>Capítulos esperados sem artigos neste MQ:</b> "+emFalta.map(esc).join(" · ")+".<br>Possível omissão — confirmar se são aplicáveis a este projeto antes de reportar aos projetistas.";
   } else { cf.classList.add('hidden'); }
 
   const fT=document.getElementById('fTipo');
@@ -954,7 +1183,8 @@ function runAnalysis(){
   fC.innerHTML='<option value="">Todos</option>'+caps.map(c=>`<option>${esc(c)}</option>`).join("");
 
   PHYS=extractPhys(arts);
-  renderFindings(); renderRatios(); renderPhys();
+  renderFindings(); renderRatios(); renderPhys(); renderCustos();
+  document.getElementById('btnGravarOrcamento').classList.toggle('hidden',!(SESSION&&CUSTO_TOTAL>0));
   document.getElementById('results').scrollIntoView({behavior:'smooth'});
 }
 
@@ -1027,6 +1257,88 @@ function exportJSON(){
   a.href=URL.createObjectURL(new Blob([JSON.stringify(analysisPayload(),null,1)],{type:'application/json'}));
   a.download=("Analise_MQ_"+nome).replace(/\s+/g,"_")+".json"; a.click();
 }
+let TRACK_LAST=null;
+function trackChanges(oldA,newA){
+  const keyC=a=>String(a.code||"").trim();
+  const nd=a=>norm(a.desc||"").replace(/\s+/g," ");
+  const oldByCode={},oldByDesc={};
+  oldA.forEach(a=>{const k=keyC(a);if(k&&!oldByCode[k])oldByCode[k]=a;const d=nd(a);if(d&&!oldByDesc[d])oldByDesc[d]=a;});
+  const usedOld=new Set(); const added=[],changed=[];
+  newA.forEach(a=>{
+    let m=null; const k=keyC(a);
+    if(k&&oldByCode[k]&&!usedOld.has(oldByCode[k]))m=oldByCode[k];
+    else if(oldByDesc[nd(a)]&&!usedOld.has(oldByDesc[nd(a)]))m=oldByDesc[nd(a)];
+    if(m){
+      usedOld.add(m);
+      const dq=(m.qt==null?null:+m.qt)!==(a.qt==null?null:+a.qt);
+      const du=norm(m.un||"")!==norm(a.un||"");
+      const dd=nd(m)!==nd(a);
+      if(dq||du||dd)changed.push({code:a.code,desc:a.desc,cap:a.cap,oldQt:m.qt,newQt:a.qt,oldUn:m.un,newUn:a.un,dq,du,dd});
+    } else added.push(a);
+  });
+  const removed=oldA.filter(a=>!usedOld.has(a));
+  return {added,removed,changed};
+}
+async function compareRevisions(){
+  if(!SESSION){toast("Inicia sessão — o histórico de análises vem da biblioteca.");return}
+  const nome=document.getElementById('pNome').value.trim();
+  if(!nome){alert("Indica o nome do projeto (passo 1) para encontrar a revisão anterior.");return}
+  const proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){alert("Ainda não há análises gravadas para \""+nome+"\". Grava esta como primeira revisão.");return}
+  const {data:ans}=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('criado',{ascending:false}).limit(1);
+  if(!ans||!ans.length){alert("Sem análise anterior gravada para este projeto.");return}
+  const prev=ans[0].payload;
+  const oldArts=(prev&&prev.artigos)||[];
+  if(!oldArts.length){alert("A análise anterior não tem artigos guardados para comparar.");return}
+  const newArts=ITENS.filter(x=>x.tipo==='art');
+  const diff=trackChanges(oldArts,newArts);
+  TRACK_LAST={nome,prevFile:prev.ficheiro||"",prevDate:ans[0].criado,diff};
+  renderTrack();
+}
+function renderTrack(){
+  const {diff}=TRACK_LAST;
+  document.getElementById('trackTag').textContent="anterior: "+(TRACK_LAST.prevFile||"—");
+  document.getElementById('tkAdd').textContent=diff.added.length;
+  document.getElementById('tkRem').textContent=diff.removed.length;
+  document.getElementById('tkChg').textContent=diff.changed.length;
+  document.getElementById('trackKpis').classList.remove('hidden');
+  document.getElementById('btnExportTrack').classList.remove('hidden');
+  const tb=document.getElementById('tbTrack'); tb.innerHTML="";
+  const total=diff.added.length+diff.removed.length+diff.changed.length;
+  const tbl=document.getElementById('trackTable'), emp=document.getElementById('trackEmpty');
+  if(!total){tbl.classList.add('hidden');emp.classList.remove('hidden');emp.textContent="Sem diferenças detetadas face à revisão anterior.";return}
+  tbl.classList.remove('hidden'); emp.classList.add('hidden');
+  const row=(code,desc,cap,tipo,det,cls)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono">${esc(code||"—")}</td><td>${esc((desc||"").slice(0,120))}</td>
+      <td style="font-size:12px">${esc(cap||"—")}</td>
+      <td><span class="sevchip ${cls}">${tipo}</span></td><td style="font-size:12px">${esc(det)}</td>`;
+    tb.appendChild(tr);
+  };
+  diff.changed.forEach(c=>{
+    const det=[c.dq?`qt ${fmt(c.oldQt)}→${fmt(c.newQt)}`:"",c.du?`un ${c.oldUn||"—"}→${c.newUn||"—"}`:"",c.dd?"descrição alterada":""].filter(Boolean).join(" · ");
+    row(c.code,c.desc,c.cap,"Alterado",det,"sev-aviso");
+  });
+  diff.added.forEach(a=>row(a.code,a.desc,a.cap,"Novo",`qt ${fmt(a.qt)} ${esc(a.un||"")}`,"sev-info"));
+  diff.removed.forEach(a=>row(a.code,a.desc,a.cap,"Removido",`estava: qt ${fmt(a.qt)} ${esc(a.un||"")}`,"sev-erro"));
+}
+function exportTrack(){
+  if(!TRACK_LAST){alert("Corre a comparação primeiro.");return}
+  const {diff,nome,prevFile}=TRACK_LAST;
+  const head=[["SOLIVE — TRACK CHANGES DO MAPA DE QUANTIDADES"],
+    ["Projeto: "+nome+"   ·   Revisão anterior: "+(prevFile||"—")+"   ·   Atual: "+wbName+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    ["Resumo: "+diff.added.length+" adicionados · "+diff.removed.length+" removidos · "+diff.changed.length+" alterados"],
+    [],
+    ["Código","Descrição","Capítulo","Alteração","Detalhe"]];
+  const body=[];
+  diff.changed.forEach(c=>{const det=[c.dq?`qt ${c.oldQt}->${c.newQt}`:"",c.du?`un ${c.oldUn||"-"}->${c.newUn||"-"}`:"",c.dd?"descrição alterada":""].filter(Boolean).join(" · ");body.push([c.code||"",c.desc||"",c.cap||"","Alterado",det]);});
+  diff.added.forEach(a=>body.push([a.code||"",a.desc||"",a.cap||"","Novo",`qt ${a.qt} ${a.un||""}`]));
+  diff.removed.forEach(a=>body.push([a.code||"",a.desc||"",a.cap||"","Removido",`estava: qt ${a.qt} ${a.un||""}`]));
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:10},{wch:64},{wch:24},{wch:12},{wch:40}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Track changes");
+  XLSX.writeFile(wb,("TrackChanges_"+nome).replace(/[^\w]+/g,"_")+".xlsx");
+}
 async function saveAnalysis(){
   if(!SESSION){toast("Sem sessão ativa.");return}
   const nome=document.getElementById('pNome').value.trim();
@@ -1051,6 +1363,67 @@ async function saveAnalysis(){
   toast("Análise e descritores gravados — projeto "+proj.nome+".");
 }
 
+async function saveOrcamento(){
+  if(!SESSION){toast("Sem sessão ativa.");return}
+  if(!CUSTO_TOTAL){alert("Não há custos extraídos para gravar.");return}
+  const nome=document.getElementById('pNome').value.trim();
+  if(!nome){alert("Indica o nome do projeto (passo 1) antes de gravar.");return}
+  const env=envelopeInputs();
+  let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){
+    const {data,error}=await sb.from('projetos').insert(Object.assign({nome,metricas:PHYS},env)).select().single();
+    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    proj=data;
+  }else{
+    const upd={metricas:PHYS}; Object.keys(env).forEach(k=>{if(env[k]!=null)upd[k]=env[k]});
+    await sb.from('projetos').update(upd).eq('id',proj.id);
+  }
+  await loadProjetos();
+  await resolveFaseExistente(proj.id,'Orçamento');
+  const caps=Object.entries(CUSTOS).filter(([c])=>c!=="(sem capítulo)").map(([cap,total])=>({fase_id:null,cap,total}));
+  const totalHard=caps.reduce((s,c)=>s+c.total,0);
+  const {data:fase,error}=await sb.from('fases').insert({
+    projeto_id:proj.id,fase:'Orçamento',etiqueta:document.getElementById('pFase').value+' · '+wbName,
+    data:new Date().toISOString().slice(0,10),total:totalHard
+  }).select().single();
+  if(error){alert("Erro a criar a fase: "+error.message);return}
+  caps.forEach(c=>c.fase_id=fase.id);
+  const {error:e2}=await sb.from('capitulos').insert(caps);
+  if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
+  toast("Orçamento gravado — "+caps.length+" capítulos, "+fmt(totalHard,0)+" € (hard costs).");
+}
+
+/* ================= AUTO DE MEDIÇÃO ================= */
+const ROMAN=/^[IVXLCDM]+$/;
+function isAutoSheet(rows){
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const cells=(rows[i]||[]).map(norm);
+    if(cells.some(c=>/TOTAIS FINAIS|TOTAL FINAL/.test(c))&&cells.some(c=>/DESIGNACAO|DESCRICAO/.test(c)))return true;
+  }
+  return false;
+}
+function extractAuto(rows){
+  let H=-1,cCode=-1,cDesc=-1,cUn=-1,cF=-1;
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const cells=(rows[i]||[]).map(norm);
+    const d=cells.findIndex(c=>/DESIGNACAO|DESCRICAO/.test(c));
+    const f=cells.findIndex(c=>/TOTAIS FINAIS|TOTAL FINAL/.test(c));
+    if(d>-1&&f>-1){H=i;cDesc=d;cF=f;cCode=cells.findIndex(c=>/^ART|CODIGO/.test(c));if(cCode<0)cCode=Math.max(0,d-1);cUn=cells.findIndex(c=>/^UN/.test(c));break;}
+  }
+  if(H<0)return null;
+  const out={}; let cur=null;
+  for(let i=H+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const code=r[cCode]!=null?String(r[cCode]).trim():'';
+    const desc=r[cDesc]!=null?String(r[cDesc]).trim():'';
+    const un=cUn>-1&&r[cUn]!=null?String(r[cUn]).trim():'';
+    const f=typeof r[cF]==='number'?r[cF]:null;
+    if(ROMAN.test(code)&&desc&&desc===desc.toUpperCase()){const m=mapCapitulo(desc);cur=m||norm(desc);continue;}
+    if(un&&f!=null&&cur)out[cur]=(out[cur]||0)+f;
+  }
+  return out;
+}
+
 /* ================= FECHO DE OBRA ================= */
 const foDrop=document.getElementById('foDrop'), foFi=document.getElementById('foFile');
 foDrop.onclick=()=>foFi.click();
@@ -1059,17 +1432,24 @@ foDrop.ondragleave=()=>foDrop.classList.remove('over');
 foDrop.ondrop=e=>{e.preventDefault();foDrop.classList.remove('over');if(e.dataTransfer.files[0])loadFecho(e.dataTransfer.files[0])};
 foFi.onchange=()=>{if(foFi.files[0])loadFecho(foFi.files[0])};
 
+let FO_WB=null;
 function refreshFecho(){
-  const sel=document.getElementById('foProjeto');
   const off=document.getElementById('foOffline');
-  if(!online()){off.className='note red';off.textContent="Sem ligação ao Supabase — o fecho de obra só fica disponível depois de configurar a biblioteca (URL e chave no topo do ficheiro).";sel.innerHTML='<option value="">—</option>';return}
+  const dl=document.getElementById('foProjList');
+  if(!online()){off.className='note red';off.textContent="Sem ligação ao Supabase — o fecho de obra só fica disponível depois de configurar a biblioteca.";return}
   if(!SESSION){off.className='note red';off.textContent="Inicia sessão para usar o fecho de obra.";return}
-  off.className='note';off.textContent="O modelo gerado contém os 33 capítulos standard — a equipa de obra só preenche o total real e os comentários.";
-  sel.innerHTML=PROJETOS.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join("")||'<option value="">Sem projetos — cria um gravando uma análise</option>';
+  off.className='note';off.textContent="Importa o auto de medição mais recente (custos finais medidos) ou a conta final da obra. Para um projeto novo, escreve o nome e os descritores.";
+  dl.innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
 }
+// ao escolher projeto existente, pré-preencher descritores
+document.addEventListener('input',e=>{
+  if(e.target&&e.target.id==='foProjeto'){
+    const p=PROJETOS.find(x=>norm(x.nome)===norm(e.target.value));
+    if(p){if(p.gfa)document.getElementById('foAbc').value=p.gfa;if(p.fogos)document.getElementById('foFogos').value=p.fogos;}
+  }
+});
 function genModelo(){
-  const sel=document.getElementById('foProjeto');
-  const pnome=sel.selectedOptions[0]?sel.selectedOptions[0].textContent:"Projeto";
+  const pnome=document.getElementById('foProjeto').value||"Projeto";
   const rows=[["SOLIVE — FECHO DE OBRA · CONTA FINAL POR CAPÍTULO"],["Projeto: "+pnome+"   ·   Preencher pela equipa de obra: total real por capítulo e comentários"],[],["CAPÍTULO","TOTAL REAL (€)","COMENTÁRIOS DA OBRA"]];
   CAPS33.forEach(c=>rows.push([c,null,null]));
   const ws=XLSX.utils.aoa_to_sheet(rows);
@@ -1081,12 +1461,38 @@ function genModelo(){
 function loadFecho(f){
   const r=new FileReader();
   r.onload=e=>{
-    let wb;
-    try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    try{ FO_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
     catch(err){alert("Não foi possível ler o ficheiro.");return}
-    const sheet=wb.SheetNames.find(n=>/fecho/i.test(n))||wb.SheetNames[0];
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheet],{header:1,raw:true,defval:null});
-    // localizar cabeçalho: CAPÍTULO + TOTAL
+    document.getElementById('foFich').textContent=f.name;
+    foDrop.innerHTML="Ficheiro carregado: <b>"+esc(f.name)+"</b> — clica para trocar";
+    // se houver várias folhas, deixar escolher; senão processar já
+    const pick=document.getElementById('foSheetPick'), pills=document.getElementById('foSheetPills');
+    if(FO_WB.SheetNames.length>1){
+      pick.classList.remove('hidden'); pills.innerHTML="";
+      const guess=FO_WB.SheetNames.find(n=>/auto|fecho|tn_auto/i.test(n))||FO_WB.SheetNames[0];
+      FO_WB.SheetNames.forEach(n=>{
+        const b=document.createElement('button');b.className='pill'+(n===guess?' on':'');b.textContent=n;
+        b.onclick=()=>{[...pills.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');processFecho(n);};
+        pills.appendChild(b);
+      });
+      processFecho(guess);
+    } else { pick.classList.add('hidden'); processFecho(FO_WB.SheetNames[0]); }
+  };
+  r.readAsArrayBuffer(f);
+}
+function processFecho(sheet){
+  const rows=XLSX.utils.sheet_to_json(FO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
+  FO_ROWS=[];
+  if(isAutoSheet(rows)){
+    // auto de medição: agregação automática por capítulo (Totais Finais)
+    const out=extractAuto(rows)||{};
+    Object.entries(out).forEach(([cap,total])=>{
+      const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
+      FO_ROWS.push({raw:cap,std:std||(CAPS33.includes(cap)?cap:null),total,com:""});
+    });
+    document.getElementById('foFich').innerHTML='<span class="tag">auto de medição · Totais Finais</span>';
+  } else {
+    // modelo de fecho ou mapa próprio: procurar colunas capítulo + total
     let hr=-1,cCap=-1,cTot=-1,cCom=-1;
     for(let i=0;i<Math.min(rows.length,20);i++){
       const cells=(rows[i]||[]).map(norm);
@@ -1094,24 +1500,21 @@ function loadFecho(f){
       const b=cells.findIndex(c=>/TOTAL|CUSTO|VALOR/.test(c));
       if(a>-1&&b>-1){hr=i;cCap=a;cTot=b;cCom=cells.findIndex(c=>/COMENT|OBS/.test(c));break}
     }
-    if(hr===-1){alert("Não encontrei colunas de capítulo e total no ficheiro. Usa o modelo gerado pela plataforma ou confirma o layout.");return}
-    FO_ROWS=[];
+    if(hr===-1){alert("Não reconheci o formato. Usa um auto de medição, o modelo de fecho, ou um mapa com colunas de capítulo e total.");return}
     for(let i=hr+1;i<rows.length;i++){
       const r2=rows[i]||[];
       const raw=r2[cCap]!=null?String(r2[cCap]).trim():"";
-      if(!raw) continue;
+      if(!raw||/^TOTAL/i.test(raw)) continue;
       const tot=typeof r2[cTot]==='number'?r2[cTot]:null;
       const std=CAPS33.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
       FO_ROWS.push({raw,std,total:tot,com:cCom>-1&&r2[cCom]!=null?String(r2[cCom]):""});
     }
-    if(!FO_ROWS.length){alert("O ficheiro não tem linhas de capítulos preenchidas.");return}
-    document.getElementById('foFich').textContent=f.name;
-    foDrop.innerHTML="Ficheiro carregado: <b>"+esc(f.name)+"</b> — clica para trocar";
-    renderFoPreview();
-    document.getElementById('foPreviewCard').classList.remove('hidden');
-    document.getElementById('foDesvCard').classList.add('hidden');
-  };
-  r.readAsArrayBuffer(f);
+  }
+  if(!FO_ROWS.length){alert("Não encontrei capítulos com valores neste ficheiro.");return}
+  renderFoPreview();
+  document.getElementById('foPreviewCard').classList.remove('hidden');
+  document.getElementById('foDesvCard').classList.add('hidden');
+  document.getElementById('foPreviewCard').scrollIntoView({behavior:'smooth'});
 }
 function renderFoPreview(){
   const tb=document.getElementById('tbFoPrev'); tb.innerHTML="";
@@ -1132,23 +1535,48 @@ function updFoTotal(){
   const t=FO_ROWS.filter(r=>r.std&&r.total!=null).reduce((s,r)=>s+r.total,0);
   document.getElementById('foTotal').textContent=fmt(t,0)+" €";
 }
+async function resolveFaseExistente(projeto_id,faseTipo){
+  // Se já existe fase deste tipo, pergunta: substituir a(s) anterior(es) ou guardar como nova versão.
+  const {data:existing}=await sb.from('fases').select('id,data,etiqueta').eq('projeto_id',projeto_id).eq('fase',faseTipo);
+  if(!existing||!existing.length) return;
+  const latest=existing.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+  const rep=confirm("Já existe "+existing.length+" fase(s) "+faseTipo+" para este projeto (mais recente: "+(latest.data||"sem data")+(latest.etiqueta?" · "+latest.etiqueta:"")+").\n\nOK = substituir a(s) versão(ões) anterior(es) pela nova.\nCancelar = guardar como nova versão, mantendo o histórico (o estimador usa sempre a mais recente).");
+  if(rep){
+    const ids=existing.map(f=>f.id);
+    await sb.from('capitulos').delete().in('fase_id',ids);
+    await sb.from('fases').delete().in('id',ids);
+    toast("Versão anterior substituída.");
+  }
+}
 async function saveReal(){
   if(!SESSION){toast("Sem sessão ativa — configura o Supabase para gravar.");return}
-  const pid=+document.getElementById('foProjeto').value;
-  const proj=PROJETOS.find(p=>p.id===pid);
-  if(!proj){alert("Seleciona o projeto no passo 1.");return}
+  const nome=document.getElementById('foProjeto').value.trim();
+  if(!nome){alert("Indica o nome do projeto no passo 1.");return}
   const linhas=FO_ROWS.filter(r=>r.std&&r.total!=null);
   if(!linhas.length){alert("Sem capítulos mapeados com total preenchido.");return}
+  const abc=+document.getElementById('foAbc').value||null, fogos=+document.getElementById('foFogos').value||null;
+  let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){
+    const {data,error}=await sb.from('projetos').insert({nome,gfa:abc,fogos}).select().single();
+    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    proj=data;
+  } else {
+    const upd={}; if(abc)upd.gfa=abc; if(fogos)upd.fogos=fogos;
+    if(Object.keys(upd).length)await sb.from('projetos').update(upd).eq('id',proj.id);
+    if(abc)proj.gfa=abc; if(fogos)proj.fogos=fogos;
+  }
+  await loadProjetos();
+  await resolveFaseExistente(proj.id,'Real');
   const total=linhas.reduce((s,r)=>s+r.total,0);
   const {data:fase,error}=await sb.from('fases').insert({
-    projeto_id:pid,fase:'Real',etiqueta:'Conta final da obra',
+    projeto_id:proj.id,fase:'Real',etiqueta:'Auto/conta final · '+(document.getElementById('foFich').textContent||''),
     data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
   }).select().single();
   if(error){alert("Erro a criar a fase: "+error.message);return}
   const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,total:r.total,comentario:r.com||null}));
   const {error:e2}=await sb.from('capitulos').insert(caps);
   if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
-  toast("Fase Real gravada — "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
+  toast("Fase Real gravada — "+proj.nome+" · "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
   renderDesvios(proj,linhas);
 }
 async function renderDesvios(proj,linhas){
@@ -1186,8 +1614,244 @@ async function renderDesvios(proj,linhas){
     <td class="num" style="font-weight:700;color:${dvT!=null&&dvT>0.05?'var(--err)':'var(--ok)'}">${dvT==null?"—":(dvT>0?"+":"")+fmt(dvT*100,1)+"%"}</td>
     <td class="num" style="font-weight:700">${gfa?fmt(tReal/gfa,2):"—"}</td>`;
   tb.appendChild(tr);
+  DESV_LAST={nome:proj.nome,baseTag,gfa,linhas:linhas.map(r=>({cap:r.std,orc:base[r.std]!=null?base[r.std]:null,real:r.total})),tOrc,tReal};
   document.getElementById('foDesvCard').classList.remove('hidden');
   document.getElementById('foDesvCard').scrollIntoView({behavior:'smooth'});
+}
+let DESV_LAST=null;
+function exportDesvios(){
+  if(!DESV_LAST){alert("Grava primeiro uma fase Real para gerar os desvios.");return}
+  const D=DESV_LAST;
+  const head=[["SOLIVE — DESVIOS ORÇAMENTO vs. REAL"],
+    ["Projeto: "+D.nome+"   ·   Base de comparação: "+D.baseTag+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    [],
+    ["Capítulo","Orçamento (€)","Real (€)","Desvio (€)","Desvio (%)","Real €/m² ABC"]];
+  const body=D.linhas.map(r=>{
+    const dv=r.orc!=null&&r.orc>0?(r.real-r.orc)/r.orc*100:null;
+    return [r.cap, r.orc!=null?Math.round(r.orc):"", Math.round(r.real),
+      r.orc!=null?Math.round(r.real-r.orc):"", dv!=null?dv.toFixed(1)+"%":"", D.gfa?Math.round(r.real/D.gfa*100)/100:""];
+  });
+  const dvT=D.tOrc>0?((D.tReal-D.tOrc)/D.tOrc*100).toFixed(1)+"%":"";
+  body.push(["TOTAL",Math.round(D.tOrc),Math.round(D.tReal),Math.round(D.tReal-D.tOrc),dvT,D.gfa?Math.round(D.tReal/D.gfa*100)/100:""]);
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:44},{wch:16},{wch:16},{wch:14},{wch:12},{wch:14}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Desvios");
+  XLSX.writeFile(wb,("Desvios_"+D.nome).replace(/\s+/g,"_")+".xlsx");
+}
+
+/* ================= ORÇAMENTAÇÃO (semáforo de consolidação) ================= */
+const ORC_ESTADOS=[
+  {k:"racio",lbl:"Rácio histórico",cls:"e-racio",cb:"cb-racio",solido:false},
+  {k:"consulta",lbl:"Em consulta",cls:"e-consulta",cb:"cb-consulta",solido:false},
+  {k:"antiga",lbl:"Proposta antiga (>2 anos)",cls:"e-antiga",cb:"cb-antiga",solido:false},
+  {k:"firme",lbl:"Proposta firme",cls:"e-firme",cb:"cb-firme",solido:true},
+  {k:"adjudicado",lbl:"Adjudicado",cls:"e-adjudicado",cb:"cb-adjudicado",solido:true}
+];
+const ORC_EST=Object.fromEntries(ORC_ESTADOS.map(e=>[e.k,e]));
+let ORC_ROWS=[], ORC_META={};
+function refreshOrcamento(){
+  const dl=document.getElementById('orcProjList');
+  if(SESSION&&dl) dl.innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+}
+async function orcSeed(){
+  const nome=document.getElementById('orcNome').value.trim()||"Projeto";
+  const abc=parseFloat(document.getElementById('orcAbc').value)||null;
+  const fogos=parseFloat(document.getElementById('orcFogos').value)||null;
+  ORC_META={nome,abc,fogos};
+  // arrancar dos rácios: usar mediana por capítulo da biblioteca (como o estimador, base ABC)
+  let seedByCap={};
+  if(abc){
+    const projData=await gatherProjectData('real'); // prefere Real
+    const per={};
+    projData.forEach(pd=>{Object.entries(pd.caps).forEach(([cap,total])=>{if(pd.gfa){(per[cap]=per[cap]||[]).push(total/pd.gfa);}})});
+    const med=arr=>{const a=arr.slice().sort((x,y)=>x-y);const n=a.length;return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):null};
+    Object.keys(per).forEach(cap=>{const m=med(per[cap]);if(m!=null)seedByCap[cap]=Math.round(m*abc);});
+  }
+  // construir linhas: todos os 33 capítulos, valor do seed (ou 0), estado inicial rácio
+  ORC_ROWS=CAPS33.map(cap=>({cap,valor:seedByCap[cap]!=null?seedByCap[cap]:0,estado:"racio",nota:"",origem:seedByCap[cap]!=null?"rácio biblioteca":"—"}));
+  document.getElementById('orcBoard').classList.remove('hidden');
+  document.getElementById('orcTag').textContent=nome+(abc?" · ABC "+fmt(abc)+" m²":"");
+  renderOrc();
+  document.getElementById('orcBoard').scrollIntoView({behavior:'smooth'});
+}
+function renderOrc(){
+  const tb=document.getElementById('tbOrc'); tb.innerHTML="";
+  const abc=ORC_META.abc;
+  ORC_ROWS.forEach((r,i)=>{
+    const opts=ORC_ESTADOS.map(e=>`<option value="${e.k}" ${r.estado===e.k?'selected':''}>${e.lbl}</option>`).join("");
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.cap)}<div style="color:#8794a8;font-size:11px">origem: ${esc(r.origem)}</div></td>
+      <td class="num"><input type="number" step="1" class="orcVal" data-i="${i}" value="${r.valor||0}" style="text-align:right"></td>
+      <td><select class="estado-sel ${ORC_EST[r.estado].cls} orcEst" data-i="${i}">${opts}</select></td>
+      <td class="num">${abc&&r.valor?fmt(r.valor/abc,0):"—"}</td>
+      <td><input type="text" class="orcNota" data-i="${i}" value="${esc(r.nota||'')}" placeholder="fornecedor, exclusões…" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px"></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.orcVal').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].valor=parseFloat(e.target.value)||0;renderOrcKpis();}));
+  tb.querySelectorAll('.orcEst').forEach(el=>el.addEventListener('change',e=>{const i=+e.target.dataset.i;ORC_ROWS[i].estado=e.target.value;e.target.className='estado-sel '+ORC_EST[e.target.value].cls+' orcEst';renderOrcKpis();}));
+  tb.querySelectorAll('.orcNota').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].nota=e.target.value;}));
+  renderOrcKpis();
+}
+function renderOrcKpis(){
+  const abc=ORC_META.abc;
+  const total=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0);
+  const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
+  const capsComValor=ORC_ROWS.filter(r=>r.valor>0);
+  const capsSolidos=capsComValor.filter(r=>ORC_EST[r.estado].solido).length;
+  document.getElementById('orcKTotal').textContent=fmt(total,0)+" €";
+  document.getElementById('orcKValor').textContent=total?fmt(solido/total*100,0)+"%":"—";
+  document.getElementById('orcKCaps').textContent=capsSolidos+" / "+capsComValor.length;
+  document.getElementById('orcKm2').textContent=abc&&total?fmt(total/abc,0):"—";
+  // barra de consolidação por estado
+  const bar=document.getElementById('orcConsBar'); bar.innerHTML="";
+  if(total>0){
+    ORC_ESTADOS.forEach(e=>{
+      const v=ORC_ROWS.filter(r=>r.estado===e.k).reduce((s,r)=>s+(r.valor||0),0);
+      if(v>0){const d=document.createElement('div');d.className=e.cb;d.style.width=(v/total*100)+"%";d.title=e.lbl+": "+fmt(v,0)+" € ("+fmt(v/total*100,0)+"%)";bar.appendChild(d);}
+    });
+  }
+}
+function exportOrcamento(){
+  if(!ORC_ROWS.length){alert("Arranca o orçamento primeiro.");return}
+  const abc=ORC_META.abc;
+  const total=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0);
+  const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
+  const head=[["SOLIVE — ORÇAMENTO PRELIMINAR · CONSOLIDAÇÃO"],
+    ["Projeto: "+ORC_META.nome+"   ·   ABC: "+(abc||"—")+" m²   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    ["Total: "+fmt(total,0)+" €   ·   Consolidado (firme/adjudicado): "+(total?fmt(solido/total*100,0):"0")+"%"],
+    [],
+    ["Capítulo","Valor (€)","Estado","€/m² ABC","Origem","Nota / fornecedor / exclusões"]];
+  const body=ORC_ROWS.map(r=>[r.cap,Math.round(r.valor||0),ORC_EST[r.estado].lbl,abc&&r.valor?Math.round(r.valor/abc):"",r.origem,r.nota||""]);
+  body.push([]);
+  body.push(["TOTAL",Math.round(total),"",abc?Math.round(total/abc):"","",""]);
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:44},{wch:14},{wch:24},{wch:12},{wch:18},{wch:40}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Orçamento");
+  XLSX.writeFile(wb,("Orcamento_"+ORC_META.nome).replace(/[^\w]+/g,"_")+".xlsx");
+}
+
+/* ================= ESTIMADOR ================= */
+async function gatherProjectData(pref){
+  // devolve lista de {nome, ano, gfa, fogos, caps:{cap:total}} da biblioteca + L'Urbain embutido
+  const data=[];
+  const lurbCaps=Object.fromEntries(REF.capitulos.filter(c=>c.total>0).map(c=>[c.cap,c.total]));
+  data.push({nome:"L'Urbain",ano:2024,gfa:REF.gfa,fogos:REF.fogos,caps:lurbCaps,fase:"Orçamento"});
+  if(!SESSION) return data;
+  for(const p of PROJETOS){
+    const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',p.id);
+    if(!fases||!fases.length) continue;
+    const ordem=pref==='todas'?null:{real:['Real','Contrato','Orçamento'],contrato:['Contrato','Real','Orçamento'],orcamento:['Orçamento','Contrato','Real']}[pref];
+    let escolhidas=[];
+    if(ordem){
+      for(const f of ordem){const m=fases.filter(x=>x.fase===f);if(m.length){escolhidas=[m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]];break;}}
+    } else escolhidas=fases;
+    for(const fase of escolhidas){
+      const {data:caps}=await sb.from('capitulos').select('*').eq('fase_id',fase.id);
+      if(!caps||!caps.length) continue;
+      const capObj={}; caps.forEach(c=>{if(+c.total>0)capObj[c.cap]=(capObj[c.cap]||0)+ +c.total});
+      const ano=fase.data?+fase.data.slice(0,4):new Date().getFullYear();
+      data.push({nome:p.nome+(escolhidas.length>1?" · "+fase.fase:""),ano,gfa:p.gfa,fogos:p.fogos,caps:capObj,fase:fase.fase});
+    }
+  }
+  return data;
+}
+async function runEstimador(){
+  const abc=parseFloat(document.getElementById('estAbc').value)||null;
+  const fogos=parseFloat(document.getElementById('estFogos').value)||null;
+  const base=document.getElementById('estBase').value;
+  const pref=document.getElementById('estFonte').value;
+  const infl=parseFloat(document.getElementById('estInfl').value)||0;
+  const alvo=parseInt(document.getElementById('estAno').value)||new Date().getFullYear();
+  const budget=parseFloat(document.getElementById('estBudget').value)||null;
+  if(base!=='fogo'&&!abc){alert("Introduz a ABC (ou muda a base para €/fogo).");return}
+  if(base==='fogo'&&!fogos){alert("Introduz o nº de fogos para a base €/fogo.");return}
+  if((base==='media')&&(!abc||!fogos)){alert("A base 'média' precisa de ABC e de fogos.");return}
+
+  const projData=await gatherProjectData(pref);
+  // por capítulo, recolher rácios ajustados à inflação
+  const perCap={};
+  projData.forEach(pd=>{
+    const factor=infl?Math.pow(1+infl/100,alvo-pd.ano):1;
+    Object.entries(pd.caps).forEach(([cap,total])=>{
+      const rAbc=pd.gfa?total/pd.gfa*factor:null;
+      const rFogo=pd.fogos?total/pd.fogos*factor:null;
+      (perCap[cap]=perCap[cap]||[]).push({rAbc,rFogo,proj:pd.nome});
+    });
+  });
+  const med=arr=>{const a=arr.slice().sort((x,y)=>x-y);const n=a.length;return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):null};
+  const estByBase=(rAbc,rFogo)=>{
+    if(base==='abc')return rAbc!=null?rAbc*abc:null;
+    if(base==='fogo')return rFogo!=null?rFogo*fogos:null;
+    const a=rAbc!=null?rAbc*abc:null,f=rFogo!=null?rFogo*fogos:null;
+    if(a!=null&&f!=null)return (a+f)/2; return a!=null?a:f;
+  };
+  // ordenar capítulos pela ordem standard
+  const ordemCap=CAPS33.concat(Object.keys(perCap).filter(c=>!CAPS33.includes(c)));
+  const rows=[]; let tC=0,tLo=0,tHi=0;
+  ordemCap.forEach(cap=>{
+    const lst=perCap[cap]; if(!lst||!lst.length)return;
+    const ests=lst.map(x=>estByBase(x.rAbc,x.rFogo)).filter(v=>v!=null);
+    if(!ests.length)return;
+    const central=med(ests), lo=Math.min(...ests), hi=Math.max(...ests);
+    const rc=base==='fogo'?med(lst.map(x=>x.rFogo).filter(v=>v!=null)):med(lst.map(x=>x.rAbc).filter(v=>v!=null));
+    rows.push({cap,n:ests.length,rc,central,lo,hi});
+    tC+=central; tLo+=lo; tHi+=hi;
+  });
+
+  document.getElementById('estResults').classList.remove('hidden');
+  document.getElementById('estTag').textContent=(base==='abc'?"€/m² ABC":base==='fogo'?"€/fogo":"média")+" · "+projData.length+" projeto(s) · infl. "+infl+"%/ano → "+alvo;
+  document.getElementById('estKTotal').textContent=fmt(tC,0)+" €";
+  document.getElementById('estKRange').textContent=fmt(tLo,0)+" – "+fmt(tHi,0);
+  document.getElementById('estKM2').textContent=abc?fmt(tC/abc,0):"—";
+  document.getElementById('estKProj').textContent=projData.length;
+  const bb=document.getElementById('estKBudgetBox'), bv=document.getElementById('estKBudget');
+  if(budget){const d=(tC-budget)/budget;bv.textContent=(d>0?"+":"")+fmt(d*100,1)+"%";bb.className="kpi "+(Math.abs(d)<0.05?"ok":d>0?"err":"warn");}
+  else{bv.textContent="—";bb.className="kpi";}
+  const nota=document.getElementById('estNota');
+  if(projData.length<=1) nota.innerHTML="<b>Base com 1 projeto</b> — sem dispersão real. O intervalo é nulo e a estimativa depende inteiramente do L'Urbain. Fecha obras e grava orçamentos para ganhar fiabilidade.";
+  else nota.innerHTML="Estimativa central por mediana; intervalo = envelope mín–máx dos "+projData.length+" projetos na base. Não é um intervalo estatístico — é o que os projetos reais implicam.";
+
+  const tb=document.getElementById('tbEst'); tb.innerHTML="";
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.cap)}</td><td class="num">${r.n}</td>
+      <td class="num">${fmt(r.rc,base==='fogo'?0:2)}</td>
+      <td class="num" style="font-weight:700">${fmt(r.central,0)}</td>
+      <td class="num" style="color:#8794a8">${fmt(r.lo,0)}</td>
+      <td class="num" style="color:#8794a8">${fmt(r.hi,0)}</td>`;
+    tb.appendChild(tr);
+  });
+  const trT=document.createElement('tr');
+  trT.innerHTML=`<td style="font-weight:700">TOTAL</td><td class="num">—</td><td class="num">—</td>
+    <td class="num" style="font-weight:700">${fmt(tC,0)}</td>
+    <td class="num" style="font-weight:700;color:#8794a8">${fmt(tLo,0)}</td>
+    <td class="num" style="font-weight:700;color:#8794a8">${fmt(tHi,0)}</td>`;
+  tb.appendChild(trT);
+  EST_LAST={nome:document.getElementById('estNome').value||"Projeto",base,pref,infl,alvo,abc,fogos,budget,rows,tC,tLo,tHi,nproj:projData.length};
+  document.getElementById('estResults').scrollIntoView({behavior:'smooth'});
+}
+let EST_LAST=null;
+function exportEstimativa(){
+  if(!EST_LAST){alert("Corre uma estimativa primeiro.");return}
+  const E=EST_LAST;
+  const baseLbl=E.base==='abc'?"€/m² ABC":E.base==='fogo'?"€/fogo":"média ABC+fogo";
+  const head=[["SOLIVE — ESTIMATIVA PRELIMINAR (Business Plan)"],
+    ["Projeto: "+E.nome+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    ["Base: "+baseLbl+"   ·   Fonte dos rácios: "+E.pref+"   ·   Inflação: "+E.infl+"%/ano → "+E.alvo+"   ·   Projetos na base: "+E.nproj],
+    ["ABC: "+(E.abc||"—")+" m²   ·   Fogos: "+(E.fogos||"—")+(E.budget?"   ·   Budget BP: "+fmt(E.budget,0)+" €":"")],
+    [],
+    ["Capítulo","Nº projetos","Rácio central","Estimativa (€)","Mínimo (€)","Máximo (€)"]];
+  const body=E.rows.map(r=>[r.cap,r.n,Math.round(r.rc*100)/100,Math.round(r.central),Math.round(r.lo),Math.round(r.hi)]);
+  body.push(["TOTAL","","",Math.round(E.tC),Math.round(E.tLo),Math.round(E.tHi)]);
+  if(E.budget){
+    body.push([]);
+    body.push(["Budget do BP","","",Math.round(E.budget)]);
+    body.push(["Desvio estimativa vs. budget","","",Math.round(E.tC-E.budget),"",(((E.tC-E.budget)/E.budget*100).toFixed(1))+"%"]);
+  }
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:44},{wch:12},{wch:14},{wch:16},{wch:14},{wch:14}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Estimativa");
+  XLSX.writeFile(wb,("Estimativa_"+E.nome).replace(/\s+/g,"_")+".xlsx");
 }
 
 /* ================= COMPARAR ================= */
@@ -1305,12 +1969,13 @@ async function renderLibFase(){
         <td>${tot>0?`<div class="riskbar" title="Recebida ${seg[0]}% · <2 anos ${seg[1]}% · Sem fonte ${seg[2]}%"><div class="rb-ok" style="width:${seg[0]}%"></div><div class="rb-mid" style="width:${seg[1]}%"></div><div class="rb-bad" style="width:${seg[2]}%"></div></div>`:"—"}</td>`;
       tb.appendChild(tr);
     });
+    LIB_SHOWN={nome:"L'Urbain",local:"Benfica, Lisboa",fase:"Orçamento PE",gfa:REF.gfa,gca:REF.gca,fogos:REF.fogos,caps:REF.capitulos.filter(c=>c.total>0).map(c=>({cap:c.cap,total:c.total}))};
     return;
   }
   legend.classList.add('hidden'); thLast.textContent="Comentário";
   const proj=PROJETOS.find(p=>p.id===+vP);
   hint.textContent=proj?`${proj.nome} · ${proj.fogos||'—'} fogos · GFA ${proj.gfa?fmt(proj.gfa):'—'} m² · GCA ${proj.gca?fmt(proj.gca):'—'} m²`:"";
-  if(!vF) return;
+  if(!vF){LIB_SHOWN=null;return}
   const {data:caps}=await sb.from('capitulos').select('*').eq('fase_id',+vF).order('id');
   (caps||[]).forEach(c=>{
     const tr=document.createElement('tr');
@@ -1321,6 +1986,32 @@ async function renderLibFase(){
       <td style="font-size:12px">${esc(c.comentario||"")}</td>`;
     tb.appendChild(tr);
   });
+  const faseSel=document.getElementById('libFase').selectedOptions[0];
+  LIB_SHOWN=proj?{nome:proj.nome,local:proj.local||"",fase:faseSel?faseSel.textContent:"",gfa:proj.gfa,gca:proj.gca,fogos:proj.fogos,caps:(caps||[]).map(c=>({cap:c.cap,total:+c.total}))}:null;
+}
+let LIB_SHOWN=null;
+function exportWrapUp(){
+  if(!LIB_SHOWN||!LIB_SHOWN.caps.length){alert("Escolhe um projeto e fase com capítulos para exportar.");return}
+  const S=LIB_SHOWN;
+  const dch=S.caps.reduce((s,c)=>s+c.total,0);
+  const rGCA=v=>S.gca?v/S.gca:null, rAPT=v=>S.fogos?v/S.fogos:null, rGFA=v=>S.gfa?v/S.gfa:null;
+  const nn=v=>v==null?"":Math.round(v*100)/100;
+  const head=[
+    ["SOLIVE — WRAP UP / COST RATIOS"],
+    ["PROJECT:",S.nome],
+    ["",S.local||""],
+    ["Fase:",S.fase||"","Data:",new Date().toLocaleDateString('pt-PT')],
+    ["GFA (m²):",S.gfa||"—","GCA AG (m²):",S.gca||"—","Fogos:",S.fogos||"—"],
+    [],
+    ["Capítulo","Total (€)","% DCH","€/m² GCA AG","€/apartamento","€/m² GFA"]
+  ];
+  const body=S.caps.map(c=>[c.cap,Math.round(c.total),dch?Math.round(c.total/dch*1000)/10+"%":"",nn(rGCA(c.total)),nn(rAPT(c.total)),nn(rGFA(c.total))]);
+  body.push([]);
+  body.push(["DIRECT COSTS HARD (DCH)",Math.round(dch),"100%",nn(rGCA(dch)),nn(rAPT(dch)),nn(rGFA(dch))]);
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:44},{wch:16},{wch:10},{wch:14},{wch:16},{wch:12}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Wrap up");
+  XLSX.writeFile(wb,("WrapUp_"+S.nome+"_"+(S.fase||"")).replace(/[^\w]+/g,"_")+".xlsx");
 }
 function renderLibQty(){
   const tq=document.getElementById('tbLibQty'); tq.innerHTML="";
