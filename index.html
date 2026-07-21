@@ -59,7 +59,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(20,58,103,.35);ou
 .sev-aviso{background:#fdf1df;color:var(--warn)}
 .sev-info{background:#e9eef6;color:var(--info)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:#f0f3f8;color:var(--navy);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:2px solid var(--line);position:sticky;top:60px}
+th{background:#f0f3f8;color:var(--navy);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:2px solid var(--line)}
+.stickyhead th{position:sticky;top:60px;z-index:2}
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 tr:hover td{background:#f8fafc}
 td.mono,.mono{font-family:'Roboto Mono',monospace;font-size:12px}
@@ -496,7 +497,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <div class="step"><div class="n">3</div><h2>Conferir e gravar <span class="tag" id="foFich"></span></h2></div>
     <div class="hint">Confere o mapeamento e os totais antes de gravar. Podes corrigir qualquer valor diretamente na tabela.</div>
     <div style="overflow-x:auto">
-    <table>
+    <table class="preview">
       <thead><tr><th>Capítulo (ficheiro da obra)</th><th>Capítulo standard</th><th style="text-align:right;width:150px">Total real (€)</th><th>Comentário da obra</th></tr></thead>
       <tbody id="tbFoPrev"></tbody>
     </table>
@@ -513,7 +514,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </h2>
     <div class="hint">Comparação por capítulo entre a fase de orçamento mais recente e os valores reais da obra.</div>
     <div style="overflow-x:auto">
-    <table>
+    <table class="preview">
       <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² ABC</th></tr></thead>
       <tbody id="tbDesvios"></tbody>
     </table>
@@ -559,6 +560,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <div class="filters">
       <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
       <div style="min-width:200px"><label>Fase</label><select id="libFase" onchange="renderLibFase()"></select></div>
+      <div style="display:flex;align-items:end"><button class="btn" id="btnRenameFase" onclick="renomearFase()" title="Renomear esta fase" style="background:#fff;color:var(--navy);border:1px solid var(--line)">✏️ Renomear fase</button></div>
       <div style="margin-left:auto;display:flex;align-items:end;gap:8px"><button class="btn navy" onclick="exportWrapUp()">Wrap-up por capítulo</button><button class="btn teal" onclick="exportWrapUpLegendre()">Wrap-up Legendre</button></div>
     </div>
     <div class="legend" id="libLegend">
@@ -1446,6 +1448,42 @@ function isAutoSheet(rows){
   }
   return false;
 }
+function extractTAD(rows){
+  // folha de trabalhos adicionais (TAD_Auto): linhas PMI com "Totais Finais", mapeadas a capítulo por palavra-chave
+  const REGRAS=[
+    [/MURO|CONTEN|MOLDAD|ATERRO|BRITA|ESCAVA|VAZADOURO|ENTULHO|ENSOLEIRAMENTO|CORTE DE PAREDE/,'MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA'],
+    [/ETICS|FACHADA/,'ETICS'],[/PINTURA/,'PINTURAS'],
+    [/COZINHA|LAVA-?LOI|CUBA|BANCADA/,'COZINHAS'],[/ELEVAD/,'ELEVADORES'],
+    [/PLUVIA|ESTACAO ELEVAT|ESTAÇÃO ELEVAT|HIDRAULIC|HIDRÁULIC|VALVULA|VÁLVULA|ESGOTO|AGUA|ÁGUA/,'REDE DE ÁGUAS'],
+    [/AVAC|TERMICA|TÉRMICA/,'AVAC'],[/INCENDIO|INCÊNDIO|SCIE/,'SCIE'],
+    [/CONTROLO DE ACESSO|CAMERA|CÂMERA|TIMEVIEW|TIMELAPSE|NOS |HOME CONNECT|SEGURAN/,'SEGURANÇA INTEGRADA'],
+    [/PORTA|ARMARIO|ARMÁRIO|GUARDA|VARANDA|PRUMO|SERRALH/,'SERRALHARIAS'],
+    [/VAO|VÃO|JANELA|ENVIDRA/,'VÃOS']
+  ];
+  const mapa=d=>{const n=norm(d);for(const [rx,cap] of REGRAS){if(rx.test(n))return cap;}return null;};
+  let H=-1,cCode=-1,cDesc=-1,cF=-1;
+  for(let i=0;i<Math.min(rows.length,20);i++){
+    const cs=(rows[i]||[]).map(norm);
+    const d=cs.findIndex(c=>/DESIGNACAO|DESCRICAO/.test(c));
+    const f=cs.findIndex(c=>/TOTAIS FINAIS|TOTAL FINAL/.test(c));
+    if(d>-1&&f>-1){H=i;cDesc=d;cF=f;cCode=cs.findIndex(c=>/^ART|CODIGO/.test(c));if(cCode<0)cCode=Math.max(0,d-1);break;}
+  }
+  if(H<0)return null;
+  const porCap={}; const items=[]; let total=0;
+  for(let i=H+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const code=r[cCode]!=null?String(r[cCode]).trim():'';
+    const desc=r[cDesc]!=null?String(r[cDesc]).trim():'';
+    const f=typeof r[cF]==='number'?r[cF]:null;
+    if(/^PMI/i.test(code)&&f!=null){
+      const cap=mapa(desc);
+      items.push({code,desc:desc.replace(/\s+/g,' ').slice(0,60),total:f,cap});
+      total+=f; if(cap)porCap[cap]=(porCap[cap]||0)+f;
+    }
+  }
+  if(!items.length)return null;
+  return {porCap,items,total};
+}
 function extractAuto(rows){
   let H=-1,cCode=-1,cDesc=-1,cUn=-1,cQt=-1,cF=-1;
   for(let i=0;i<Math.min(rows.length,30);i++){
@@ -1566,8 +1604,25 @@ function processFecho(sheet){
       const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
       FO_ROWS.push({raw:cap,std:std||(CAPS33.includes(cap)?cap:null),total,com:""});
     });
+    // trabalhos adicionais ao contrato (folha TAD_Auto), somados ao custo final de cada capítulo
+    let tadInfo="";
+    const tadSheet=FO_WB.SheetNames.find(n=>/TAD_?Auto|ADICIONA/i.test(n));
+    if(tadSheet){
+      const tad=extractTAD(XLSX.utils.sheet_to_json(FO_WB.Sheets[tadSheet],{header:1,raw:true,defval:null}));
+      if(tad){
+        Object.entries(tad.porCap).forEach(([cap,val])=>{
+          const row=FO_ROWS.find(r=>r.std===cap);
+          if(row){row.total+=val; row.com=(row.com?row.com+" · ":"")+"inclui trab. adicionais "+fmt(val,0)+" €";}
+          else FO_ROWS.push({raw:cap+" (trab. adicionais)",std:cap,total:val,com:"trabalhos adicionais ao contrato"});
+        });
+        const semCap=tad.items.filter(x=>!x.cap);
+        const somaSem=semCap.reduce((s,x)=>s+x.total,0);
+        if(semCap.length) FO_ROWS.push({raw:"Trabalhos adicionais (a classificar)",std:"DIVERSOS",total:somaSem,com:semCap.length+" trab. adicionais sem capítulo automático — reclassifica se necessário"});
+        tadInfo=" · TAD "+fmt(tad.total,0)+" € ("+tad.items.length+" adicionais)";
+      }
+    }
     const nq=FO_METRICAS?Object.keys(FO_METRICAS).length:0;
-    document.getElementById('foFich').innerHTML='<span class="tag">auto de medição · Totais Finais'+(nq?" · "+nq+" quantidades físicas":"")+'</span>';
+    document.getElementById('foFich').innerHTML='<span class="tag">auto de medição · Totais Finais'+(nq?" · "+nq+" qt. físicas":"")+tadInfo+'</span>';
   } else {
     // modelo de fecho ou mapa próprio: procurar colunas capítulo + total
     let hr=-1,cCap=-1,cTot=-1,cCom=-1;
@@ -2215,6 +2270,9 @@ async function renderComparar(){
     [null,"Estacionamento (lug.)",c=>c.estacionamento,0],
     ["CUSTO","Custo total (€)",c=>c._total,0],
     [null,"€/m² ABC",c=>c._total&&c.gfa?c._total/c.gfa:null,0],
+    [null,"€/m² acima do solo",c=>c._total&&c.gca?c._total/c.gca:null,0],
+    [null,"€/m² abaixo do solo",c=>c._total&&c.ac_abaixo?c._total/c.ac_abaixo:null,0],
+    [null,"€/m² implantação",c=>c._total&&c.area_implantacao?c._total/c.area_implantacao:null,0],
     [null,"€/fogo",c=>c._total&&c.fogos?c._total/c.fogos:null,0],
     ["QUANTIDADES FÍSICAS","Escavação (m³)",c=>mq(c,"Escava","m³"),0],
     [null,"Betão e estruturas (m³)",c=>mq(c,"Betão","m³"),0],
@@ -2224,8 +2282,10 @@ async function renderComparar(){
     [null,"Carpintarias (un)",c=>mq(c,"Carpint","un"),0],
     ["RÁCIOS FÍSICOS","Escavação / m² implantação",c=>{const e=mq(c,"Escava","m³");return e&&c.area_implantacao?e/c.area_implantacao:null},2],
     [null,"Betão / m² ABC",c=>{const b=mq(c,"Betão","m³");return b&&c.gfa?b/c.gfa:null},3],
+    [null,"Betão / fogo",c=>{const b=mq(c,"Betão","m³");return b&&c.fogos?b/c.fogos:null},2],
     [null,"Fachada / m² ABC",c=>{const f=mq(c,"Fachada","m²")||mq(c,"ETICS","m²");return f&&c.gfa?f/c.gfa:null},3],
-    [null,"Rev. pavimentos / m² ABC",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.gfa?x/c.gfa:null},3]
+    [null,"Rev. pavimentos / m² ABC",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.gfa?x/c.gfa:null},3],
+    [null,"Rev. pavimentos / fogo",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.fogos?x/c.fogos:null},1]
   ];
 
   document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}${c._fonte&&c._fonte!=="referência"?`<div style="font-weight:400;font-size:10px;color:#8794a8">custo: ${esc(c._fonte)}</div>`:""}</th>`).join("");
@@ -2243,6 +2303,20 @@ async function renderComparar(){
 }
 
 /* ================= BIBLIOTECA ================= */
+async function renomearFase(){
+  if(!SESSION){toast("Inicia sessão para renomear fases.");return}
+  const vF=document.getElementById('libFase').value;
+  if(!vF||vF==='emb'){alert("Escolhe uma fase gravada (a referência embutida não se renomeia).");return}
+  const sel=document.getElementById('libFase').selectedOptions[0];
+  const atual=sel?sel.textContent:"";
+  const nova=prompt("Nova etiqueta para esta fase (ajuda a identificá-la na biblioteca):",atual.split(' · ').slice(1).join(' · ')||atual);
+  if(nova==null)return;
+  const et=nova.trim(); if(!et){alert("A etiqueta não pode ficar vazia.");return}
+  const {error}=await sb.from('fases').update({etiqueta:et}).eq('id',+vF);
+  if(error){alert("Erro a renomear: "+error.message);return}
+  toast("Fase renomeada.");
+  renderLibProj();
+}
 async function refreshLib(){
   const selP=document.getElementById('libProjeto');
   const opts=[];
