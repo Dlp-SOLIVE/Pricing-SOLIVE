@@ -474,14 +474,20 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
         <div style="flex:1"><label>Estacionamento</label><input type="number" id="foEstacionamento" placeholder="—"></div>
       </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn navy" style="padding:8px 16px" onclick="genModelo()">Modelo em branco (.xlsx)</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button class="btn navy" style="padding:8px 16px" onclick="genModelo()">Modelo em branco (.xlsx)</button>
+      <button class="btn teal" style="padding:8px 16px" onclick="saveDescritores()">Guardar só descritores</button>
+    </div>
     <div class="note" id="foOffline" style="margin-top:14px"></div>
   </div>
 
   <div class="card">
     <div class="step"><div class="n">2</div><h2>Importar custos reais da obra</h2></div>
     <div class="hint">Aceita três formatos: o <b>auto de medição</b> (deteta a coluna "Totais Finais" e agrega por capítulo automaticamente), o modelo de fecho preenchido, ou um mapa próprio da obra com colunas de capítulo e total. Confere sempre o mapeamento no passo 3 antes de gravar.</div>
-    <div class="drop" id="foDrop">Larga aqui o <b>auto de medição</b> ou a conta final <b>.xlsx</b>, ou clica para escolher</div>
+    <div class="drop" id="foDrop" style="padding:26px">
+      <button class="btn red" style="pointer-events:none;margin-bottom:10px">📄 Escolher ficheiro do auto (.xlsx)</button>
+      <div style="font-size:13px;color:#69788f">ou arrasta para aqui o <b>auto de medição</b> / conta final</div>
+    </div>
     <input type="file" id="foFile" accept=".xlsx,.xls" class="hidden">
     <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
   </div>
@@ -1506,6 +1512,27 @@ function genModelo(){
   XLSX.utils.book_append_sheet(wb,ws,"Fecho de Obra");
   XLSX.writeFile(wb,("Fecho_Obra_"+pnome).replace(/\s+/g,"_")+".xlsx");
 }
+async function saveDescritores(){
+  if(!SESSION){toast("Inicia sessão para guardar descritores.");return}
+  const nome=document.getElementById('foProjeto').value.trim();
+  if(!nome){alert("Escreve o nome do projeto no passo 1.");return}
+  const n=id=>+document.getElementById(id).value||null;
+  const desc={gfa:n('foAbc'),gca:n('foGca'),ac_abaixo:n('foAbaixo'),fogos:n('foFogos'),
+    pisos_acima:n('foPisosAcima'),pisos_enterrados:n('foPisosAbaixo'),
+    area_implantacao:n('foImplantacao'),area_lote:n('foLote'),estacionamento:n('foEstacionamento')};
+  if(Object.values(desc).every(v=>v==null)){alert("Preenche pelo menos um descritor.");return}
+  let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){
+    const {data,error}=await sb.from('projetos').insert(Object.assign({nome},desc)).select().single();
+    if(error){alert("Erro a criar o projeto: "+error.message);return}
+  } else {
+    const upd={}; Object.keys(desc).forEach(k=>{if(desc[k]!=null)upd[k]=desc[k]});
+    const {error}=await sb.from('projetos').update(upd).eq('id',proj.id);
+    if(error){alert("Erro a atualizar: "+error.message);return}
+  }
+  await loadProjetos();
+  toast("Descritores guardados — "+nome+".");
+}
 function loadFecho(f){
   const r=new FileReader();
   r.onload=e=>{
@@ -2218,9 +2245,13 @@ async function renderComparar(){
 /* ================= BIBLIOTECA ================= */
 async function refreshLib(){
   const selP=document.getElementById('libProjeto');
-  const opts=['<option value="emb">L\'Urbain — Orçamento PE (embutido)</option>'];
-  if(SESSION){
+  const opts=[];
+  if(SESSION && PROJETOS.length){
+    // há projetos na base — usar esses; a referência embutida fica oculta (evita o L'Urbain duplicado)
     PROJETOS.forEach(p=>opts.push(`<option value="${p.id}">${esc(p.nome)}</option>`));
+  } else {
+    // sem sessão ou base vazia — mostrar a referência embutida como ponto de partida
+    opts.push('<option value="emb">L\'Urbain — Orçamento PE (referência)</option>');
   }
   selP.innerHTML=opts.join("");
   renderLibProj();
