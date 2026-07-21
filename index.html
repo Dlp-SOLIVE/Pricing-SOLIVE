@@ -443,6 +443,55 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </table>
     </div>
   </div>
+
+  <div class="card hidden" id="orcMargemCard">
+    <h2>Margem e venda — modelo Legendre <span class="tag">custo → selling factor → preço de trespasse</span>
+      <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportTrespasse()">Exportar (.xlsx)</button>
+    </h2>
+    <div class="hint">O preço de venda constrói-se em camadas sobre o custo, como na folha Legendre. As percentagens são globais (teóricas) e produzem um <b>selling factor = 1 / (1 − Σ%)</b> — margem sobre o preço de venda, não markup. Esse factor aplica-se ao custo de cada capítulo para dar o preço de trespasse por capítulo.</div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:14px">
+      <div id="sellingLayers"></div>
+      <div>
+        <div class="kpis" style="grid-template-columns:1fr">
+          <div class="kpi"><div class="v" id="sfFactor">—</div><div class="l">Selling factor (Σ <span id="sfTotal">0</span>%)</div></div>
+        </div>
+        <div class="kpis" style="grid-template-columns:1fr;margin-top:10px">
+          <div class="kpi"><div class="v" id="orcTKCusto">—</div><div class="l">Custo total (construtora)</div></div>
+          <div class="kpi ok"><div class="v" id="orcTKTrespasse">—</div><div class="l">Preço de trespasse (venda)</div></div>
+          <div class="kpi"><div class="v" id="orcTKMargem">—</div><div class="l">Margem bruta (€ · % s/ venda)</div></div>
+        </div>
+        <div style="margin-top:10px" class="grid g6">
+          <div><label>Discount (€)</label><input type="number" id="sfDiscount" value="0" step="1" oninput="renderTrespasse()"></div>
+          <div><label>Contingency (€)</label><input type="number" id="sfConting" value="0" step="1" oninput="renderTrespasse()"></div>
+        </div>
+      </div>
+    </div>
+    <div class="note" id="sfAlvo" style="margin-top:14px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:600;color:var(--navy);font-size:14px">Afetação da venda por capítulo</div>
+      <button class="btn" style="background:#fff;color:var(--navy);border:1px solid var(--line);padding:6px 12px" onclick="batchMargem()">Batch: aplicar margem a um grupo</button>
+    </div>
+    <div style="overflow-x:auto;margin-top:8px">
+    <table class="preview">
+      <thead><tr><th>Capítulo</th><th style="text-align:right;width:140px">Custo (€)</th><th style="text-align:right;width:150px">Trespasse / venda (€)</th><th style="text-align:right;width:120px">€/m² ABC</th><th style="text-align:right;width:110px">Peso (%)</th></tr></thead>
+      <tbody id="tbTrespasse"></tbody>
+    </table>
+    </div>
+
+    <div style="margin-top:18px;font-weight:600;color:var(--navy);font-size:14px">Wrap up Legendre (vivo) — custo vs. venda por categoria</div>
+    <div class="hint">Atualiza automaticamente à medida que orçamentas: os 33 capítulos alimentam as categorias Legendre em tempo real (custo e venda).</div>
+    <div style="overflow-x:auto;margin-top:8px">
+    <table class="preview">
+      <thead><tr><th>Categoria Legendre</th><th style="text-align:right;width:150px">Custo (€)</th><th style="text-align:right;width:150px">Venda (€)</th><th style="text-align:right;width:110px">Margem s/ custo</th></tr></thead>
+      <tbody id="tbWrapVivo"></tbody>
+    </table>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;align-items:end;margin-top:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px"><label>Comentário do freeze (obrigatório) — justifica o trespasse</label><input type="text" id="orcFreezeCom" placeholder="Ex.: Trespasse fechado com selling factor teórico; margem-alvo 5%; consultas em 9/33 capítulos."></div>
+      <button class="btn red" onclick="freezeTrespasse()">🔒 Freeze do trespasse (cria fase Contrato)</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===================== VISTA: FECHO DE OBRA ===================== -->
@@ -553,31 +602,29 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <div class="io"><span class="in">Entra: Analisador + Fecho de Obra</span><span class="out">Serve: orçamentação e Comparação</span></div>
   </div>
   <div class="card" style="padding:14px 20px">
-    <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler as fases:</b> cada projeto pode ter três fases — <b>Orçamento</b> (a estimativa preliminar), <b>Contrato</b> (o valor adjudicado) e <b>Real</b> (a conta final da obra). Escolhe o projeto e a fase abaixo para ver os rácios por capítulo.</div>
+    <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler:</b> cada projeto é uma entrada única. A biblioteca mostra, por capítulo, o <b>Orçamento</b> (estimativa inicial), o <b>Real</b> (conta final da obra, com trabalhos adicionais) e o <b>Desvio</b> entre os dois. O Real é a referência para orçamentar projetos novos; o desvio diz-te onde as tuas estimativas historicamente falham.</div>
   </div>
     <div class="card">
     <div class="hint" id="libHint"></div>
     <div class="filters">
       <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
-      <div style="min-width:200px"><label>Fase</label><select id="libFase" onchange="renderLibFase()"></select></div>
-      <div style="display:flex;align-items:end"><button class="btn" id="btnRenameFase" onclick="renomearFase()" title="Renomear esta fase" style="background:#fff;color:var(--navy);border:1px solid var(--line)">✏️ Renomear fase</button></div>
       <div style="margin-left:auto;display:flex;align-items:end;gap:8px"><button class="btn navy" onclick="exportWrapUp()">Wrap-up por capítulo</button><button class="btn teal" onclick="exportWrapUpLegendre()">Wrap-up Legendre</button></div>
     </div>
-    <div class="legend" id="libLegend">
+    <div class="legend hidden" id="libLegend">
       <span><i style="background:var(--teal)"></i>Proposta recebida</span>
       <span><i style="background:#E9B44C"></i>Proposta &lt; 2 anos</span>
       <span><i style="background:var(--red)"></i>Sem fonte de preço</span>
     </div>
     <div style="overflow-x:auto">
-    <table>
-      <thead><tr><th>Capítulo</th><th style="text-align:right">Total (€)</th><th style="text-align:right">€/m² GFA</th><th style="text-align:right">€/m² GCA</th><th style="text-align:right">€/fogo</th><th style="width:130px" id="thLast">Fiabilidade da fonte</th></tr></thead>
+    <table class="preview">
+      <thead><tr id="libHeadRow"><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right" id="thLast">Real €/m² ABC</th></tr></thead>
       <tbody id="tbLib"></tbody>
     </table>
     </div>
   </div>
   <div class="card">
-    <h2>Rácios de quantidades — Arquitetura (L'Urbain, BOQ-Arq REV_01)</h2>
-    <div class="hint">Quantidades agregadas por capítulo e unidade, normalizadas por m² de GFA e por fogo. São as referências usadas pelo analisador.</div>
+    <h2 id="libQtyTitulo">Rácios de quantidades físicas</h2>
+    <div class="hint">Quantidades agregadas por capítulo e unidade, normalizadas por m² de ABC e por fogo. Quando o projeto tem auto importado, mostra as quantidades reais executadas; senão, a referência de arquitetura.</div>
     <div style="overflow-x:auto">
     <table>
       <thead><tr><th>Capítulo (arquitetura)</th><th style="width:60px">Un</th><th style="text-align:right">Quantidade</th><th style="text-align:right">/m² GFA</th><th style="text-align:right">/fogo</th></tr></thead>
@@ -2066,6 +2113,154 @@ function renderOrcKpis(){
       if(v>0){const d=document.createElement('div');d.className=e.cb;d.style.width=(v/total*100)+"%";d.title=e.lbl+": "+fmt(v,0)+" € ("+fmt(v/total*100,0)+"%)";bar.appendChild(d);}
     });
   }
+  // revelar e atualizar o cartão de margem/trespasse
+  const mostrar=!!ORC_ROWS.length;
+  document.getElementById('orcMargemCard').classList.toggle('hidden', !mostrar);
+  if(mostrar){ renderSellingLayers(); renderTrespasse(); }
+}
+// Camadas do selling factor (valores por defeito da folha Legendre L'Urbain)
+const SELLING_LAYERS=[
+  {g:"A · Seguros e garantias",itens:[["seg_legdr","LEGDR insurance",0],["seg_car","CAR / Terrorismo",0],["seg_bonds","Bonds",0]]},
+  {g:"B · Despesas corporativas",itens:[["corp_pi","Indemnização profissional",0],["corp_eq","Seguro de equipamento",0],["corp_it","IT corporativo",0],["corp_pur","Compras",0]]},
+  {g:"C · Cash flow",itens:[["cash","Cash flow fees",0]]},
+  {g:"D · Risco, Overhead e Lucro",itens:[["oh_leg","Overhead Legendre",2],["oh_legdr","Overhead LEGDR",4.5],["risk","Risco subempreitadas",0],["margin","Margem",5]]}
+];
+let ORC_SELLING=null;
+function initSelling(){ if(ORC_SELLING)return; ORC_SELLING={}; SELLING_LAYERS.forEach(gr=>gr.itens.forEach(([k,,def])=>ORC_SELLING[k]=def)); }
+function sellingTotalPct(){ initSelling(); return Object.values(ORC_SELLING).reduce((s,v)=>s+(+v||0),0); }
+function sellingFactor(){ const t=sellingTotalPct()/100; return t>=1?1:1/(1-t); }
+function renderSellingLayers(){
+  initSelling();
+  const box=document.getElementById('sellingLayers'); if(!box)return; box.innerHTML="";
+  SELLING_LAYERS.forEach(gr=>{
+    const h=document.createElement('div'); h.style.cssText="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin:8px 0 4px";
+    h.textContent=gr.g; box.appendChild(h);
+    gr.itens.forEach(([k,lbl])=>{
+      const row=document.createElement('div'); row.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0";
+      row.innerHTML=`<span style="font-size:12.5px;color:var(--ink)">${lbl}</span><span><input type="number" step="0.5" value="${ORC_SELLING[k]}" data-k="${k}" class="sfLayer" style="width:64px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:4px 6px">%</span>`;
+      box.appendChild(row);
+    });
+  });
+  box.querySelectorAll('.sfLayer').forEach(el=>el.addEventListener('input',e=>{ORC_SELLING[e.target.dataset.k]=parseFloat(e.target.value)||0;ORC_DIRTY=true;resetVendaFactor();renderTrespasse();}));
+}
+// arranca a venda de cada capítulo em custo × factor (alvo uniforme)
+function resetVendaFactor(){
+  const f=sellingFactor();
+  ORC_ROWS.forEach(r=>{ if(r.valor) r.venda=Math.round(r.valor*f); });
+}
+function batchMargem(){
+  const alvo=prompt("Aplicar que margem % (sobre o custo) aos capítulos? Deixa em branco para 'a custo' (margem 0).","");
+  if(alvo===null)return;
+  const m=alvo.trim()===""?0:(parseFloat(alvo)||0);
+  const filtro=prompt("A que capítulos? Escreve parte do nome (ex.: ESTALEIRO), ou 'todos'.","todos");
+  if(filtro===null)return;
+  const alvoTxt=norm(filtro);
+  ORC_ROWS.forEach(r=>{ if(!r.valor)return; if(alvoTxt==="TODOS"||norm(r.cap).includes(alvoTxt)) r.venda=Math.round(r.valor*(1+m/100)); });
+  ORC_DIRTY=true; renderTrespasse();
+}
+function renderTrespasse(){
+  const tb=document.getElementById('tbTrespasse'); if(!tb)return; tb.innerHTML="";
+  const abc=ORC_META.abc; const f=sellingFactor();
+  const linhas=ORC_ROWS.filter(r=>r.valor);
+  let tCusto=0,tVenda=0;
+  linhas.forEach(r=>{ if(r.venda==null)r.venda=Math.round(r.valor*f); tCusto+=r.valor; tVenda+=r.venda; });
+  const alvo=tCusto*f;
+  linhas.forEach((r,idx)=>{
+    const i=ORC_ROWS.indexOf(r);
+    const peso=tVenda?r.venda/tVenda*100:0;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.cap)}</td>
+      <td class="num">${fmt(r.valor,0)}</td>
+      <td class="num"><input type="number" step="1" class="vendaV" data-i="${i}" value="${r.venda}" style="width:120px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:4px 6px"></td>
+      <td class="num">${abc?fmt(r.venda/abc,0):"—"}</td>
+      <td class="num">${fmt(peso,1)}%</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.vendaV').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].venda=parseFloat(e.target.value)||0;ORC_DIRTY=true;renderTrespasse();}));
+  // KPIs
+  const margem=tVenda-tCusto;
+  document.getElementById('sfFactor').textContent=fmt(f,4);
+  document.getElementById('sfTotal').textContent=fmt(sellingTotalPct(),1);
+  document.getElementById('orcTKCusto').textContent=fmt(tCusto,0)+" €";
+  const disc=parseFloat(document.getElementById('sfDiscount').value)||0, cont=parseFloat(document.getElementById('sfConting').value)||0;
+  const vendaFinal=tVenda+disc+cont;
+  document.getElementById('orcTKTrespasse').textContent=fmt(vendaFinal,0)+" €";
+  document.getElementById('orcTKMargem').textContent=fmt(vendaFinal-tCusto,0)+" € · "+(vendaFinal?fmt((vendaFinal-tCusto)/vendaFinal*100,1):"0")+"%";
+  // indicador alvo vs. afetado
+  const alvoBox=document.getElementById('sfAlvo');
+  if(alvoBox){
+    const dif=tVenda-alvo, difP=alvo?dif/alvo*100:0;
+    const perto=Math.abs(difP)<0.5;
+    alvoBox.innerHTML=`Alvo teórico (custo × factor): <b>${fmt(alvo,0)} €</b> · Soma afetada: <b>${fmt(tVenda,0)} €</b> · <span style="color:${perto?'var(--teal)':'var(--red)'};font-weight:600">${dif>=0?'+':''}${fmt(dif,0)} € (${difP>=0?'+':''}${fmt(difP,2)}%)</span>`;
+  }
+  renderWrapVivo(f);
+}
+// Wrap up Legendre vivo — alimentado pelos capítulos em tempo real
+function renderWrapVivo(f){
+  const tb=document.getElementById('tbWrapVivo'); if(!tb)return; tb.innerHTML="";
+  const custoCat={}, vendaCat={};
+  ORC_ROWS.forEach(r=>{
+    if(!r.valor)return;
+    const m=LEGENDRE_MAP[norm(r.cap)]||[["Utilities / Misc.",1]];
+    const venda=r.venda!=null?r.venda:r.valor*f;
+    m.forEach(([cat,frac])=>{ custoCat[cat]=(custoCat[cat]||0)+r.valor*frac; vendaCat[cat]=(vendaCat[cat]||0)+venda*frac; });
+  });
+  let tC=0,tV=0;
+  LEGENDRE_DIRECT.forEach(cat=>{
+    const c=custoCat[cat]||0, v=vendaCat[cat]||0; if(c===0&&v===0)return;
+    tC+=c; tV+=v;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(cat)}</td><td class="num">${fmt(c,0)}</td><td class="num" style="font-weight:600">${fmt(v,0)}</td><td class="num">${c?fmt((v-c)/c*100,1)+'%':'—'}</td>`;
+    tb.appendChild(tr);
+  });
+  const site=custoCat['Site costs']||0, siteV=vendaCat['Site costs']||0;
+  if(site||siteV){tC+=site;tV+=siteV;const tr=document.createElement('tr');tr.innerHTML=`<td>Site costs (Estaleiro)</td><td class="num">${fmt(site,0)}</td><td class="num" style="font-weight:600">${fmt(siteV,0)}</td><td class="num">${site?fmt((siteV-site)/site*100,1)+'%':'—'}</td>`;tb.appendChild(tr);}
+  const trT=document.createElement('tr'); trT.style.cssText="font-weight:700;background:#eef2f7";
+  trT.innerHTML=`<td>TOTAL</td><td class="num">${fmt(tC,0)}</td><td class="num">${fmt(tV,0)}</td><td class="num">${tC?fmt((tV-tC)/tC*100,1)+'%':'—'}</td>`;
+  tb.appendChild(trT);
+}
+function exportTrespasse(){
+  if(!ORC_ROWS.length){toast("Consolida o orçamento primeiro.");return}
+  const abc=ORC_META.abc; const f=sellingFactor(); let tC=0,tV=0;
+  const body=ORC_ROWS.filter(r=>r.valor).map(r=>{const v=r.venda!=null?r.venda:Math.round(r.valor*f);tC+=r.valor;tV+=v;return [r.cap,Math.round(r.valor),Math.round(v),abc?Math.round(v/abc):"",r.valor?Math.round((v-r.valor)/r.valor*100)+"%":""];});
+  const head=[["SOLIVE — TRESPASSE (modelo Legendre)"],
+    ["Projeto: "+ORC_META.nome+"   ·   Selling factor: "+fmt(f,4)+" (Σ "+fmt(sellingTotalPct(),1)+"%)   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    ["Custo: "+fmt(tC,0)+" €   ·   Venda/trespasse: "+fmt(tV,0)+" €   ·   Margem: "+fmt(tV-tC,0)+" € ("+(tV?fmt((tV-tC)/tV*100,1):"0")+"% s/ venda)"],
+    [],["Capítulo","Custo (€)","Trespasse (€)","€/m² ABC","Margem s/ custo"]];
+  body.push([],["TOTAL",Math.round(tC),Math.round(tV),abc?Math.round(tV/abc):"",""]);
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:44},{wch:14},{wch:14},{wch:12},{wch:14}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Trespasse");
+  XLSX.writeFile(wb,("Trespasse_"+ORC_META.nome).replace(/[^\w]+/g,"_")+".xlsx");
+}
+async function freezeTrespasse(){
+  if(!SESSION){toast("Inicia sessão para congelar o trespasse.");return}
+  const linhas=ORC_ROWS.filter(r=>r.valor);
+  if(!linhas.length){toast("Consolida o orçamento primeiro.");return}
+  const com=document.getElementById('orcFreezeCom').value.trim();
+  if(!com){alert("O comentário do freeze é obrigatório — justifica o trespasse antes de congelar.");document.getElementById('orcFreezeCom').focus();return}
+  const nome=ORC_META.nome||document.getElementById('orcNome').value.trim();
+  if(!nome){alert("Indica o nome do projeto.");return}
+  const f=sellingFactor();
+  await loadProjetos();
+  let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){
+    const {data,error}=await sb.from('projetos').insert({nome,gfa:ORC_META.abc||null,fogos:ORC_META.fogos||null}).select().single();
+    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    proj=data; await loadProjetos();
+  }
+  const caps=linhas.map(r=>{const v=r.venda!=null?r.venda:Math.round(r.valor*f);return {cap:r.cap,total:Math.round(v),comentario:"venda · custo "+Math.round(r.valor)+" · margem "+(r.valor?Math.round((v-r.valor)/r.valor*100):0)+"%"};});
+  const totalTres=caps.reduce((s,c)=>s+c.total,0);
+  const {data:fase,error}=await sb.from('fases').insert({
+    projeto_id:proj.id,fase:'Contrato',etiqueta:'Trespasse · factor '+fmt(f,4)+' · '+com.slice(0,70),
+    data:new Date().toISOString().slice(0,10),total:totalTres
+  }).select().single();
+  if(error){alert("Erro a criar a fase Contrato: "+error.message);return}
+  caps.forEach(c=>c.fase_id=fase.id);
+  const {error:e2}=await sb.from('capitulos').insert(caps);
+  if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
+  ORC_DIRTY=false;
+  toast("Trespasse congelado como fase Contrato ("+fmt(totalTres,0)+" €). Podes criar nova versão depois.");
 }
 function exportOrcamento(){
   if(!ORC_ROWS.length){toast("Arranca o orçamento primeiro.");return}
@@ -2303,55 +2498,28 @@ async function renderComparar(){
 }
 
 /* ================= BIBLIOTECA ================= */
-async function renomearFase(){
-  if(!SESSION){toast("Inicia sessão para renomear fases.");return}
-  const vF=document.getElementById('libFase').value;
-  if(!vF||vF==='emb'){alert("Escolhe uma fase gravada (a referência embutida não se renomeia).");return}
-  const sel=document.getElementById('libFase').selectedOptions[0];
-  const atual=sel?sel.textContent:"";
-  const nova=prompt("Nova etiqueta para esta fase (ajuda a identificá-la na biblioteca):",atual.split(' · ').slice(1).join(' · ')||atual);
-  if(nova==null)return;
-  const et=nova.trim(); if(!et){alert("A etiqueta não pode ficar vazia.");return}
-  const {error}=await sb.from('fases').update({etiqueta:et}).eq('id',+vF);
-  if(error){alert("Erro a renomear: "+error.message);return}
-  toast("Fase renomeada.");
-  renderLibProj();
-}
 async function refreshLib(){
   const selP=document.getElementById('libProjeto');
   const opts=[];
   if(SESSION && PROJETOS.length){
-    // há projetos na base — usar esses; a referência embutida fica oculta (evita o L'Urbain duplicado)
     PROJETOS.forEach(p=>opts.push(`<option value="${p.id}">${esc(p.nome)}</option>`));
   } else {
-    // sem sessão ou base vazia — mostrar a referência embutida como ponto de partida
-    opts.push('<option value="emb">L\'Urbain — Orçamento PE (referência)</option>');
+    opts.push('<option value="emb">L\'Urbain — Orçamento (referência)</option>');
   }
   selP.innerHTML=opts.join("");
   renderLibProj();
-  renderLibQty();
 }
 async function renderLibProj(){
   const v=document.getElementById('libProjeto').value;
-  const selF=document.getElementById('libFase');
-  if(v==='emb'){
-    selF.innerHTML='<option value="emb">Orçamento PE · Out 2024</option>';
-    renderLibFase(); return;
-  }
-  const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',+v).order('data',{ascending:false});
-  selF.innerHTML=(fases||[]).map(f=>`<option value="${f.id}">${esc(f.fase)}${f.data?' · '+f.data:''}${f.etiqueta?' · '+esc(f.etiqueta):''}</option>`).join("")||'<option value="">Sem fases gravadas</option>';
-  renderLibFase();
-}
-async function renderLibFase(){
-  const vP=document.getElementById('libProjeto').value;
-  const vF=document.getElementById('libFase').value;
   const tb=document.getElementById('tbLib'); tb.innerHTML="";
   const hint=document.getElementById('libHint');
   const legend=document.getElementById('libLegend');
-  const thLast=document.getElementById('thLast');
-  if(vP==='emb'){
-    legend.classList.remove('hidden'); thLast.textContent="Fiabilidade da fonte";
-    hint.textContent="L'Urbain — Benfica, Lisboa · 30 fogos · GFA 4.552 m² · GCA AG 2.882,6 m² · 2 pisos enterrados · 18 meses · DCH €5.362.285 (€1.178/m² GFA · €1.860/m² GCA) · Preço de contrato €6.059.079.";
+  const headRow=document.getElementById('libHeadRow');
+  // Referência embutida (só quando não há projetos na base)
+  if(v==='emb'){
+    legend.classList.remove('hidden');
+    headRow.innerHTML='<th>Capítulo</th><th style="text-align:right">Total (€)</th><th style="text-align:right">€/m² GFA</th><th style="text-align:right">€/m² GCA</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Fiabilidade da fonte</th>';
+    hint.textContent="L'Urbain (referência) — Benfica, Lisboa · 30 fogos · GFA 4.552 m² · GCA 2.882,6 m² · orçamento de empreitada.";
     REF.capitulos.forEach(c=>{
       const tot=c.r[0]+c.r[1]+c.r[2];
       const seg=tot>0?c.r.map(x=>Math.round(x/tot*100)):[0,0,0];
@@ -2361,25 +2529,53 @@ async function renderLibFase(){
         <td>${tot>0?`<div class="riskbar" title="Recebida ${seg[0]}% · <2 anos ${seg[1]}% · Sem fonte ${seg[2]}%"><div class="rb-ok" style="width:${seg[0]}%"></div><div class="rb-mid" style="width:${seg[1]}%"></div><div class="rb-bad" style="width:${seg[2]}%"></div></div>`:"—"}</td>`;
       tb.appendChild(tr);
     });
-    LIB_SHOWN={nome:"L'Urbain",local:"Benfica, Lisboa",fase:"Orçamento PE",gfa:REF.gfa,gca:REF.gca,fogos:REF.fogos,caps:REF.capitulos.filter(c=>c.total>0).map(c=>({cap:c.cap,total:c.total}))};
-    return;
+    LIB_SHOWN={nome:"L'Urbain",local:"Benfica, Lisboa",fase:"Orçamento",gfa:REF.gfa,gca:REF.gca,fogos:REF.fogos,caps:REF.capitulos.filter(c=>c.total>0).map(c=>({cap:c.cap,total:c.total}))};
+    renderLibQty(null); return;
   }
-  legend.classList.add('hidden'); thLast.textContent="Comentário";
-  const proj=PROJETOS.find(p=>p.id===+vP);
-  hint.textContent=proj?`${proj.nome} · ${proj.fogos||'—'} fogos · GFA ${proj.gfa?fmt(proj.gfa):'—'} m² · GCA ${proj.gca?fmt(proj.gca):'—'} m²`:"";
-  if(!vF){LIB_SHOWN=null;return}
-  const {data:caps}=await sb.from('capitulos').select('*').eq('fase_id',+vF).order('id');
-  (caps||[]).forEach(c=>{
+  legend.classList.add('hidden');
+  headRow.innerHTML='<th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² ABC</th>';
+  const proj=PROJETOS.find(p=>p.id===+v);
+  if(!proj){LIB_SHOWN=null;return}
+  hint.textContent=`${proj.nome} · ${proj.fogos||'—'} fogos · ABC ${proj.gfa?fmt(proj.gfa):'—'} m² · acima ${proj.gca?fmt(proj.gca):'—'} m²`;
+  // buscar todas as fases do projeto e escolher a mais recente de cada tipo
+  const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',proj.id);
+  const maisRecente=tipo=>{const m=(fases||[]).filter(f=>f.fase===tipo);return m.length?m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]:null;};
+  const fOrc=maisRecente('Orçamento')||maisRecente('Contrato'), fReal=maisRecente('Real');
+  const capsDe=async f=>{ if(!f)return {}; const {data}=await sb.from('capitulos').select('*').eq('fase_id',f.id); const o={}; (data||[]).forEach(c=>{o[c.cap]=+c.total}); return o; };
+  const orcCaps=await capsDe(fOrc), realCaps=await capsDe(fReal);
+  const todos=[...new Set([...Object.keys(orcCaps),...Object.keys(realCaps)])];
+  // ordenar pela ordem standard dos 33 capítulos
+  todos.sort((a,b)=>{const ia=CAPS33.findIndex(c=>norm(c)===norm(a)),ib=CAPS33.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
+  if(!todos.length){ tb.innerHTML='<tr><td colspan="6" style="color:#8794a8">Sem valores gravados. Importa o auto no Fecho de Obra para preencher a fase Real.</td></tr>'; LIB_SHOWN=null; renderLibQty(proj); return; }
+  let tOrc=0,tReal=0;
+  todos.forEach(cap=>{
+    const o=orcCaps[cap], r=realCaps[cap];
+    if(o!=null)tOrc+=o; if(r!=null)tReal+=r;
+    const dev=(o!=null&&r!=null)?r-o:null;
+    const devP=(o&&r!=null)?(r-o)/o*100:null;
+    const col=devP==null?"#8794a8":(devP>2?"var(--red)":(devP<-2?"var(--teal)":"var(--navy)"));
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(c.cap)}</td><td class="num">${fmt(+c.total,0)}</td>
-      <td class="num">${proj&&proj.gfa?fmt(c.total/proj.gfa,2):"—"}</td>
-      <td class="num">${proj&&proj.gca?fmt(c.total/proj.gca,2):"—"}</td>
-      <td class="num">${proj&&proj.fogos?fmt(c.total/proj.fogos,0):"—"}</td>
-      <td style="font-size:12px">${esc(c.comentario||"")}</td>`;
+    tr.innerHTML=`<td>${esc(cap)}</td>
+      <td class="num">${o!=null?fmt(o,0):"—"}</td>
+      <td class="num">${r!=null?fmt(r,0):"—"}</td>
+      <td class="num" style="color:${col}">${dev!=null?(dev>=0?"+":"")+fmt(dev,0):"—"}</td>
+      <td class="num" style="color:${col};font-weight:600">${devP!=null?(devP>=0?"+":"")+fmt(devP,1)+"%":"—"}</td>
+      <td class="num">${r!=null&&proj.gfa?fmt(r/proj.gfa,1):"—"}</td>`;
     tb.appendChild(tr);
   });
-  const faseSel=document.getElementById('libFase').selectedOptions[0];
-  LIB_SHOWN=proj?{nome:proj.nome,local:proj.local||"",fase:faseSel?faseSel.textContent:"",gfa:proj.gfa,gca:proj.gca,fogos:proj.fogos,caps:(caps||[]).map(c=>({cap:c.cap,total:+c.total}))}:null;
+  // linha de total
+  const devT=tReal-tOrc, devTP=tOrc?devT/tOrc*100:null;
+  const colT=devTP==null?"#8794a8":(devTP>2?"var(--red)":(devTP<-2?"var(--teal)":"var(--navy)"));
+  const trT=document.createElement('tr'); trT.style.fontWeight="700"; trT.style.background="#eef2f7";
+  trT.innerHTML=`<td>TOTAL</td><td class="num">${tOrc?fmt(tOrc,0):"—"}</td><td class="num">${tReal?fmt(tReal,0):"—"}</td>
+    <td class="num" style="color:${colT}">${tOrc&&tReal?(devT>=0?"+":"")+fmt(devT,0):"—"}</td>
+    <td class="num" style="color:${colT}">${devTP!=null?(devTP>=0?"+":"")+fmt(devTP,1)+"%":"—"}</td>
+    <td class="num">${tReal&&proj.gfa?fmt(tReal/proj.gfa,0):"—"}</td>`;
+  tb.appendChild(trT);
+  // LIB_SHOWN usa o Real (referência); se não houver, o Orçamento
+  const refCaps=Object.keys(realCaps).length?realCaps:orcCaps;
+  LIB_SHOWN=proj?{nome:proj.nome,local:proj.local||"",fase:Object.keys(realCaps).length?"Real":"Orçamento",gfa:proj.gfa,gca:proj.gca,fogos:proj.fogos,caps:Object.entries(refCaps).map(([cap,total])=>({cap,total}))}:null;
+  renderLibQty(proj);
 }
 let LIB_SHOWN=null;
 /* Mapa 33 capítulos -> categorias Legendre (frações derivadas das fórmulas do Wrap up L'Urbain) */
@@ -2464,14 +2660,30 @@ function exportWrapUp(){
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Wrap up");
   XLSX.writeFile(wb,("WrapUp_"+S.nome+"_"+(S.fase||"")).replace(/[^\w]+/g,"_")+".xlsx");
 }
-function renderLibQty(){
-  const tq=document.getElementById('tbLibQty'); tq.innerHTML="";
-  Object.keys(REF.qty).sort().forEach(cap=>{
-    Object.keys(REF.qty[cap]).forEach(u=>{
-      const q=REF.qty[cap][u];
+function renderLibQty(proj){
+  const tq=document.getElementById('tbLibQty'); if(!tq)return; tq.innerHTML="";
+  const titulo=document.getElementById('libQtyTitulo');
+  // fonte das quantidades: métricas reais do projeto (do auto) ou, na falta, a referência de arquitetura
+  let fonte=null, nome="", gfa=REF.gfa, fogos=REF.fogos;
+  if(proj && proj.metricas && Object.keys(proj.metricas).length){
+    fonte={};
+    Object.entries(proj.metricas).forEach(([k,v])=>{
+      const un=v.un||"", q=v.q; const cap=k.replace(/\s*\([^)]*\)\s*$/,"").trim();
+      fonte[cap]=fonte[cap]||{}; fonte[cap][un]=q;
+    });
+    nome=proj.nome+" (real, do auto)"; gfa=proj.gfa||REF.gfa; fogos=proj.fogos||REF.fogos;
+  } else {
+    fonte=REF.qty; nome=(proj?proj.nome+" — ":"")+"referência de arquitetura (L'Urbain BOQ-Arq)";
+  }
+  if(titulo) titulo.textContent="Rácios de quantidades físicas — "+nome;
+  const caps=Object.keys(fonte).sort((a,b)=>{const ia=CAPS33.findIndex(c=>norm(c)===norm(a)),ib=CAPS33.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
+  caps.forEach(cap=>{
+    const uns=Object.keys(fonte[cap]);
+    uns.forEach((u,i)=>{
+      const q=fonte[cap][u];
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${esc(cap)}</td><td class="mono">${esc(u)}</td><td class="num">${fmt(q)}</td>
-        <td class="num">${fmt(q/REF.gfa,3)}</td><td class="num">${fmt(q/REF.fogos,2)}</td>`;
+      tr.innerHTML=`<td style="${i>0?'color:#c4ccd8;font-size:12px':''}">${i===0?esc(cap):'↳'}</td><td class="mono">${esc(u)}</td><td class="num">${fmt(q)}</td>
+        <td class="num">${gfa?fmt(q/gfa,3):"—"}</td><td class="num">${fogos?fmt(q/fogos,2):"—"}</td>`;
       tq.appendChild(tr);
     });
   });
