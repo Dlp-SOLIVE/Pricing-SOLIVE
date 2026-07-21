@@ -532,11 +532,15 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   </div>
 
   <div class="card">
-    <div class="step"><div class="n">2</div><h2>Importar custos reais da obra</h2></div>
-    <div class="hint">Aceita três formatos: o <b>auto de medição</b> (deteta a coluna "Totais Finais" e agrega por capítulo automaticamente), o modelo de fecho preenchido, ou um mapa próprio da obra com colunas de capítulo e total. Confere sempre o mapeamento no passo 3 antes de gravar.</div>
+    <div class="step"><div class="n">2</div><h2>Importar custos do projeto</h2></div>
+    <div class="hint">Escolhe a fase e importa o ficheiro. Aceita: o <b>auto de medição</b> (Totais Finais + trabalhos adicionais), um <b>mapa de quantidades com preços</b> (orçamento de obra, ao nível do artigo), o modelo de fecho, ou um mapa por capítulo. Confere sempre o mapeamento no passo 3 antes de gravar.</div>
+    <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--navy)"><input type="radio" name="foFase" value="Real" checked onchange="foFaseChange()"> Conta final / auto (Real)</label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--navy)"><input type="radio" name="foFase" value="Orçamento" onchange="foFaseChange()"> Orçamento de obra (Orçamento)</label>
+    </div>
     <div class="drop" id="foDrop" style="padding:26px">
-      <button class="btn red" style="pointer-events:none;margin-bottom:10px">📄 Escolher ficheiro do auto (.xlsx)</button>
-      <div style="font-size:13px;color:#69788f">ou arrasta para aqui o <b>auto de medição</b> / conta final</div>
+      <button class="btn red" style="pointer-events:none;margin-bottom:10px" id="foDropBtn">📄 Escolher ficheiro (.xlsx)</button>
+      <div style="font-size:13px;color:#69788f" id="foDropHint">ou arrasta para aqui o <b>auto de medição</b> / conta final</div>
     </div>
     <input type="file" id="foFile" accept=".xlsx,.xls" class="hidden">
     <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
@@ -553,7 +557,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
       <div style="margin-right:auto;font-weight:700;color:var(--navy)">Total: <span class="mono" id="foTotal">—</span></div>
-      <button class="btn red" id="btnGravarReal" onclick="saveReal()">Gravar fase Real na biblioteca</button>
+      <button class="btn red" id="btnGravarReal" onclick="saveReal()">Gravar na biblioteca</button>
     </div>
   </div>
 
@@ -1679,14 +1683,28 @@ function processFecho(sheet){
       const b=cells.findIndex(c=>/TOTAL|CUSTO|VALOR/.test(c));
       if(a>-1&&b>-1){hr=i;cCap=a;cTot=b;cCom=cells.findIndex(c=>/COMENT|OBS/.test(c));break}
     }
-    if(hr===-1){alert("Não reconheci o formato. Usa um auto de medição, o modelo de fecho, ou um mapa com colunas de capítulo e total.");return}
-    for(let i=hr+1;i<rows.length;i++){
-      const r2=rows[i]||[];
-      const raw=r2[cCap]!=null?String(r2[cCap]).trim():"";
-      if(!raw||/^TOTAL/i.test(raw)) continue;
-      const tot=typeof r2[cTot]==='number'?r2[cTot]:null;
-      const std=CAPS33.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
-      FO_ROWS.push({raw,std,total:tot,com:cCom>-1&&r2[cCom]!=null?String(r2[cCom]):""});
+    if(hr===-1){
+      // fallback: mapa de quantidades com preços (nível de artigo) — usa o extrator de custos do Analisador
+      const custos=parseCostsFrom(FO_WB,sheet);
+      const caps=Object.entries(custos).filter(([c,v])=>c!=="(sem capítulo)"&&v>0);
+      if(caps.length){
+        caps.forEach(([cap,total])=>{
+          const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
+          FO_ROWS.push({raw:cap,std:std||(CAPS33.includes(cap)?cap:null),total,com:""});
+        });
+        document.getElementById('foFich').innerHTML='<span class="tag">mapa com preços · custos por capítulo</span>';
+      } else {
+        alert("Não reconheci o formato. Usa um auto de medição, um mapa de quantidades com preços, o modelo de fecho, ou um mapa com colunas de capítulo e total.");return;
+      }
+    } else {
+      for(let i=hr+1;i<rows.length;i++){
+        const r2=rows[i]||[];
+        const raw=r2[cCap]!=null?String(r2[cCap]).trim():"";
+        if(!raw||/^TOTAL/i.test(raw)) continue;
+        const tot=typeof r2[cTot]==='number'?r2[cTot]:null;
+        const std=CAPS33.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
+        FO_ROWS.push({raw,std,total:tot,com:cCom>-1&&r2[cCom]!=null?String(r2[cCom]):""});
+      }
     }
   }
   if(!FO_ROWS.length){alert("Não encontrei capítulos com valores neste ficheiro.");return}
@@ -1731,36 +1749,47 @@ async function saveReal(){
   if(!SESSION){toast("Sem sessão ativa — configura o Supabase para gravar.");return}
   const nome=document.getElementById('foProjeto').value.trim();
   if(!nome){toast("Indica o nome do projeto no passo 1.");return}
+  const faseTipo=(document.querySelector('input[name=foFase]:checked')||{}).value||'Real';
+  const ehReal=faseTipo==='Real';
   const linhas=FO_ROWS.filter(r=>r.std&&r.total!=null);
   if(!linhas.length){alert("Sem capítulos mapeados com total preenchido.");return}
   const n=id=>+document.getElementById(id).value||null;
   const desc={gfa:n('foAbc'),gca:n('foGca'),ac_abaixo:n('foAbaixo'),fogos:n('foFogos'),
     pisos_acima:n('foPisosAcima'),pisos_enterrados:n('foPisosAbaixo'),
     area_implantacao:n('foImplantacao'),area_lote:n('foLote'),estacionamento:n('foEstacionamento')};
+  // as quantidades reais só se gravam quando é a fase Real (obra fechada); nunca a partir de um orçamento
+  const met=ehReal?FO_METRICAS:null;
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
-    const {data,error}=await sb.from('projetos').insert(Object.assign({nome,metricas:FO_METRICAS||null},desc)).select().single();
+    const {data,error}=await sb.from('projetos').insert(Object.assign({nome,metricas:met||null},desc)).select().single();
     if(error){alert("Erro a criar o projeto: "+error.message);return}
     proj=data;
   } else {
     const upd={}; Object.keys(desc).forEach(k=>{if(desc[k]!=null)upd[k]=desc[k]});
-    if(FO_METRICAS&&Object.keys(FO_METRICAS).length)upd.metricas=FO_METRICAS; // quantidades reais do auto substituem quaisquer preliminares
+    if(met&&Object.keys(met).length)upd.metricas=met; // quantidades reais do auto substituem quaisquer preliminares
     if(Object.keys(upd).length)await sb.from('projetos').update(upd).eq('id',proj.id);
     Object.assign(proj,upd);
   }
   await loadProjetos();
-  await resolveFaseExistente(proj.id,'Real');
+  await resolveFaseExistente(proj.id,faseTipo);
   const total=linhas.reduce((s,r)=>s+r.total,0);
+  const etiqueta=ehReal?('Auto/conta final · '+(document.getElementById('foFich').textContent||'')):('Orçamento de obra · '+(document.getElementById('foFich').textContent||''));
   const {data:fase,error}=await sb.from('fases').insert({
-    projeto_id:proj.id,fase:'Real',etiqueta:'Auto/conta final · '+(document.getElementById('foFich').textContent||''),
+    projeto_id:proj.id,fase:faseTipo,etiqueta,
     data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
   }).select().single();
   if(error){alert("Erro a criar a fase: "+error.message);return}
   const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,total:r.total,comentario:r.com||null}));
   const {error:e2}=await sb.from('capitulos').insert(caps);
   if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
-  toast("Fase Real gravada — "+proj.nome+" · "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
+  toast("Fase "+faseTipo+" gravada — "+proj.nome+" · "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
   renderDesvios(proj,linhas);
+}
+function foFaseChange(){
+  const ehReal=((document.querySelector('input[name=foFase]:checked')||{}).value||'Real')==='Real';
+  const btn=document.getElementById('foDropBtn'), hint=document.getElementById('foDropHint');
+  if(btn) btn.textContent=ehReal?"📄 Escolher auto / conta final (.xlsx)":"📄 Escolher orçamento de obra (.xlsx)";
+  if(hint) hint.innerHTML=ehReal?"ou arrasta o <b>auto de medição</b> / conta final":"ou arrasta o <b>orçamento de obra</b> (mapa com preços)";
 }
 async function renderDesvios(proj,linhas){
   // fase de orçamento mais recente do projeto
