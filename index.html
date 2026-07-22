@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Solive · Orçamentação</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Dependências com versão fixa (pinned). Não usar tags flutuantes (@2, /latest/):
+     uma atualização a montante pode partir a plataforma sem aviso. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -118,7 +120,68 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 .preview tr.hl td{background:#fdf3f4}
 .err-line{color:var(--err);font-size:12.5px;margin-top:10px;min-height:16px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 22px;border-radius:8px;font-size:13px;z-index:300;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-@media(max-width:900px){.g6{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}main{padding:16px}header .sub{display:none}}
+/* ===== v2.1 ===== */
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.subtabs button{background:#fff;border:1px solid var(--line);color:var(--navy);border-radius:7px;padding:7px 14px;font:inherit;font-weight:500;font-size:12.5px;cursor:pointer}
+.subtabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.drvchip{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eef1f6;color:var(--navy);letter-spacing:.2px;white-space:nowrap}
+.drvchip.exp{background:#fdf1df;color:var(--warn)}
+.srcchip{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;letter-spacing:.3px}
+.src-qt{background:#e4f1ec;color:#1d6b52} .src-drv{background:#e9eef6;color:var(--navy)} .src-lin{background:#f2f0e6;color:#7a6a24}
+.matrix td.best{background:#e4f1ec;font-weight:700;color:#1d6b52}
+.matrix td.worst{color:#a33}
+.matrix th.sup{writing-mode:horizontal-tb;font-size:10.5px;max-width:120px}
+.vrow{display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:7px;background:#fff;font-size:12.5px}
+.vrow .vn{font-weight:700;color:var(--navy);font-family:'Roboto Mono',monospace;min-width:38px}
+.vrow .vc{flex:1;color:#48566b}
+.vrow.cur{border-color:var(--teal);background:#f4fbfb}
+.miniflag{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.mf-ok{background:var(--teal)} .mf-warn{background:var(--warn)} .mf-err{background:var(--err)} .mf-none{background:#c4ccd8}
+.banner{position:fixed;top:70px;right:20px;max-width:420px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--err);border-radius:9px;padding:13px 16px;box-shadow:0 8px 30px rgba(20,58,103,.18);z-index:310;font-size:12.5px;color:var(--ink)}
+.banner b{display:block;color:var(--err);margin-bottom:3px;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+.banner .x{position:absolute;top:8px;right:11px;cursor:pointer;color:#8794a8;font-size:15px;line-height:1}
+.banner.ok{border-left-color:var(--teal)} .banner.ok b{color:var(--teal)}
+.assum{background:#fafbfd;border:1px solid var(--line);border-radius:9px;padding:12px 15px;font-size:12px;color:#48566b;margin-top:12px}
+.assum b{color:var(--navy);display:block;margin-bottom:5px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.assum ul{margin:0 0 0 16px} .assum li{margin-bottom:3px}
+.autosave{font-size:11px;color:#8794a8;margin-left:10px;font-weight:400}
+/* ===== v2.2 ===== */
+#ctxbar{background:#0F2C4F;color:#fff;padding:0 28px;display:flex;align-items:center;gap:14px;height:46px;position:sticky;top:60px;z-index:49;border-bottom:1px solid rgba(255,255,255,.09)}
+#ctxbar .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:#7E97B8;font-weight:700}
+#ctxbar input{width:230px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#fff;padding:6px 10px;border-radius:6px;font:inherit;font-size:13px;font-weight:500}
+#ctxbar input::placeholder{color:#7E97B8}
+#ctxbar input:focus{outline:2px solid rgba(41,136,147,.75)}
+#ctxbar .desc{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#C3D2E6;align-items:center;overflow:hidden}
+#ctxbar .desc b{color:#fff;font-weight:600;font-family:'Roboto Mono',monospace}
+#ctxbar .desc span.miss{color:#7E97B8;font-style:italic}
+#ctxbar .btnctx{background:rgba(255,255,255,.12);border:none;color:#fff;font:inherit;font-size:12px;font-weight:500;padding:6px 13px;border-radius:6px;cursor:pointer;white-space:nowrap}
+#ctxbar .btnctx:hover{background:rgba(255,255,255,.22)}
+#ctxbar .newtag{background:var(--teal);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.4px}
+.ctxecho{background:#F0F3F8;border:1px solid var(--line);border-radius:8px;padding:11px 15px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:#48566b}
+.ctxecho b{color:var(--navy);font-family:'Roboto Mono',monospace}
+.ctxecho .pn{font-family:'Roboto',sans-serif;font-weight:700;font-size:14px;color:var(--navy);margin-right:4px}
+.purpose .toggle{position:absolute;top:13px;right:16px;background:none;border:none;color:#8794a8;font:inherit;font-size:11.5px;cursor:pointer;padding:3px 8px;border-radius:5px}
+.purpose .toggle:hover{background:#f0f3f8;color:var(--navy)}
+.purpose{position:relative}
+.purpose.folded p,.purpose.folded .io{display:none}
+.purpose.folded{padding:11px 20px}
+.purpose.folded h1{font-size:14px;margin-bottom:0}
+.purpose.folded .eyebrow{display:none}
+#busy{position:fixed;top:0;left:0;height:3px;background:var(--teal);width:0;z-index:400;transition:width .25s ease}
+#busy.on{width:88%} #busy.done{width:100%;opacity:0;transition:width .2s,opacity .4s .2s}
+.busytxt{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12px;padding:6px 16px;border-radius:14px;z-index:401;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.jump{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.jump a{font-size:11.5px;color:var(--navy);background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 12px;text-decoration:none}
+.jump a:hover{border-color:var(--navy)}
+tr.resolved td{opacity:.42}
+tr.resolved td textarea{text-decoration:line-through}
+.rescb{width:16px;height:16px;cursor:pointer;accent-color:var(--teal)}
+.cb-racio,.e-racio{background:#8494A8 !important}
+.modal .dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+@media(max-width:900px){#ctxbar{height:auto;padding:8px 14px;flex-wrap:wrap;top:0;position:static}#ctxbar .desc{width:100%}}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.g6{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}main{padding:16px}header .sub{display:none}nav{gap:2px}nav button{padding:7px 9px;font-size:12.5px}}
+@media(max-width:640px){.g6{grid-template-columns:1fr}.kpis{grid-template-columns:1fr}header{padding:0 14px;gap:10px;height:auto;flex-wrap:wrap;padding-bottom:8px}nav{margin-left:0;width:100%;overflow-x:auto}.card{padding:15px 14px}.stickyhead th{position:static}table{font-size:12px}td,th{padding:6px 7px}}
 </style>
 </head>
 <body>
@@ -130,6 +193,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     <button id="nav-analisador" class="on" onclick="showView('analisador')">Analisador</button>
     <button id="nav-estimador" onclick="showView('estimador')">Estimador</button>
     <button id="nav-orcamento" onclick="showView('orcamento')">Orçamentação</button>
+    <button id="nav-consultas" onclick="showView('consultas')">Consultas</button>
     <button id="nav-fecho" onclick="showView('fecho')">Fecho de Obra</button>
     <button id="nav-comparar" onclick="showView('comparar')">Comparar</button>
     <button id="nav-biblioteca" onclick="showView('biblioteca')">Biblioteca</button>
@@ -175,11 +239,62 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   </div>
 </div>
 
+<div id="ctxbar">
+  <span class="lbl">Projeto ativo</span>
+  <input type="text" id="ctxNome" list="ctxList" placeholder="Escolhe ou escreve um nome" autocomplete="off">
+  <datalist id="ctxList"></datalist>
+  <span id="ctxNew" class="newtag hidden">NOVO</span>
+  <div class="desc" id="ctxDesc"></div>
+  <button class="btnctx" style="margin-left:auto" onclick="abrirDescritores()">Editar descritores</button>
+</div>
+<div id="busy"></div>
+<div class="hidden" id="ctxMirror">
+  <input type="text" id="pNome"><input type="number" id="pGFA"><input type="number" id="pGCA">
+  <input type="number" id="pAbaixo"><input type="number" id="pFogos"><input type="number" id="pPisosAcima">
+  <input type="number" id="pPisosAbaixo"><input type="number" id="pImplantacao"><input type="number" id="pLote">
+  <input type="number" id="pEstacionamento">
+  <input type="text" id="estNome"><input type="number" id="estAbc"><input type="number" id="estFogos">
+  <input type="number" id="estAcima"><input type="number" id="estAbaixo"><input type="number" id="estImpl">
+  <input type="number" id="estLote"><input type="number" id="estPisosA"><input type="number" id="estPisosB">
+  <input type="number" id="estPark"><input type="text" id="orcNome"><input type="number" id="orcAbc">
+  <input type="number" id="orcFogos"><input type="text" id="cstProj">
+</div>
 <main>
+<div class="overlay hidden" id="descOverlay">
+  <div class="modal" style="max-width:720px">
+    <h3>Descritores do projeto</h3>
+    <div class="hint">Introduzem-se <b>uma única vez</b>, aqui. Todos os separadores usam estes valores — não voltas a escrevê-los no estimador, no orçamento nem no fecho de obra. Vêm do programa e do licenciamento, não do mapa de quantidades.</div>
+    <div class="dgrid">
+      <div><label>ABC total (m²)</label><input type="number" id="dAbc" placeholder="4552"></div>
+      <div><label>Ac. acima solo (m²)</label><input type="number" id="dAcima" placeholder="2883"></div>
+      <div><label>Ac. abaixo solo (m²)</label><input type="number" id="dAbaixo" placeholder="1669"></div>
+      <div><label>Nº de fogos</label><input type="number" id="dFogos" placeholder="30"></div>
+      <div><label>Pisos elevados</label><input type="number" id="dPisosA" placeholder="7"></div>
+      <div><label>Pisos enterrados</label><input type="number" id="dPisosB" placeholder="2"></div>
+      <div><label>Área implantação (m²)</label><input type="number" id="dImpl" placeholder="820"></div>
+      <div><label>Área do lote (m²)</label><input type="number" id="dLote" placeholder="1100"></div>
+      <div><label>Estacionamento (lug.)</label><input type="number" id="dPark" placeholder="45"></div>
+    </div>
+    <div class="assum" style="margin-top:16px">
+      <b>Porque é que estes números importam</b>
+      <ul>
+        <li>São o <b>denominador</b> de todos os rácios: sem ABC não há €/m² nem verificação de quantidades.</li>
+        <li>Cada capítulo é estimado pela grandeza que o comanda — a escavação pela implantação e pisos enterrados, as cozinhas pelos fogos. Quanto mais preencheres, menos capítulos caem no rácio genérico por m².</li>
+        <li>Podes deixar campos em branco: a plataforma usa a aproximação seguinte e assinala-o na coluna "Fonte".</li>
+      </ul>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+      <button class="btn ghost" onclick="fecharDescritores()">Cancelar</button>
+      <button class="btn navy" onclick="guardarDescritores()">Aplicar a todos os separadores</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== VISTA: ANALISADOR ===================== -->
 <div id="view-analisador">
   <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep cur">1 · Rever MQ</span><span class="arr">→</span><span class="fstep">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
-  <div class="purpose red">
+  <div class="purpose red" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Rever o mapa de quantidades</h1>
     <p>Carrega o mapa de quantidades que o projetista entregou. A plataforma verifica a <b>coerência interna</b> do mapa e sinaliza capítulos fora do padrão histórico, para orientar a tua revisão. Não substitui o confronto com as peças desenhadas — aponta onde olhar primeiro. Preenche os descritores do projeto: são eles que tornam a comparação rigorosa.</p>
@@ -188,21 +303,11 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 
   <div class="card">
     <div class="step"><div class="n">1</div><h2>Projeto e descritores do envelope</h2></div>
-    <div class="hint">Os descritores são o denominador da análise comparativa — introduz o que souberes (vêm do programa/licenciamento, não do MQ). As quantidades físicas (escavação, betão, acabamentos…) são extraídas automaticamente do mapa. A ABC ativa também os testes de rácio.</div>
-    <div class="grid g6">
-      <div style="grid-column:span 2"><label>Nome do projeto</label><input type="text" id="pNome" list="projList" placeholder="Ex.: Projeto X"><datalist id="projList"></datalist></div>
-      <div><label>ABC total (m²)</label><input type="number" id="pGFA" placeholder="4552" title="Área Bruta de Construção total"></div>
-      <div><label>Ac. acima solo (m²)</label><input type="number" id="pGCA" placeholder="2882.6" title="Área de construção acima do solo"></div>
-      <div><label>Ac. abaixo solo (m²)</label><input type="number" id="pAbaixo" placeholder="1669"></div>
-      <div><label>Fase</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
-    </div>
+    <div class="hint">Os descritores do projeto ativo, definidos uma única vez na barra de topo. São o denominador de toda a análise comparativa e é a ABC que ativa os testes de rácio.</div>
+    <div class="ctxecho" id="anEcho"></div>
     <div class="grid g6" style="margin-top:12px">
-      <div><label>Nº de fogos</label><input type="number" id="pFogos" placeholder="30"></div>
-      <div><label>Pisos elevados</label><input type="number" id="pPisosAcima" placeholder="7"></div>
-      <div><label>Pisos enterrados</label><input type="number" id="pPisosAbaixo" placeholder="2"></div>
-      <div><label>Área implantação (m²)</label><input type="number" id="pImplantacao" placeholder="820"></div>
-      <div><label>Área do lote (m²)</label><input type="number" id="pLote" placeholder="1100"></div>
-      <div><label>Estacionamento (lug.)</label><input type="number" id="pEstacionamento" placeholder="45"></div>
+      <div style="grid-column:span 2"><label>Fase do projeto</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
+      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn ghost" style="width:100%;justify-content:center" onclick="abrirDescritores()">Editar descritores do projeto</button></div>
     </div>
   </div>
 
@@ -236,7 +341,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </div>
 
     <div class="card">
-      <h2>Alertas e comentários para a equipa projetista</h2>
+      <h2>Alertas e comentários para a equipa projetista <span class="tag" id="findTag"></span></h2>
       <div class="hint">Edita o comentário de cada linha antes de exportar — o texto pré-preenchido é uma sugestão.</div>
       <div class="filters">
         <div><label>Severidade</label><select id="fSev" onchange="renderFindings()"><option value="">Todas</option><option value="erro">Erro</option><option value="aviso">Aviso</option><option value="info">Nota</option></select></div>
@@ -323,7 +428,8 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 <!-- ===================== VISTA: ESTIMADOR ===================== -->
 <div id="view-estimador" class="hidden">
   <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep cur">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
-  <div class="purpose red">
+  <div class="purpose red" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Estimativa rápida para o Business Plan</h1>
     <p>Na fase inicial só tens os descritores do projeto e o budget do BP. O estimador aplica os rácios de custo da biblioteca aos teus descritores e devolve uma estimativa por capítulo, com o intervalo do que os projetos históricos implicam — e confronta o total com o teu budget. Idealmente alimentado por custos reais de obra; quanto mais projetos fechados, mais fiável.</p>
@@ -332,24 +438,49 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 
   <div class="card">
     <div class="step"><div class="n">1</div><h2>Descritores do projeto a estimar</h2></div>
-    <div class="grid g6">
-      <div style="grid-column:span 2"><label>Nome / referência</label><input type="text" id="estNome" placeholder="Projeto novo"></div>
-      <div><label>ABC total (m²)</label><input type="number" id="estAbc" placeholder="5000"></div>
-      <div><label>Nº de fogos</label><input type="number" id="estFogos" placeholder="40"></div>
+    <div class="hint">Vêm do projeto ativo escolhido na barra de topo. Para estimar um projeto novo, escreve o nome lá em cima e preenche os descritores — não é preciso existir na biblioteca.</div>
+    <div class="ctxecho" id="estEcho"></div>
+    <div class="grid g6" style="margin-top:12px">
       <div style="grid-column:span 2"><label>Budget do BP p/ hard costs (€) — opcional</label><input type="number" id="estBudget" placeholder="6000000"></div>
+      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn ghost" style="width:100%;justify-content:center" onclick="abrirDescritores()">Editar descritores do projeto</button></div>
     </div>
   </div>
 
   <div class="card">
     <div class="step"><div class="n">2</div><h2>Parâmetros do cálculo</h2></div>
     <div class="grid g6">
-      <div><label>Base de cálculo</label><select id="estBase"><option value="abc">€/m² ABC</option><option value="fogo">€/fogo</option><option value="media">Média dos dois</option></select></div>
+      <div style="grid-column:span 2"><label>Base de cálculo</label><select id="estBase">
+        <option value="driver">Driver físico por capítulo (recomendado)</option>
+        <option value="abc">€/m² ABC (uniforme)</option>
+        <option value="fogo">€/fogo (uniforme)</option>
+        <option value="media">Média ABC + fogo</option></select></div>
       <div style="grid-column:span 2"><label>Fonte dos rácios</label><select id="estFonte"><option value="real">Preferir Real (auto de medição)</option><option value="contrato">Preferir Contrato</option><option value="orcamento">Preferir Orçamento</option><option value="todas">Todas as fases</option></select></div>
       <div><label>Inflação (%/ano)</label><input type="number" id="estInfl" value="4" step="0.5" title="Pôr 0 para não ajustar"></div>
       <div><label>Ano-alvo</label><input type="number" id="estAno" placeholder="2026"></div>
-      <div style="display:flex;align-items:end"><button class="btn red" style="width:100%;justify-content:center" onclick="runEstimador()">Estimar</button></div>
+      <div style="grid-column:span 2"><label>Índice de inflação</label><select id="estInflModo">
+        <option value="flat">Uniforme (uma taxa para tudo)</option>
+        <option value="split">Diferenciado mão-de-obra / material / MEP</option></select></div>
+      <div style="grid-column:span 2"><label>Preços unitários da biblioteca</label><select id="estPU">
+        <option value="auto">Usar quando houver MQ analisado (recomendado)</option>
+        <option value="off">Não usar — só rácios de capítulo</option></select></div>
+      <div style="grid-column:span 2"><label>Calibração pelo desvio histórico</label><select id="estCalib">
+        <option value="off">Desligada — estimativa em bruto</option>
+        <option value="on">Ligada — corrigir pelo desvio orçamento→real</option></select></div>
+      <div style="grid-column:span 2"><label>Soft costs</label><select id="estSoft">
+        <option value="off">Só hard costs</option>
+        <option value="on">Acrescentar camada de soft costs</option></select></div>
+      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn red" style="width:100%;justify-content:center" onclick="runEstimador()">Estimar</button></div>
     </div>
-    <div class="hint" style="margin-top:10px">Inflação a 0 desativa o ajuste temporal. Cada rácio antigo é levado ao ano-alvo por <span class="mono">(1+inflação)^(anos)</span>.</div>
+    <div class="assum">
+      <b>Pressupostos deste cálculo</b>
+      <ul>
+        <li><b>Driver físico:</b> cada capítulo escala pela grandeza que verdadeiramente o comanda (escavação pelo volume enterrado, cozinhas pelo nº de fogos, elevadores pelo nº de pisos), e não todos por m² de ABC.</li>
+        <li><b>Expoente de escala:</b> capítulos com componente fixa relevante (estaleiro, elevadores, SCIE) crescem menos que proporcionalmente. Aplica-se <span class="mono">(driver_novo / driver_histórico)^expoente</span>, com expoente &lt; 1.</li>
+        <li><b>Inflação:</b> cada rácio é levado ao ano-alvo por <span class="mono">(1+i)^(anos)</span>. No modo diferenciado, capítulos de mão-de-obra intensiva, de material e de MEP usam taxas distintas.</li>
+        <li><b>Calibração:</b> se ligada, cada capítulo é multiplicado pela mediana histórica de <span class="mono">real / orçamento</span> — corrige o enviesamento sistemático das tuas próprias estimativas.</li>
+        <li><b>Intervalo:</b> é o envelope mínimo–máximo dos projetos na base, não um intervalo de confiança estatístico.</li>
+      </ul>
+    </div>
   </div>
 
   <div id="estResults" class="hidden">
@@ -368,11 +499,26 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </div>
     <div class="card">
       <h2>Estimativa por capítulo</h2>
-      <div class="hint">Central = mediana dos rácios históricos (ajustados à inflação). Intervalo = mínimo a máximo observado entre projetos. Nº = quantos projetos suportam cada capítulo — quanto mais, mais fiável.</div>
+      <div class="hint">Central = mediana dos rácios históricos (ajustados à inflação). Intervalo = mínimo a máximo observado entre projetos. Nº = quantos projetos suportam cada capítulo — quanto mais, mais fiável. <b>Base</b> mostra o driver usado e <b>Fonte</b> como o valor foi obtido.</div>
+      <div class="legend">
+        <span><span class="srcchip src-qt">QT×PU</span> quantidade do MQ × preço unitário da biblioteca</span>
+        <span><span class="srcchip src-drv">DRIVER</span> rácio do capítulo pelo seu driver físico</span>
+        <span><span class="srcchip src-lin">ABC</span> recurso a m² de ABC por falta de driver</span>
+      </div>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Capítulo</th><th style="text-align:right;width:50px">Nº</th><th style="text-align:right">Rácio central</th><th style="text-align:right">Estimativa (€)</th><th style="text-align:right">Mín (€)</th><th style="text-align:right">Máx (€)</th></tr></thead>
+        <thead><tr><th>Capítulo</th><th style="text-align:right;width:50px">Nº</th><th>Base</th><th>Fonte</th><th style="text-align:right">Rácio central</th><th style="text-align:right">Calib.</th><th style="text-align:right">Estimativa (€)</th><th style="text-align:right">Mín (€)</th><th style="text-align:right">Máx (€)</th></tr></thead>
         <tbody id="tbEst"></tbody>
+      </table>
+      </div>
+    </div>
+    <div class="card hidden" id="estSoftCard">
+      <h2>Camada de soft costs</h2>
+      <div class="hint">Custos que não são de empreitada mas entram no budget do Business Plan. Percentagens aplicadas sobre os hard costs estimados — edita-as para as tuas referências. Servem para confrontar o BP quando o budget não vem já separado.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Rubrica</th><th style="text-align:right;width:130px">% s/ hard costs</th><th style="text-align:right">Valor (€)</th><th>Nota</th></tr></thead>
+        <tbody id="tbSoft"></tbody>
       </table>
       </div>
     </div>
@@ -382,7 +528,8 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 <!-- ===================== VISTA: ORÇAMENTAÇÃO ===================== -->
 <div id="view-orcamento" class="hidden">
   <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep cur">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
-  <div class="purpose red">
+  <div class="purpose red" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Orçamentar com semáforo de consolidação</h1>
     <p>Cada capítulo começa em estimativa por rácio (vermelho) e vai ganhando solidez à medida que consultas o mercado e recebes propostas. Marca o estado de cada capítulo e vê, a qualquer momento, quanto do orçamento já é sólido e quanto ainda é aposta. A cor segue a melhor evidência disponível: rácio → em consulta → proposta antiga → proposta firme → adjudicado.</p>
@@ -392,9 +539,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
   <div class="card">
     <div class="step"><div class="n">1</div><h2>Projeto e arranque</h2></div>
     <div class="grid g6">
-      <div style="grid-column:span 2"><label>Projeto</label><input type="text" id="orcNome" list="orcProjList" placeholder="Projeto"><datalist id="orcProjList"></datalist></div>
-      <div><label>ABC total (m²)</label><input type="number" id="orcAbc" placeholder="5000"></div>
-      <div><label>Nº de fogos</label><input type="number" id="orcFogos" placeholder="40"></div>
+      <div style="grid-column:span 4"><div class="ctxecho" id="orcEcho"></div></div>
       <div style="grid-column:span 2;display:flex;align-items:end;gap:8px">
         <button class="btn navy" style="flex:1;justify-content:center" onclick="orcSeed()">Arrancar dos rácios (estimador)</button>
       </div>
@@ -495,9 +640,88 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 </div>
 
 <!-- ===================== VISTA: FECHO DE OBRA ===================== -->
+<!-- ===================== VISTA: CONSULTAS AO MERCADO ===================== -->
+<div id="view-consultas" class="hidden">
+  <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep cur">2 · Orçamentar</span><span class="arr">→</span><span class="fstep">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
+  <div class="purpose amber" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
+    <div class="eyebrow">O que fazer aqui</div>
+    <h1>Consultas ao mercado e mapa comparativo de propostas</h1>
+    <p>É aqui que o orçamento deixa de ser rácio e passa a ser preço de mercado. Regista a quem consultaste e quando, lança as propostas recebidas e compara-as lado a lado por capítulo. A proposta que escolheres passa diretamente para o orçamento com o semáforo aceso — e fica no histórico do fornecedor para consultas futuras.</p>
+    <div class="io"><span class="in">Entra: consultas e propostas de subempreiteiros</span><span class="out">Produz: mapa comparativo + adjudicação</span><span class="out">Alimenta: Orçamentação e histórico de fornecedores</span></div>
+  </div>
+
+  <div class="subtabs">
+    <button id="cst-tab-reg" class="on" onclick="cstTab('reg')">Registo de consultas</button>
+    <button id="cst-tab-map" onclick="cstTab('map')">Mapa comparativo</button>
+    <button id="cst-tab-hist" onclick="cstTab('hist')">Histórico de fornecedores</button>
+  </div>
+
+  <div id="cst-pane-reg">
+    <div class="card">
+      <div class="step"><div class="n">1</div><h2>Abrir consulta</h2></div>
+      <div class="hint">Uma consulta = um capítulo enviado a um ou mais fornecedores, com prazo de resposta. O prazo é o que faz aparecer o alerta de consulta em atraso.</div>
+      <div class="grid g6">
+        <div style="grid-column:span 2"><label>Capítulo</label><select id="cstCap"></select></div>
+        <div><label>Data de envio</label><input type="date" id="cstEnvio"></div>
+        <div><label>Prazo de resposta</label><input type="date" id="cstPrazo"></div>
+        <div style="grid-column:span 4"><label>Fornecedores consultados (separados por vírgula)</label><input type="text" id="cstForn" list="cstFornList" placeholder="Ex.: Alfa Construções, Beta Instalações, Gama Lda"><datalist id="cstFornList"></datalist></div>
+        <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="cstAbrir()">Registar consulta</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Consultas em curso <span class="tag" id="cstTag"></span></h2>
+      <div class="hint">Marca a resposta de cada fornecedor quando a proposta chegar. Uma consulta sem resposta depois do prazo aparece a vermelho — é o que mantém o processo vivo.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Projeto</th><th>Capítulo</th><th>Fornecedor</th><th>Enviada</th><th>Prazo</th><th>Estado</th><th style="text-align:right;width:140px">Proposta (€)</th><th style="width:120px">Data proposta</th><th></th></tr></thead>
+        <tbody id="tbCst"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="cstEmpty">Sem consultas registadas. Abre a primeira acima.</div>
+    </div>
+  </div>
+
+  <div id="cst-pane-map" class="hidden">
+    <div class="card">
+      <h2>Mapa comparativo de propostas
+        <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportMapaComp()">Exportar (.xlsx)</button>
+      </h2>
+      <div class="hint">Capítulos em linhas, fornecedores em colunas. A proposta mais baixa de cada capítulo fica destacada. A coluna <b>Estimativa</b> é a referência da biblioteca — um desvio grande face a ela é sinal de âmbito mal definido na consulta, não necessariamente de bom preço.</div>
+      <div class="grid g6" style="margin-bottom:14px">
+        <div style="grid-column:span 2"><label>Projeto</label><select id="mcProj"></select></div>
+        <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn ghost" style="width:100%;justify-content:center" onclick="renderMapaComp()">Atualizar mapa</button></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="matrix"><thead id="mcHead"></thead><tbody id="mcBody"></tbody></table>
+      </div>
+      <div class="note" id="mcNota"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+        <button class="btn teal" onclick="adotarMelhores()">Levar as melhores propostas para o orçamento</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cst-pane-hist" class="hidden">
+    <div class="card">
+      <h2>Histórico de preços por fornecedor</h2>
+      <div class="hint">O preço do mesmo subempreiteiro ao longo dos teus projetos, normalizado por m² de ABC. Serve para saber com quem negociar e para detetar derivas de preço antes de abrir a consulta.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Fornecedor</th><th>Capítulo</th><th style="text-align:right;width:70px">Nº</th><th style="text-align:right">Último (€)</th><th style="text-align:right">€/m² ABC médio</th><th style="text-align:right">Mín–Máx €/m²</th><th>Projetos</th></tr></thead>
+        <tbody id="tbFornHist"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="fhEmpty">Ainda sem propostas registadas.</div>
+    </div>
+  </div>
+</div>
+
 <div id="view-fecho" class="hidden">
   <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep">2 · Orçamentar</span><span class="arr">→</span><span class="fstep cur">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
-  <div class="purpose teal">
+  <div class="purpose teal" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Fechar a obra com custos reais</h1>
     <p>No fim da empreitada, gera o modelo para a equipa de obra preencher com os custos reais por capítulo. Importa o ficheiro devolvido e a plataforma calcula os desvios face ao orçamento. Os valores reais são o dado mais valioso da biblioteca — passam a ter peso na estimativa de projetos futuros.</p>
@@ -577,7 +801,8 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 
 <!-- ===================== VISTA: COMPARAR ===================== -->
 <div id="view-comparar" class="hidden">
-  <div class="purpose amber">
+  <div class="purpose amber" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Comparar projetos lado a lado</h1>
     <p>Confronta os projetos da biblioteca em descritores, custos e quantidades físicas, tudo normalizado por m² de ABC, por fogo ou por implantação. Serve para perceber onde um projeto novo se afasta do histórico e para calibrar estimativas. O L'Urbain está sempre presente como referência.</p>
@@ -599,12 +824,127 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 
 <!-- ===================== VISTA: BIBLIOTECA ===================== -->
 <div id="view-biblioteca" class="hidden">
-  <div class="purpose">
+  <div class="purpose" data-fold>
+    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Biblioteca de rácios — o conhecimento acumulado da Solive</h1>
     <p>É o repositório central que consultas ao preparar um orçamento novo: rácios de custo e de quantidades por capítulo, para cada projeto e cada fase. Não se preenche aqui diretamente — cada projeto entra automaticamente a partir do <b>Analisador</b> (descritores e quantidades, ao gravar uma análise) e do <b>Fecho de Obra</b> (custos reais). Quantos mais projetos fechares, mais rigorosa fica a estimativa.</p>
     <div class="io"><span class="in">Entra: Analisador + Fecho de Obra</span><span class="out">Serve: orçamentação e Comparação</span></div>
   </div>
+
+  <div class="subtabs">
+    <button id="lib-tab-caps" class="on" onclick="libTab('caps')">Rácios por capítulo</button>
+    <button id="lib-tab-pu" onclick="libTab('pu')">Preços unitários</button>
+    <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
+    <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
+    <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
+  </div>
+
+  <div id="lib-pane-pu" class="hidden">
+    <div class="card">
+      <h2>Biblioteca de preços unitários
+        <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportPU()">Exportar (.xlsx)</button>
+      </h2>
+      <div class="hint">Colhida automaticamente de todos os mapas de quantidades com preços e de todos os autos importados. Cada artigo é classificado numa <b>família</b> (betão, ETICS, betonilha, porta interior…) e o preço unitário guardado com o projeto e o ano. É esta tabela — e não o rácio por m² de ABC — que dá a estimativa mais precisa quando já existe medição.</div>
+      <div class="filters">
+        <div style="min-width:220px"><label>Filtrar família</label><input type="text" id="puFiltro" placeholder="ex.: betão" oninput="renderPU()"></div>
+        <div style="min-width:160px"><label>Mínimo de observações</label><select id="puMinN" onchange="renderPU()"><option value="1">Todas</option><option value="2">≥ 2</option><option value="3">≥ 3</option></select></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Família de artigo</th><th style="width:60px">Un</th><th style="text-align:right;width:60px">Nº</th><th style="text-align:right">Mediana (€)</th><th style="text-align:right">P10 (€)</th><th style="text-align:right">P90 (€)</th><th style="text-align:right">Dispersão</th><th>Projetos</th></tr></thead>
+        <tbody id="tbPU"></tbody>
+      </table>
+      </div>
+      <div class="empty" id="puEmpty">Ainda sem preços unitários. Analisa um mapa de quantidades com preços, ou importa um auto ao nível do artigo, e grava-o na biblioteca.</div>
+    </div>
+  </div>
+
+  <div id="lib-pane-ver" class="hidden">
+    <div class="card">
+      <h2>Versões do orçamento</h2>
+      <div class="hint">Cada gravação do orçamento cria uma versão imutável, com data e comentário. Podes reabrir qualquer versão e ver a diferença face à anterior — é o rasto de decisão que justifica o trespasse congelado.</div>
+      <div class="filters">
+        <div style="min-width:260px"><label>Projeto</label><select id="verProj" onchange="renderVersoes()"></select></div>
+      </div>
+      <div id="verLista"></div>
+      <div class="empty" id="verEmpty">Sem versões gravadas para este projeto.</div>
+      <div id="verDiffBox" class="hidden" style="margin-top:16px">
+        <h2 style="font-size:13px">Diferenças <span class="tag" id="verDiffTag"></span></h2>
+        <div style="overflow-x:auto">
+        <table><thead><tr><th>Capítulo</th><th style="text-align:right">Versão anterior (€)</th><th style="text-align:right">Esta versão (€)</th><th style="text-align:right">Δ (€)</th><th>Estado</th></tr></thead><tbody id="tbVerDiff"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lib-pane-tax" class="hidden">
+    <div class="card">
+      <h2>Taxonomia de capítulos e drivers de escala
+        <button class="btn teal" style="float:right;padding:6px 14px" onclick="saveTaxonomia()">Gravar taxonomia</button>
+      </h2>
+      <div class="hint">Esta tabela é o motor do estimador. Para cada capítulo define-se a grandeza física que comanda o custo (<b>driver</b>), o <b>expoente de escala</b> (1 = cresce proporcionalmente; &lt;1 = tem componente fixa) e o <b>índice de inflação</b> aplicável. Editável aqui e gravada na base — não é preciso republicar a plataforma.</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Capítulo</th><th style="width:230px">Driver</th><th style="width:110px;text-align:right">Expoente</th><th style="width:180px">Índice de inflação</th><th>Racional</th></tr></thead>
+        <tbody id="tbTax"></tbody>
+      </table>
+      </div>
+      <div class="card" style="margin-top:16px;background:#fafbfd">
+        <h2 style="font-size:13px">Regras de reconhecimento de capítulo</h2>
+        <div class="hint">Quando o mapa de um projetista usa uma designação que a plataforma não reconhece, acrescenta aqui a regra. Fica gravada e passa a aplicar-se a todos os mapas seguintes.</div>
+        <div class="grid g6">
+          <div style="grid-column:span 3"><label>Texto ou expressão a reconhecer</label><input type="text" id="taxRegex" placeholder="ex.: REDES PREDIAIS"></div>
+          <div style="grid-column:span 2"><label>Capítulo standard</label><select id="taxCap"></select></div>
+          <div style="display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="addRegraCap()">Acrescentar</button></div>
+        </div>
+        <div style="overflow-x:auto;margin-top:12px">
+        <table><thead><tr><th>Expressão</th><th>Capítulo</th><th style="width:60px"></th></tr></thead><tbody id="tbRegras"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lib-pane-dpr" class="hidden">
+    <div class="card">
+      <h2>Ponte com o sistema DPR</h2>
+      <div class="hint">A plataforma de orçamentação define o <b>baseline</b> de hard costs; o DPR mede a execução contra ele. Esta ponte evita reintroduzir números à mão nos dois lados e permite que a biblioteca aprenda com custos parciais durante a obra, sem esperar pelo fecho.</div>
+      <div class="grid g6">
+        <div style="grid-column:span 3">
+          <label>Exportar baseline para o DPR</label>
+          <select id="dprProj" style="margin-bottom:10px"></select>
+          <div style="display:flex;gap:8px">
+            <button class="btn navy" style="flex:1;justify-content:center" onclick="exportDprBaseline('json')">Baseline (.json)</button>
+            <button class="btn ghost" style="flex:1;justify-content:center" onclick="exportDprBaseline('xlsx')">Baseline (.xlsx)</button>
+          </div>
+          <div class="hint" style="margin-top:8px">Produz a linha <b>Hard Costs</b> do separador Budget do DPR, com a decomposição pelos 33 capítulos por baixo, pronta a colar.</div>
+        </div>
+        <div style="grid-column:span 3">
+          <label>Importar JSON do DPR (ExportDashboardJSON)</label>
+          <textarea id="dprJson" rows="5" placeholder="Cola aqui o JSON exportado pela macro do DPR"></textarea>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn teal" style="flex:1;justify-content:center" onclick="importDprJson()">Ler e comparar</button>
+          </div>
+          <div class="hint" style="margin-top:8px">Lê os hard costs em budget, EoS e executado, e confronta-os com o orçamento desta plataforma. Nota: o DPR agrega por categoria, não por capítulo — a comparação é de topo.</div>
+        </div>
+      </div>
+      <div id="dprOut" class="hidden" style="margin-top:16px">
+        <div class="kpis">
+          <div class="kpi"><div class="v" id="dprKBud">—</div><div class="l">Hard costs · budget DPR</div></div>
+          <div class="kpi"><div class="v" id="dprKEos">—</div><div class="l">Hard costs · EoS DPR</div></div>
+          <div class="kpi"><div class="v" id="dprKSpent">—</div><div class="l">Executado</div></div>
+          <div class="kpi"><div class="v" id="dprKPlat">—</div><div class="l">Orçamento da plataforma</div></div>
+          <div class="kpi" id="dprKDeltaBox"><div class="v" id="dprKDelta">—</div><div class="l">Desvio plataforma vs. DPR</div></div>
+        </div>
+        <div class="note" id="dprNota"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px">
+          <button class="btn red" onclick="dprGravarParcial()">Gravar como fase Real (parcial, topo)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lib-pane-caps">
   <div class="card" style="padding:14px 20px">
     <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler:</b> cada projeto é uma entrada única. A biblioteca mostra, por capítulo, o <b>Orçamento</b> (estimativa inicial), o <b>Real</b> (conta final da obra, com trabalhos adicionais) e o <b>Desvio</b> entre os dois. O Real é a referência para orçamentar projetos novos; o desvio diz-te onde as tuas estimativas historicamente falham.</div>
   </div>
@@ -636,9 +976,10 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
     </table>
     </div>
   </div>
+  </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação v2.0 · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive.</footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -747,12 +1088,13 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','estimador','orcamento','fecho','comparar','biblioteca'].forEach(x=>{
+  ['analisador','estimador','orcamento','consultas','fecho','comparar','biblioteca'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
   if(v==='biblioteca') refreshLib();
   if(v==='fecho') refreshFecho();
+  if(v==='consultas') refreshConsultas();
   if(v==='comparar') renderComparar();
   if(v==='estimador') document.getElementById('estAno').value=document.getElementById('estAno').value||new Date().getFullYear();
   if(v==='orcamento') refreshOrcamento();
@@ -816,7 +1158,7 @@ function loadFile(f){
   const r=new FileReader();
   r.onload=e=>{
     try{ workbook=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
-    catch(err){alert("Não foi possível ler o ficheiro. Confirma que é um .xlsx válido.");return}
+    catch(err){alertx("Não foi possível ler o ficheiro. Confirma que é um .xlsx válido.");return}
     drop.innerHTML="Ficheiro carregado: <b>"+esc(wbName)+"</b> — clica para trocar";
     const pills=document.getElementById('sheetPills');
     pills.innerHTML="";
@@ -860,7 +1202,7 @@ function sheetRows(){return XLSX.utils.sheet_to_json(workbook.Sheets[chosenSheet
 function colName(i){let s="";i++;while(i>0){s=String.fromCharCode(65+(i-1)%26)+s;i=Math.floor((i-1)/26)}return s}
 
 function openMapper(){
-  if(!workbook||!chosenSheet){alert("Carrega primeiro o ficheiro do mapa de quantidades.");return}
+  if(!workbook||!chosenSheet){alertx("Carrega primeiro o ficheiro do mapa de quantidades.");return}
   const rows=sheetRows();
   const ncols=Math.min(14,Math.max(...rows.slice(0,30).map(r=>(r||[]).length),1));
   const auto=detectHeader(rows);
@@ -1008,7 +1350,8 @@ function parseSheet(){
     for(let k=H.qcols.length-1;k>=0;k--){const v=r[H.qcols[k]];if(typeof v==='number'){qt=v;break}}
     if(qt===null){const v=r[H.qt];if(typeof v==='number')qt=v}
     if(!code&&!descRaw) continue;
-    if(/^TOTAL/i.test(desc)||/^TOTAL/i.test(code)) continue;
+    // linhas de soma não são artigos: TOTAL, SUBTOTAL, SOMA, PARCIAL, A TRANSPORTAR, TRANSPORTE
+    if(RE_SOMA.test(desc)||RE_SOMA.test(code)) continue;
     const nd=norm(desc);
     // cabeçalho verdadeiro = MAIÚSCULAS no texto original (não title case como "Blocos de Betão")
     const letras=desc.replace(/[^A-Za-zÀ-ÿ]/g,"");
@@ -1048,7 +1391,8 @@ function parseSheet(){
       const pt=H.pTot>-1&&typeof r[H.pTot]==='number'?r[H.pTot]:null;
       if(pt!=null&&pt!==0) custo=pt;
       else if(pu!=null&&pu!==0) custo=qt!=null?pu*qt:pu;
-      itens.push({tipo:'art',linha:i+1,code,desc:descRaw,un,qt,custo,cap:curCap,capRaw:curCapRaw});
+      // pu/pt guardados em separado: permitem o teste aritmético e a colheita de preços unitários
+      itens.push({tipo:'art',linha:i+1,code,desc:descRaw,un,qt,custo,pu,pt,cap:curCap,capRaw:curCapRaw});
     }
   }
   return itens;
@@ -1089,15 +1433,55 @@ function runChecks(itens){
     }
   });
 
-  const seen={};
+  /* --- duplicados: exato + aproximado (Jaccard sobre tokens, dentro do mesmo capítulo) --- */
+  const seen={}, porCap={};
   arts.forEach(a=>{
     if(!a.desc) return;
     const dn=norm(a.desc).replace(/\s+/g," ").trim();
     if(dn.length<25||a.qt===null||!a.un) return; // ignora organizadores/subtítulos curtos
     const key=(a.cap||"")+"|"+dn;
-    if(seen[key]) add(a,"Possível duplicado","aviso",`Descrição praticamente igual ao artigo ${seen[key].code} (linha ${seen[key].linha}).`,`Verificar possível duplicação com o artigo ${seen[key].code}.`);
-    else seen[key]=a;
+    if(seen[key]){ add(a,"Possível duplicado","aviso",`Descrição igual ao artigo ${seen[key].code} (linha ${seen[key].linha}).`,`Verificar possível duplicação com o artigo ${seen[key].code}.`); return; }
+    seen[key]=a;
+    const tk=tokenSet(dn);
+    if(tk.size<4) return;
+    const lista=porCap[a.cap||""]=porCap[a.cap||""]||[];
+    for(const o of lista){
+      if(o.a.un!==a.un) continue;
+      if(jaccard(tk,o.tk)>=0.82){
+        add(a,"Possível duplicado","aviso",
+          `Descrição ${fmt(jaccard(tk,o.tk)*100,0)}% coincidente com o artigo ${o.a.code} (linha ${o.a.linha}), na mesma unidade.`,
+          `Verificar possível duplicação com o artigo ${o.a.code} — descrições quase idênticas.`);
+        break;
+      }
+    }
+    lista.push({a,tk});
   });
+
+  /* --- coerência aritmética e de preço (só quando o mapa vem com preços) --- */
+  const comPU=arts.filter(a=>a.pu!=null&&a.pu!==0).length;
+  if(comPU>0){
+    arts.forEach(a=>{
+      if(a.pu==null||a.pt==null||a.qt==null||a.pu===0||a.pt===0) return;
+      const esperado=a.pu*a.qt, tol=Math.max(1,Math.abs(a.pt)*0.005);
+      if(Math.abs(a.pt-esperado)>tol){
+        add(a,"Erro aritmético","erro",
+          `Total ${fmt(a.pt,2)} € ≠ quantidade × preço unitário (${fmt(esperado,2)} €).`,
+          `O total da linha não corresponde à quantidade multiplicada pelo preço unitário — corrigir (diferença de ${fmt(a.pt-esperado,2)} €).`);
+      }
+    });
+    // preço unitário fora do intervalo histórico da família
+    arts.forEach(a=>{
+      if(a.pu==null||a.pu<=0) return;
+      const fam=familiaArtigo(a.desc,a.un); if(!fam) return;
+      const st=PU_STATS[fam+"|"+normUn(a.un)]; if(!st||st.n<3) return;
+      if(a.pu<st.p10*0.7||a.pu>st.p90*1.4){
+        const dir=a.pu>st.p90?"acima":"abaixo";
+        add(a,"Preço unitário atípico","aviso",
+          `${fmt(a.pu,2)} €/${a.un} vs. intervalo histórico ${fmt(st.p10,2)}–${fmt(st.p90,2)} (${st.n} obs.).`,
+          `Preço unitário ${dir} do intervalo observado nos projetos da Solive para "${fam}" — confirmar âmbito do artigo antes de consultar o mercado.`);
+      }
+    });
+  }
 
   arts.forEach(a=>{
     if(a.qt===null) return;
@@ -1112,30 +1496,43 @@ function runChecks(itens){
 
   RATIOS=[];
   const gfa=parseFloat(document.getElementById('pGFA').value);
+
+  /* --- agregação por capítulo e unidade: m², m, un E m³ (escavação e betão entravam em falta) --- */
+  const agg={};
+  arts.forEach(a=>{
+    if(!a.cap||a.qt===null||!a.un) return;
+    const u=normUn(a.un);
+    if(!UNIDADES_RACIO.includes(u)) return;
+    const k=a.cap+"|"+u; agg[k]=(agg[k]||0)+a.qt;
+  });
+  AGG_MQ=agg;
+
   if(gfa>0){
-    const agg={};
-    arts.forEach(a=>{
-      if(!a.cap||a.qt===null||!a.un) return;
-      const u=norm(a.un).replace("2","²").toLowerCase();
-      if(u!=="m²"&&u!=="m"&&u!=="un") return;
-      const k=a.cap+"|"+u; agg[k]=(agg[k]||0)+a.qt;
-    });
     Object.keys(agg).forEach(k=>{
       const [cap,u]=k.split("|");
-      const refQ=REF.qty[cap]&&REF.qty[cap][u==="un"?"un":u];
-      if(!refQ) return;
-      const rMQ=agg[k]/gfa, rRef=refQ/REF.gfa;
+      const bench=benchmark(cap,u);            // biblioteca (todos os projetos) com recurso ao L'Urbain
+      if(!bench) return;
+      const rMQ=agg[k]/gfa, rRef=bench.mediana;
       const desvio=(rMQ-rRef)/rRef;
-      RATIOS.push({cap,u,q:agg[k],rMQ,rRef,desvio});
-      if(Math.abs(desvio)>0.5){
+      RATIOS.push({cap,u,q:agg[k],rMQ,rRef,desvio,n:bench.n,lo:bench.lo,hi:bench.hi,fonte:bench.fonte});
+      // com ≥3 projetos o limite é a dispersão observada; com menos, o limite fixo de ±50%
+      const foraEnvelope = bench.n>=3 ? (rMQ<bench.lo*0.9||rMQ>bench.hi*1.1) : Math.abs(desvio)>0.5;
+      if(foraEnvelope){
         const dir=desvio>0?"acima":"abaixo";
+        const criterio = bench.n>=3
+          ? `fora do envelope observado em ${bench.n} projetos (${fmt(bench.lo,3)}–${fmt(bench.hi,3)})`
+          : `${fmt(Math.abs(desvio)*100,0)}% ${dir} da única referência disponível`;
         add({tipo:'art',code:"—",desc:`Agregado do capítulo ${cap} (${u})`,un:u,qt:agg[k],cap,linha:"—"},
           "Rácio fora do intervalo","aviso",
-          `${fmt(rMQ,3)} ${u}/m² GFA vs. ${fmt(rRef,3)} no L'Urbain (${fmt(desvio*100,0)}% ${dir}).`,
+          `${fmt(rMQ,3)} ${u}/m² ABC vs. ${fmt(rRef,3)} de referência — ${criterio}.`,
           `Quantidade total de ${cap} (${u}) ${fmt(desvio*100,0)}% ${dir} do rácio histórico por m² de ABC — sinal a confirmar contra as peças desenhadas.`);
       }
     });
   }
+
+  /* --- coerência entre capítulos: onde as omissões de medição realmente aparecem --- */
+  crossChecks(agg,add);
+
   return {F,emFalta};
 }
 
@@ -1230,7 +1627,7 @@ function renderPhys(){
 
 /* ================= EXECUÇÃO (analisador) ================= */
 function runAnalysis(){
-  if(!workbook||!chosenSheet){alert("Carrega primeiro o ficheiro do mapa de quantidades.");return}
+  if(!workbook||!chosenSheet){alertx("Carrega primeiro o ficheiro do mapa de quantidades.");return}
   const itens=parseSheet();
   if(!itens){
     openMapper();
@@ -1275,13 +1672,16 @@ function runAnalysis(){
 
 function renderFindings(){
   const sev=document.getElementById('fSev').value, tipo=document.getElementById('fTipo').value, cap=document.getElementById('fCap').value;
+  const soPend=(document.getElementById('fRes')||{}).value==='pend';
   const tb=document.getElementById('tbFindings'); tb.innerHTML="";
-  const rows=FINDINGS.map((f,i)=>({f,i})).filter(({f})=>(!sev||f.sev===sev)&&(!tipo||f.tipo===tipo)&&(!cap||f.it.cap===cap));
+  const rows=FINDINGS.map((f,i)=>({f,i})).filter(({f})=>(!sev||f.sev===sev)&&(!tipo||f.tipo===tipo)&&(!cap||f.it.cap===cap)&&(!soPend||!f.resolvido));
   document.getElementById('noFindings').classList.toggle('hidden',rows.length>0);
   const sevLabel={erro:"Erro",aviso:"Aviso",info:"Nota"};
   rows.forEach(({f,i})=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="mono">${esc(f.it.code||"—")}</td>
+    if(f.resolvido) tr.className='resolved';
+    tr.innerHTML=`<td><input type="checkbox" class="rescb" data-r="${i}" ${f.resolvido?'checked':''} title="Marcar como tratado"></td>
+      <td class="mono">${esc(f.it.code||"—")}</td>
       <td>${esc((f.it.desc||"").slice(0,140))}<div style="color:#8794a8;font-size:11.5px;margin-top:2px">${esc(f.msg)}</div></td>
       <td class="mono">${esc(f.it.un||"—")}</td>
       <td class="num">${f.it.qt==null?"—":fmt(f.it.qt)}</td>
@@ -1292,6 +1692,9 @@ function renderFindings(){
     tb.appendChild(tr);
   });
   tb.querySelectorAll('.fcomment').forEach(t=>t.addEventListener('input',e=>{FINDINGS[+e.target.dataset.i].comentario=e.target.value}));
+  tb.querySelectorAll('.rescb').forEach(c=>c.addEventListener('change',e=>{
+    FINDINGS[+e.target.dataset.r].resolvido=e.target.checked; guardarTriagem(); renderFindings();
+  }));
 }
 
 function renderRatios(){
@@ -1325,7 +1728,7 @@ function analysisPayload(){
   };
 }
 function exportComentarios(){
-  if(!FINDINGS.length){alert("Sem alertas para exportar.");return}
+  if(!FINDINGS.length){alertx("Sem alertas para exportar.");return}
   const nome=document.getElementById('pNome').value||"Projeto";
   const hdr=["Código","Descrição do artigo","Un","Qt.","Capítulo","Tipo de alerta","Severidade","Comentário para projetista"];
   const sevLabel={erro:"Erro",aviso:"Aviso",info:"Nota"};
@@ -1369,16 +1772,16 @@ async function compareRevisions(){
   const nome=document.getElementById('pNome').value.trim();
   if(!nome){toast("Indica o nome do projeto (passo 1) para encontrar a revisão anterior.");return}
   const proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
-  if(!proj){alert("Ainda não há análises gravadas para \""+nome+"\". Grava esta como primeira revisão.");return}
+  if(!proj){alertx("Ainda não há análises gravadas para \""+nome+"\". Grava esta como primeira revisão.");return}
   const {data:ans}=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('criado',{ascending:false}).limit(5);
-  if(!ans||!ans.length){alert("Sem análise anterior gravada para este projeto.");return}
+  if(!ans||!ans.length){alertx("Sem análise anterior gravada para este projeto.");return}
   // usar a mais recente de OUTRO ficheiro; se todas forem do mesmo, usar a anterior à última
   let prevRow=ans.find(a=>a.payload&&a.payload.ficheiro&&a.payload.ficheiro!==wbName);
   if(!prevRow&&ans.length>1)prevRow=ans[1];
   if(!prevRow)prevRow=ans[0];
   const prev=prevRow.payload;
   const oldArts=(prev&&prev.artigos)||[];
-  if(!oldArts.length){alert("A análise anterior não tem artigos guardados para comparar.");return}
+  if(!oldArts.length){alertx("A análise anterior não tem artigos guardados para comparar.");return}
   const newArts=ITENS.filter(x=>x.tipo==='art');
   const diff=trackChanges(oldArts,newArts);
   TRACK_LAST={nome,prevFile:prev.ficheiro||"",prevDate:prevRow.criado,diff};
@@ -1443,7 +1846,7 @@ async function saveAnalysis(){
   const attrs=Object.assign({nome},env, temReal?{}:{metricas:PHYS});
   if(!proj){
     const {data,error}=await sb.from('projetos').insert(attrs).select().single();
-    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    if(error){alertx("Erro a criar o projeto: "+error.message);return}
     proj=data;
   }else{
     // atualizar descritores; métricas só se a obra ainda não estiver fechada
@@ -1451,25 +1854,25 @@ async function saveAnalysis(){
     Object.keys(env).forEach(k=>{if(env[k]!=null)upd[k]=env[k]});
     if(Object.keys(upd).length){
       const {error}=await sb.from('projetos').update(upd).eq('id',proj.id);
-      if(error){alert("Erro a atualizar o projeto: "+error.message);return}
+      if(error){alertx("Erro a atualizar o projeto: "+error.message);return}
     }
   }
   await loadProjetos();
   const {error}=await sb.from('analises').insert({projeto_id:proj.id,nome,ficheiro:wbName,payload:analysisPayload()});
-  if(error){alert("Erro a gravar a análise: "+error.message);return}
+  if(error){alertx("Erro a gravar a análise: "+error.message);return}
   toast("Análise e descritores gravados — projeto "+proj.nome+"."+(temReal?" (quantidades reais da obra preservadas)":""));
 }
 
 async function saveOrcamento(){
   if(!SESSION){toast("Sem sessão ativa.");return}
-  if(!CUSTO_TOTAL){alert("Não há custos extraídos para gravar.");return}
+  if(!CUSTO_TOTAL){alertx("Não há custos extraídos para gravar.");return}
   const nome=document.getElementById('pNome').value.trim();
   if(!nome){toast("Indica o nome do projeto (passo 1) antes de gravar.");return}
   const env=envelopeInputs();
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
     const {data,error}=await sb.from('projetos').insert(Object.assign({nome,metricas:PHYS},env)).select().single();
-    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    if(error){alertx("Erro a criar o projeto: "+error.message);return}
     proj=data;
   }else{
     const upd={metricas:PHYS}; Object.keys(env).forEach(k=>{if(env[k]!=null)upd[k]=env[k]});
@@ -1483,10 +1886,10 @@ async function saveOrcamento(){
     projeto_id:proj.id,fase:'Orçamento',etiqueta:document.getElementById('pFase').value+' · '+wbName,
     data:new Date().toISOString().slice(0,10),total:totalHard
   }).select().single();
-  if(error){alert("Erro a criar a fase: "+error.message);return}
+  if(error){alertx("Erro a criar a fase: "+error.message);return}
   caps.forEach(c=>c.fase_id=fase.id);
   const {error:e2}=await sb.from('capitulos').insert(caps);
-  if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
+  if(e2){alertx("Erro a gravar capítulos: "+e2.message);return}
   toast("Orçamento gravado — "+caps.length+" capítulos, "+fmt(totalHard,0)+" € (hard costs).");
 }
 
@@ -1604,20 +2007,20 @@ function genModelo(){
 async function saveDescritores(){
   if(!SESSION){toast("Inicia sessão para guardar descritores.");return}
   const nome=document.getElementById('foProjeto').value.trim();
-  if(!nome){alert("Escreve o nome do projeto no passo 1.");return}
+  if(!nome){alertx("Escreve o nome do projeto no passo 1.");return}
   const n=id=>+document.getElementById(id).value||null;
   const desc={gfa:n('foAbc'),gca:n('foGca'),ac_abaixo:n('foAbaixo'),fogos:n('foFogos'),
     pisos_acima:n('foPisosAcima'),pisos_enterrados:n('foPisosAbaixo'),
     area_implantacao:n('foImplantacao'),area_lote:n('foLote'),estacionamento:n('foEstacionamento')};
-  if(Object.values(desc).every(v=>v==null)){alert("Preenche pelo menos um descritor.");return}
+  if(Object.values(desc).every(v=>v==null)){alertx("Preenche pelo menos um descritor.");return}
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
     const {data,error}=await sb.from('projetos').insert(Object.assign({nome},desc)).select().single();
-    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    if(error){alertx("Erro a criar o projeto: "+error.message);return}
   } else {
     const upd={}; Object.keys(desc).forEach(k=>{if(desc[k]!=null)upd[k]=desc[k]});
     const {error}=await sb.from('projetos').update(upd).eq('id',proj.id);
-    if(error){alert("Erro a atualizar: "+error.message);return}
+    if(error){alertx("Erro a atualizar: "+error.message);return}
   }
   await loadProjetos();
   toast("Descritores guardados — "+nome+".");
@@ -1626,7 +2029,7 @@ function loadFecho(f){
   const r=new FileReader();
   r.onload=e=>{
     try{ FO_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
-    catch(err){alert("Não foi possível ler o ficheiro.");return}
+    catch(err){alertx("Não foi possível ler o ficheiro.");return}
     document.getElementById('foFich').textContent=f.name;
     foDrop.innerHTML="Ficheiro carregado: <b>"+esc(f.name)+"</b> — clica para trocar";
     // se houver várias folhas, deixar escolher; senão processar já
@@ -1694,7 +2097,7 @@ function processFecho(sheet){
         });
         document.getElementById('foFich').innerHTML='<span class="tag">mapa com preços · custos por capítulo</span>';
       } else {
-        alert("Não reconheci o formato. Usa um auto de medição, um mapa de quantidades com preços, o modelo de fecho, ou um mapa com colunas de capítulo e total.");return;
+        alertx("Não reconheci o formato. Usa um auto de medição, um mapa de quantidades com preços, o modelo de fecho, ou um mapa com colunas de capítulo e total.");return;
       }
     } else {
       for(let i=hr+1;i<rows.length;i++){
@@ -1707,7 +2110,7 @@ function processFecho(sheet){
       }
     }
   }
-  if(!FO_ROWS.length){alert("Não encontrei capítulos com valores neste ficheiro.");return}
+  if(!FO_ROWS.length){alertx("Não encontrei capítulos com valores neste ficheiro.");return}
   renderFoPreview();
   document.getElementById('foPreviewCard').classList.remove('hidden');
   document.getElementById('foDesvCard').classList.add('hidden');
@@ -1752,7 +2155,7 @@ async function saveReal(){
   const faseTipo=(document.querySelector('input[name=foFase]:checked')||{}).value||'Real';
   const ehReal=faseTipo==='Real';
   const linhas=FO_ROWS.filter(r=>r.std&&r.total!=null);
-  if(!linhas.length){alert("Sem capítulos mapeados com total preenchido.");return}
+  if(!linhas.length){alertx("Sem capítulos mapeados com total preenchido.");return}
   const n=id=>+document.getElementById(id).value||null;
   const desc={gfa:n('foAbc'),gca:n('foGca'),ac_abaixo:n('foAbaixo'),fogos:n('foFogos'),
     pisos_acima:n('foPisosAcima'),pisos_enterrados:n('foPisosAbaixo'),
@@ -1762,7 +2165,7 @@ async function saveReal(){
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
     const {data,error}=await sb.from('projetos').insert(Object.assign({nome,metricas:met||null},desc)).select().single();
-    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    if(error){alertx("Erro a criar o projeto: "+error.message);return}
     proj=data;
   } else {
     const upd={}; Object.keys(desc).forEach(k=>{if(desc[k]!=null)upd[k]=desc[k]});
@@ -1778,10 +2181,10 @@ async function saveReal(){
     projeto_id:proj.id,fase:faseTipo,etiqueta,
     data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
   }).select().single();
-  if(error){alert("Erro a criar a fase: "+error.message);return}
+  if(error){alertx("Erro a criar a fase: "+error.message);return}
   const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,total:r.total,comentario:r.com||null}));
   const {error:e2}=await sb.from('capitulos').insert(caps);
-  if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
+  if(e2){alertx("Erro a gravar capítulos: "+e2.message);return}
   toast("Fase "+faseTipo+" gravada — "+proj.nome+" · "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
   renderDesvios(proj,linhas);
 }
@@ -1913,7 +2316,7 @@ async function saveOrcBoard(){
   if(!ORC_ROWS.length){toast("Nada para gravar — arranca o orçamento primeiro.");return}
   const nome=(ORC_META.nome||document.getElementById('orcNome').value.trim()||"Projeto");
   const {error}=await sb.from('orcamentos').upsert({projeto_nome:nome,meta:ORC_META,linhas:ORC_ROWS,atualizado:new Date().toISOString()},{onConflict:'projeto_nome'});
-  if(error){alert("Erro a gravar o orçamento: "+error.message+"\n(Corre o supabase_update_orcamentos.sql se ainda não o fizeste.)");return}
+  if(error){alertx("Erro a gravar o orçamento: "+error.message+"\n(Corre o supabase_update_orcamentos.sql se ainda não o fizeste.)");return}
   ORC_DIRTY=false; renderOrcKpis();
   toast("Orçamento em curso gravado — "+nome+".");
 }
@@ -1961,7 +2364,7 @@ function loadOrcResumo(f){
   const r=new FileReader();
   r.onload=e=>{
     try{ ORC_RESUMO_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
-    catch(err){alert("Não foi possível ler o ficheiro.");return}
+    catch(err){alertx("Não foi possível ler o ficheiro.");return}
     document.getElementById('orcResumoDrop').innerHTML="Resumo carregado: <b>"+esc(f.name)+"</b> — clica para trocar";
     const pick=document.getElementById('orcResumoSheet'), pills=document.getElementById('orcResumoPills');
     if(ORC_RESUMO_WB.SheetNames.length>1){
@@ -1980,7 +2383,7 @@ function loadOrcResumo(f){
 function processOrcResumo(sheet){
   const rows=XLSX.utils.sheet_to_json(ORC_RESUMO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
   const data=extractSummary(rows);
-  if(!data||!data.length){alert("Não encontrei colunas de fonte (RECEIVED OFFER / NO SOURCE) neste ficheiro. Confirma que é o resumo com o semáforo de fonte.");return}
+  if(!data||!data.length){alertx("Não encontrei colunas de fonte (RECEIVED OFFER / NO SOURCE) neste ficheiro. Confirma que é o resumo com o semáforo de fonte.");return}
   const nome=document.getElementById('orcNome').value.trim()||"Projeto";
   const abc=parseFloat(document.getElementById('orcAbc').value)||null;
   const fogos=parseFloat(document.getElementById('orcFogos').value)||null;
@@ -2030,7 +2433,7 @@ function loadOrcProp(f){
   const r=new FileReader();
   r.onload=e=>{
     try{ ORC_PROP_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
-    catch(err){alert("Não foi possível ler o ficheiro.");return}
+    catch(err){alertx("Não foi possível ler o ficheiro.");return}
     document.getElementById('orcPropDrop').innerHTML="Proposta carregada: <b>"+esc(f.name)+"</b> — clica para trocar";
     const pick=document.getElementById('orcPropSheet'), pills=document.getElementById('orcPropPills');
     if(ORC_PROP_WB.SheetNames.length>1){
@@ -2049,7 +2452,7 @@ function loadOrcProp(f){
 function processOrcProp(sheet,fname){
   const custos=parseCostsFrom(ORC_PROP_WB,sheet);
   const caps=Object.entries(custos).filter(([c,v])=>c!=="(sem capítulo)"&&v>0);
-  if(!caps.length){alert("Não encontrei preços por capítulo nesta proposta. Confirma que o ficheiro tem colunas de preço.");return}
+  if(!caps.length){alertx("Não encontrei preços por capítulo nesta proposta. Confirma que o ficheiro tem colunas de preço.");return}
   // garantir board: se ainda não há, inicializar vazio com os 33 capítulos
   if(!ORC_ROWS.length){
     ORC_META={nome:document.getElementById('orcNome').value.trim()||"Projeto",abc:parseFloat(document.getElementById('orcAbc').value)||null,fogos:parseFloat(document.getElementById('orcFogos').value)||null};
@@ -2267,15 +2670,15 @@ async function freezeTrespasse(){
   const linhas=ORC_ROWS.filter(r=>r.valor);
   if(!linhas.length){toast("Consolida o orçamento primeiro.");return}
   const com=document.getElementById('orcFreezeCom').value.trim();
-  if(!com){alert("O comentário do freeze é obrigatório — justifica o trespasse antes de congelar.");document.getElementById('orcFreezeCom').focus();return}
+  if(!com){alertx("O comentário do freeze é obrigatório — justifica o trespasse antes de congelar.");document.getElementById('orcFreezeCom').focus();return}
   const nome=ORC_META.nome||document.getElementById('orcNome').value.trim();
-  if(!nome){alert("Indica o nome do projeto.");return}
+  if(!nome){alertx("Indica o nome do projeto.");return}
   const f=sellingFactor();
   await loadProjetos();
   let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
   if(!proj){
     const {data,error}=await sb.from('projetos').insert({nome,gfa:ORC_META.abc||null,fogos:ORC_META.fogos||null}).select().single();
-    if(error){alert("Erro a criar o projeto: "+error.message);return}
+    if(error){alertx("Erro a criar o projeto: "+error.message);return}
     proj=data; await loadProjetos();
   }
   const caps=linhas.map(r=>{const v=r.venda!=null?r.venda:Math.round(r.valor*f);return {cap:r.cap,total:Math.round(v),comentario:"venda · custo "+Math.round(r.valor)+" · margem "+(r.valor?Math.round((v-r.valor)/r.valor*100):0)+"%"};});
@@ -2284,10 +2687,10 @@ async function freezeTrespasse(){
     projeto_id:proj.id,fase:'Contrato',etiqueta:'Trespasse · factor '+fmt(f,4)+' · '+com.slice(0,70),
     data:new Date().toISOString().slice(0,10),total:totalTres
   }).select().single();
-  if(error){alert("Erro a criar a fase Contrato: "+error.message);return}
+  if(error){alertx("Erro a criar a fase Contrato: "+error.message);return}
   caps.forEach(c=>c.fase_id=fase.id);
   const {error:e2}=await sb.from('capitulos').insert(caps);
-  if(e2){alert("Erro a gravar capítulos: "+e2.message);return}
+  if(e2){alertx("Erro a gravar capítulos: "+e2.message);return}
   ORC_DIRTY=false;
   toast("Trespasse congelado como fase Contrato ("+fmt(totalTres,0)+" €). Podes criar nova versão depois.");
 }
@@ -2315,7 +2718,8 @@ async function gatherProjectData(pref){
   // devolve lista de {nome, ano, gfa, fogos, caps:{cap:total}} da biblioteca + L'Urbain embutido
   const data=[];
   const lurbCaps=Object.fromEntries(REF.capitulos.filter(c=>c.total>0).map(c=>[c.cap,c.total]));
-  data.push({nome:"L'Urbain",ano:2024,gfa:REF.gfa,fogos:REF.fogos,caps:lurbCaps,fase:"Orçamento"});
+  data.push({nome:"L'Urbain",ano:2024,gfa:REF.gfa,fogos:REF.fogos,caps:lurbCaps,fase:"Orçamento",
+             D:descritoresRef()});
   if(!SESSION) return data;
   for(const p of PROJETOS){
     const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',p.id);
@@ -2330,106 +2734,174 @@ async function gatherProjectData(pref){
       if(!caps||!caps.length) continue;
       const capObj={}; caps.forEach(c=>{if(+c.total>0)capObj[c.cap]=(capObj[c.cap]||0)+ +c.total});
       const ano=fase.data?+fase.data.slice(0,4):new Date().getFullYear();
-      data.push({nome:p.nome+(escolhidas.length>1?" · "+fase.fase:""),ano,gfa:p.gfa,fogos:p.fogos,caps:capObj,fase:fase.fase});
+      data.push({nome:p.nome+(escolhidas.length>1?" · "+fase.fase:""),ano,gfa:p.gfa,fogos:p.fogos,caps:capObj,fase:fase.fase,
+                 D:descritoresDe(p)});
     }
   }
   return data;
 }
 async function runEstimador(){
-  const abc=parseFloat(document.getElementById('estAbc').value)||null;
-  const fogos=parseFloat(document.getElementById('estFogos').value)||null;
+  const D=estDescritores();
   const base=document.getElementById('estBase').value;
   const pref=document.getElementById('estFonte').value;
   const infl=parseFloat(document.getElementById('estInfl').value)||0;
+  const inflModo=document.getElementById('estInflModo').value;
   const alvo=parseInt(document.getElementById('estAno').value)||new Date().getFullYear();
   const budget=parseFloat(document.getElementById('estBudget').value)||null;
-  if(base!=='fogo'&&!abc){alert("Introduz a ABC (ou muda a base para €/fogo).");return}
-  if(base==='fogo'&&!fogos){alert("Introduz o nº de fogos para a base €/fogo.");return}
-  if((base==='media')&&(!abc||!fogos)){alert("A base 'média' precisa de ABC e de fogos.");return}
+  const usarPU=document.getElementById('estPU').value==='auto';
+  const calibOn=document.getElementById('estCalib').value==='on';
+  const softOn=document.getElementById('estSoft').value==='on';
+
+  if(base==='abc'&&!D.abc){return alertx("Introduz a ABC (ou muda a base de cálculo).")}
+  if(base==='fogo'&&!D.fogos){return alertx("Introduz o nº de fogos para a base €/fogo.")}
+  if(base==='media'&&(!D.abc||!D.fogos)){return alertx("A base 'média' precisa de ABC e de fogos.")}
+  if(base==='driver'&&!D.abc&&!D.fogos){return alertx("Introduz pelo menos a ABC ou o nº de fogos.")}
 
   const projData=await gatherProjectData(pref);
-  // por capítulo, recolher rácios ajustados à inflação
+  const calib=calibOn?await calibracaoDesvios():{};
+  const puEst=usarPU?estimativaPorPU(D):null;
+
+  /* rácio por capítulo = total histórico / driver histórico, escalado por (driver_alvo/driver_hist)^expoente */
   const perCap={};
   projData.forEach(pd=>{
-    const factor=infl?Math.pow(1+infl/100,alvo-pd.ano):1;
     Object.entries(pd.caps).forEach(([cap,total])=>{
-      const rAbc=pd.gfa?total/pd.gfa*factor:null;
-      const rFogo=pd.fogos?total/pd.fogos*factor:null;
-      (perCap[cap]=perCap[cap]||[]).push({rAbc,rFogo,proj:pd.nome});
+      const t=TAXO[cap]||TAXO_DEFAULT;
+      const f=fatorInflacao(infl,inflModo,t.idx,alvo-pd.ano);
+      const dh=driverValue(t.driver,pd.D), dt=driverValue(t.driver,D);
+      let val=null, modo=null, rc=null;
+      if(base==='driver'&&dh>0&&dt>0){
+        val=total*f*Math.pow(dt/dh,t.exp); rc=total/dh; modo='drv';
+      } else {
+        const ah=pd.D.abc, fh=pd.D.fogos;
+        const porAbc=(ah>0&&D.abc>0)?total*f/ah*D.abc:null;
+        const porFogo=(fh>0&&D.fogos>0)?total*f/fh*D.fogos:null;
+        if(base==='fogo'&&porFogo!=null){val=porFogo;rc=total/fh;}
+        else if(base==='media'&&porAbc!=null&&porFogo!=null){val=(porAbc+porFogo)/2;rc=total/ah;}
+        else if(porAbc!=null){val=porAbc;rc=total/ah;}
+        else if(porFogo!=null){val=porFogo;rc=total/fh;}
+        modo='lin';
+      }
+      if(val==null||!isFinite(val))return;
+      (perCap[cap]=perCap[cap]||[]).push({val,rc,modo,proj:pd.nome});
     });
   });
-  const med=arr=>{const a=arr.slice().sort((x,y)=>x-y);const n=a.length;return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):null};
-  const estByBase=(rAbc,rFogo)=>{
-    if(base==='abc')return rAbc!=null?rAbc*abc:null;
-    if(base==='fogo')return rFogo!=null?rFogo*fogos:null;
-    const a=rAbc!=null?rAbc*abc:null,f=rFogo!=null?rFogo*fogos:null;
-    if(a!=null&&f!=null)return (a+f)/2; return a!=null?a:f;
-  };
-  // ordenar capítulos pela ordem standard
+
   const ordemCap=CAPS33.concat(Object.keys(perCap).filter(c=>!CAPS33.includes(c)));
   const rows=[]; let tC=0,tLo=0,tHi=0;
   ordemCap.forEach(cap=>{
     const lst=perCap[cap]; if(!lst||!lst.length)return;
-    const ests=lst.map(x=>estByBase(x.rAbc,x.rFogo)).filter(v=>v!=null);
-    if(!ests.length)return;
-    const central=med(ests), lo=Math.min(...ests), hi=Math.max(...ests);
-    const rc=base==='fogo'?med(lst.map(x=>x.rFogo).filter(v=>v!=null)):med(lst.map(x=>x.rAbc).filter(v=>v!=null));
-    rows.push({cap,n:ests.length,rc,central,lo,hi});
+    const t=TAXO[cap]||TAXO_DEFAULT;
+    const ests=lst.map(x=>x.val);
+    let central=med(ests), lo=Math.min(...ests), hi=Math.max(...ests);
+    let fonte=(base==='driver'&&lst[0].modo==='drv')?'drv':'lin';
+    // preços unitários sobrepõem-se ao rácio quando existe medição e amostra suficiente
+    const pu=puEst&&puEst.porCap[cap];
+    if(pu&&pu.cobertura>=0.6){
+      central=pu.valor; lo=pu.lo; hi=pu.hi; fonte='qt';
+    }
+    const k=calib[cap];
+    const kf=(calibOn&&k&&k.n>=1)?k.fator:1;
+    central*=kf; lo*=kf; hi*=kf;
+    rows.push({cap,n:ests.length,rc:med(lst.map(x=>x.rc).filter(v=>v!=null)),
+               central,lo,hi,fonte,drv:t.driver,exp:t.exp,kf,kn:k?k.n:0});
     tC+=central; tLo+=lo; tHi+=hi;
   });
 
+  const baseLbl={driver:"driver físico",abc:"€/m² ABC",fogo:"€/fogo",media:"média ABC+fogo"}[base];
   document.getElementById('estResults').classList.remove('hidden');
-  document.getElementById('estTag').textContent=(base==='abc'?"€/m² ABC":base==='fogo'?"€/fogo":"média")+" · "+projData.length+" projeto(s) · infl. "+infl+"%/ano → "+alvo;
+  document.getElementById('estTag').textContent=baseLbl+" · "+projData.length+" projeto(s) · infl. "+infl+"%/ano → "+alvo+(calibOn?" · calibrado":"");
   document.getElementById('estKTotal').textContent=fmt(tC,0)+" €";
   document.getElementById('estKRange').textContent=fmt(tLo,0)+" – "+fmt(tHi,0);
-  document.getElementById('estKM2').textContent=abc?fmt(tC/abc,0):"—";
+  document.getElementById('estKM2').textContent=D.abc?fmt(tC/D.abc,0):"—";
   document.getElementById('estKProj').textContent=projData.length;
+
+  /* soft costs */
+  let soft=0;
+  const softCard=document.getElementById('estSoftCard');
+  if(softOn){ soft=renderSoftCosts(tC); softCard.classList.remove('hidden'); }
+  else softCard.classList.add('hidden');
+  const totalBP=tC+soft;
+
   const bb=document.getElementById('estKBudgetBox'), bv=document.getElementById('estKBudget');
-  if(budget){const d=(tC-budget)/budget;bv.textContent=(d>0?"+":"")+fmt(d*100,1)+"%";bb.className="kpi "+(Math.abs(d)<0.05?"ok":d>0?"err":"warn");}
+  if(budget){const d=(totalBP-budget)/budget;bv.textContent=(d>0?"+":"")+fmt(d*100,1)+"%";bb.className="kpi "+(Math.abs(d)<0.05?"ok":d>0?"err":"warn");}
   else{bv.textContent="—";bb.className="kpi";}
+
+  const nQt=rows.filter(r=>r.fonte==='qt').length, nDrv=rows.filter(r=>r.fonte==='drv').length;
   const nota=document.getElementById('estNota');
-  if(projData.length<=1) nota.innerHTML="<b>Base com 1 projeto</b> — sem dispersão real. O intervalo é nulo e a estimativa depende inteiramente do L'Urbain. Fecha obras e grava orçamentos para ganhar fiabilidade.";
-  else nota.innerHTML="Estimativa central por mediana; intervalo = envelope mín–máx dos "+projData.length+" projetos na base. Não é um intervalo estatístico — é o que os projetos reais implicam.";
+  const partes=[];
+  if(projData.length<=1) partes.push("<b>Base com 1 projeto</b> — sem dispersão real. O intervalo é nulo e a estimativa depende inteiramente do L'Urbain. Fecha obras e grava orçamentos para ganhar fiabilidade.");
+  else partes.push("Estimativa central por mediana; intervalo = envelope mín–máx dos "+projData.length+" projetos na base. Não é um intervalo estatístico — é o que os projetos reais implicam.");
+  if(nQt) partes.push("<b>"+nQt+" capítulo(s)</b> estimados por quantidade × preço unitário da biblioteca — o método mais preciso disponível.");
+  if(nDrv) partes.push(nDrv+" capítulo(s) escalados pelo seu driver físico próprio.");
+  if(calibOn){const nc=rows.filter(r=>r.kn>0).length; partes.push(nc?("Calibração aplicada em "+nc+" capítulo(s) com histórico de desvio orçamento→real."):"Calibração ligada mas sem obras fechadas suficientes — sem efeito.");}
+  if(softOn) partes.push("Soft costs: <b>"+fmt(soft,0)+" €</b> · total para o BP <b>"+fmt(totalBP,0)+" €</b>.");
+  nota.innerHTML=partes.join(" ");
 
   const tb=document.getElementById('tbEst'); tb.innerHTML="";
   rows.forEach(r=>{
+    const chip={qt:'<span class="srcchip src-qt">QT×PU</span>',drv:'<span class="srcchip src-drv">DRIVER</span>',lin:'<span class="srcchip src-lin">ABC</span>'}[r.fonte];
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${esc(r.cap)}</td><td class="num">${r.n}</td>
-      <td class="num">${fmt(r.rc,base==='fogo'?0:2)}</td>
+      <td><span class="drvchip">${esc(DRIVER_LBL[r.drv]||r.drv)}</span>${r.exp!==1?`<span class="drvchip exp" title="expoente de escala">^${r.exp}</span>`:""}</td>
+      <td>${chip}</td>
+      <td class="num">${fmt(r.rc,2)}</td>
+      <td class="num" style="color:${r.kf!==1?'var(--warn)':'#c4ccd8'}">${r.kf!==1?"×"+fmt(r.kf,2):"—"}</td>
       <td class="num" style="font-weight:700">${fmt(r.central,0)}</td>
       <td class="num" style="color:#8794a8">${fmt(r.lo,0)}</td>
       <td class="num" style="color:#8794a8">${fmt(r.hi,0)}</td>`;
     tb.appendChild(tr);
   });
   const trT=document.createElement('tr');
-  trT.innerHTML=`<td style="font-weight:700">TOTAL</td><td class="num">—</td><td class="num">—</td>
+  trT.innerHTML=`<td style="font-weight:700">TOTAL HARD COSTS</td><td class="num">—</td><td></td><td></td><td class="num">—</td><td class="num">—</td>
     <td class="num" style="font-weight:700">${fmt(tC,0)}</td>
     <td class="num" style="font-weight:700;color:#8794a8">${fmt(tLo,0)}</td>
     <td class="num" style="font-weight:700;color:#8794a8">${fmt(tHi,0)}</td>`;
   tb.appendChild(trT);
-  EST_LAST={nome:document.getElementById('estNome').value||"Projeto",base,pref,infl,alvo,abc,fogos,budget,rows,tC,tLo,tHi,nproj:projData.length};
+
+  EST_LAST={nome:document.getElementById('estNome').value||"Projeto",base:baseLbl,pref,infl,inflModo,alvo,
+            D,budget,rows,tC,tLo,tHi,soft,totalBP,nproj:projData.length,calibOn,softOn};
   document.getElementById('estResults').scrollIntoView({behavior:'smooth'});
+  saveLocal('est',estInputs());
 }
 let EST_LAST=null;
 function exportEstimativa(){
   if(!EST_LAST){toast("Corre uma estimativa primeiro.");return}
-  const E=EST_LAST;
-  const baseLbl=E.base==='abc'?"€/m² ABC":E.base==='fogo'?"€/fogo":"média ABC+fogo";
+  const E=EST_LAST, D=E.D;
   const head=[["SOLIVE — ESTIMATIVA PRELIMINAR (Business Plan)"],
     ["Projeto: "+E.nome+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
-    ["Base: "+baseLbl+"   ·   Fonte dos rácios: "+E.pref+"   ·   Inflação: "+E.infl+"%/ano → "+E.alvo+"   ·   Projetos na base: "+E.nproj],
-    ["ABC: "+(E.abc||"—")+" m²   ·   Fogos: "+(E.fogos||"—")+(E.budget?"   ·   Budget BP: "+fmt(E.budget,0)+" €":"")],
+    ["Base de cálculo: "+E.base+"   ·   Fonte dos rácios: "+E.pref+"   ·   Projetos na base: "+E.nproj],
+    ["Inflação: "+E.infl+"%/ano ("+(E.inflModo==='split'?"diferenciada por índice":"uniforme")+") → ano-alvo "+E.alvo],
+    ["Calibração pelo desvio histórico: "+(E.calibOn?"LIGADA":"desligada")],
+    ["Descritores — ABC: "+(D.abc||"—")+" m² · acima: "+(D.acima||"—")+" · abaixo: "+(D.abaixo||"—")+" · implantação: "+(D.implantacao||"—")+" · lote: "+(D.lote||"—")+" · fogos: "+(D.fogos||"—")+" · pisos "+(D.pisosA||"—")+"/"+(D.pisosB||"—")+" · estacionamento: "+(D.park||"—")],
     [],
-    ["Capítulo","Nº projetos","Rácio central","Estimativa (€)","Mínimo (€)","Máximo (€)"]];
-  const body=E.rows.map(r=>[r.cap,r.n,Math.round(r.rc*100)/100,Math.round(r.central),Math.round(r.lo),Math.round(r.hi)]);
-  body.push(["TOTAL","","",Math.round(E.tC),Math.round(E.tLo),Math.round(E.tHi)]);
+    ["METODOLOGIA"],
+    ["Cada capítulo é escalado pela grandeza física que comanda o seu custo (driver), não uniformemente por m² de ABC."],
+    ["Fórmula: estimativa = total_histórico × (driver_novo / driver_histórico) ^ expoente × fator_inflação × fator_calibração"],
+    ["Expoente < 1 significa que o capítulo tem componente fixa e cresce menos que proporcionalmente à dimensão."],
+    ["Fonte QT×PU = estimado por quantidade medida × preço unitário da biblioteca (método mais preciso)."],
+    ["Fonte DRIVER = rácio do capítulo escalado pelo driver físico. Fonte ABC = recurso a m² por falta de driver."],
+    [],
+    ["Capítulo","Nº projetos","Driver","Expoente","Fonte","Rácio central","Calibração","Estimativa (€)","Mínimo (€)","Máximo (€)"]];
+  const fonteLbl={qt:"QT×PU",drv:"DRIVER",lin:"ABC"};
+  const body=E.rows.map(r=>[r.cap,r.n,DRIVER_LBL[r.drv]||r.drv,r.exp,fonteLbl[r.fonte],
+    Math.round(r.rc*100)/100,r.kf!==1?Math.round(r.kf*100)/100:"",
+    Math.round(r.central),Math.round(r.lo),Math.round(r.hi)]);
+  body.push(["TOTAL HARD COSTS","","","","","","",Math.round(E.tC),Math.round(E.tLo),Math.round(E.tHi)]);
+  if(E.softOn&&SOFT_ROWS.length){
+    body.push([]);
+    body.push(["SOFT COSTS","","","","","% s/ hard costs","","Valor (€)"]);
+    SOFT_ROWS.forEach(s=>body.push([s.lbl,"","","","",s.pct+"%","",Math.round(E.tC*s.pct/100)]));
+    body.push(["TOTAL SOFT COSTS","","","","","","",Math.round(E.soft)]);
+    body.push(["TOTAL PARA O BUSINESS PLAN","","","","","","",Math.round(E.totalBP)]);
+  }
   if(E.budget){
     body.push([]);
-    body.push(["Budget do BP","","",Math.round(E.budget)]);
-    body.push(["Desvio estimativa vs. budget","","",Math.round(E.tC-E.budget),"",(((E.tC-E.budget)/E.budget*100).toFixed(1))+"%"]);
+    body.push(["Budget do BP","","","","","","",Math.round(E.budget)]);
+    body.push(["Desvio estimativa vs. budget","","","","","","",Math.round(E.totalBP-E.budget),"",
+      (((E.totalBP-E.budget)/E.budget*100).toFixed(1))+"%"]);
   }
   const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
-  ws['!cols']=[{wch:44},{wch:12},{wch:14},{wch:16},{wch:14},{wch:14}];
+  ws['!cols']=[{wch:44},{wch:11},{wch:24},{wch:10},{wch:10},{wch:14},{wch:11},{wch:16},{wch:14},{wch:14}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Estimativa");
   XLSX.writeFile(wb,("Estimativa_"+E.nome).replace(/\s+/g,"_")+".xlsx");
 }
@@ -2717,6 +3189,1333 @@ function renderLibQty(proj){
     });
   });
 }
+
+/* ==========================================================================
+   v2.1 — MOTOR DE DRIVERS, PREÇOS UNITÁRIOS, CONSULTAS, VERSÕES, PONTE DPR
+   ========================================================================== */
+
+/* ---------- 0. Robustez: erros visíveis, nunca silenciosos ---------- */
+function alertx(msg,ok){
+  document.querySelectorAll('.banner').forEach(b=>b.remove());
+  const b=document.createElement('div');
+  b.className='banner'+(ok?' ok':'');
+  b.innerHTML='<span class="x" onclick="this.parentNode.remove()">×</span><b>'+(ok?'Feito':'Atenção')+'</b>'+esc(msg);
+  document.body.appendChild(b);
+  setTimeout(()=>b.remove(), ok?5000:11000);
+}
+/* Envolve qualquer chamada ao Supabase: um erro passa a ser visível em vez de
+   devolver silenciosamente uma lista vazia — o pior modo de falha possível
+   numa ferramenta em que se confia para produzir números. */
+async function sbq(promise,ctx){
+  try{
+    const r=await promise;
+    if(r&&r.error){ console.error(ctx,r.error); alertx(ctx+": "+r.error.message); return {data:null,error:r.error}; }
+    return r;
+  }catch(e){ console.error(ctx,e); alertx(ctx+": "+(e.message||e)); return {data:null,error:e}; }
+}
+window.addEventListener('error',e=>{ if(e.message&&!/ResizeObserver/.test(e.message)) console.error('[erro]',e.message,e.filename,e.lineno); });
+
+/* Autosave local: uma atualização de página deixava de custar uma sessão inteira de análise. */
+const LS='solive_orc_v21_';
+function saveLocal(k,v){ try{ localStorage.setItem(LS+k,JSON.stringify(v)) }catch(e){} }
+function readLocal(k){ try{ const s=localStorage.getItem(LS+k); return s?JSON.parse(s):null }catch(e){ return null } }
+function clearLocal(k){ try{ localStorage.removeItem(LS+k) }catch(e){} }
+
+/* ---------- 1. Utilitários partilhados ---------- */
+const RE_SOMA=/^(TOTAL|SUB[\s-]?TOTAL|SOMA|PARCIAL|A\s+TRANSPORTAR|TRANSPORTE|RESUMO|TOTAIS)\b/i;
+const UNIDADES_RACIO=["m²","m³","m","un","kg","ton"];
+function normUn(u){
+  let s=String(u||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  s=s.replace(/[.\s]/g,"");
+  if(/^(m2|m²|mq)$/.test(s))return "m²";
+  if(/^(m3|m³|mc)$/.test(s))return "m³";
+  if(/^(ml|m|mts?|metro?s?)$/.test(s))return "m";
+  if(/^(un|und|uni|unid|pc|pcs|peca|pecas|cj|conj)$/.test(s))return "un";
+  if(/^(kg|kgs|quilo)$/.test(s))return "kg";
+  if(/^(ton|tn|t)$/.test(s))return "ton";
+  if(/^(vg|vgl|glob)$/.test(s))return "vg";
+  return s;
+}
+function tokenSet(s){
+  const stop=new Set(["de","da","do","das","dos","em","com","para","por","e","a","o","as","os","no","na","nos","nas","ao","aos","incluindo","inclui","tipo","conforme","todos","trabalhos"]);
+  /* radicalização leve: sem isto, "pavimento" e "pavimentos" contam como palavras
+     diferentes e um duplicado evidente passa despercebido */
+  const stem=w=>{
+    let x=w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    if(x.length>4&&/oes$/.test(x)) return x.slice(0,-3)+"ao";
+    if(x.length>4&&/(is|ns)$/.test(x)) return x.slice(0,-2);
+    if(x.length>3&&/s$/.test(x)) return x.slice(0,-1);
+    return x;
+  };
+  return new Set(String(s).split(/[^A-Za-zÀ-ÿ0-9]+/).filter(w=>w.length>2&&!stop.has(w.toLowerCase())).map(stem));
+}
+function jaccard(a,b){ let i=0; a.forEach(x=>{if(b.has(x))i++}); const u=a.size+b.size-i; return u?i/u:0 }
+function med(arr){const a=arr.filter(v=>v!=null&&isFinite(v)).sort((x,y)=>x-y);const n=a.length;return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):null}
+function pct(arr,p){const a=arr.filter(v=>v!=null&&isFinite(v)).sort((x,y)=>x-y);if(!a.length)return null;const i=(a.length-1)*p;const lo=Math.floor(i),hi=Math.ceil(i);return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(i-lo)}
+
+/* ---------- 2. Taxonomia: driver físico, expoente de escala e índice de inflação ----------
+   O erro estrutural da v2.0 era escalar todos os capítulos por m² de ABC. Estaleiro cresce
+   com a duração, escavação com o volume enterrado, cozinhas com o número de fogos.
+   Expoente < 1 = o capítulo tem componente fixa e não duplica quando o projeto duplica. */
+const DRIVER_LBL={
+  abc:"ABC total (m²)", acima:"Área acima do solo (m²)", abaixo:"Área abaixo do solo (m²)",
+  implantacao:"Área de implantação (m²)", escavacao:"Volume de escavação (m³)",
+  fogos:"Nº de fogos", pisos:"Nº total de pisos", exterior:"Área exterior do lote (m²)",
+  park:"Lugares de estacionamento", fachada:"Área de fachada (m²)"
+};
+const TAXO_DEFAULT={driver:"abc",exp:1,idx:"mat",racional:"Sem driver específico definido."};
+const TAXO_BASE={
+ "ESTALEIRO":                {driver:"abc",exp:0.70,idx:"mo", racional:"Comanda-se pela duração e pela dimensão do estaleiro, não pela área. Expoente 0,70: um projeto com o dobro da área não tem o dobro do estaleiro."},
+ "ESTABILIDADE":             {driver:"abc",exp:1.00,idx:"mat",racional:"Estrutura escala com a área construída total. Pisos enterrados encarecem o m² — captado pelo driver de escavação no capítulo vizinho."},
+ "MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA":{driver:"escavacao",exp:0.90,idx:"mo",racional:"Comanda-se pelo volume a escavar (implantação × pisos enterrados × pé-direito), não pela área construída. Contenção periférica escala com o perímetro, daí o expoente 0,90."},
+ "COBERTURAS":               {driver:"implantacao",exp:1.00,idx:"mat",racional:"A cobertura é a área de implantação, independentemente do número de pisos."},
+ "IMPERMEABILIZAÇÕES E ISOLAMENTOS":{driver:"abc",exp:1.00,idx:"mat",racional:"Distribui-se entre cobertura, caves e zonas húmidas — escala com a área construída total."},
+ "ALVENARIAS":               {driver:"acima",exp:1.00,idx:"mat",racional:"Paredes interiores e exteriores concentram-se nos pisos acima do solo."},
+ "PEDRA":                    {driver:"acima",exp:1.00,idx:"mat",racional:"Revestimento nobre aplicado em zonas acima do solo."},
+ "ETICS":                    {driver:"fachada",exp:1.00,idx:"mat",racional:"Comanda-se pela área de fachada. Na ausência do valor, estima-se por área acima do solo."},
+ "ARGAMASSAS":               {driver:"acima",exp:1.00,idx:"mat",racional:"Rebocos e regularizações seguem a área acima do solo."},
+ "CERÂMICOS":                {driver:"fogos",exp:1.00,idx:"mat",racional:"Cozinhas e instalações sanitárias — comanda-se pelo número de fogos, não pela área."},
+ "GESSO CARTONADO":          {driver:"acima",exp:1.00,idx:"mat",racional:"Divisórias e tetos falsos dos pisos habitacionais."},
+ "BETONILHAS":               {driver:"acima",exp:1.00,idx:"mat",racional:"Regularização de pavimentos dos pisos acima do solo."},
+ "PAVIMENTOS DIVERSOS":      {driver:"acima",exp:1.00,idx:"mat",racional:"Pavimentos de acabamento das áreas habitacionais."},
+ "PINTURAS":                 {driver:"acima",exp:1.00,idx:"mo", racional:"Mão-de-obra intensiva; escala com as superfícies dos pisos acima do solo."},
+ "CANTARIAS":                {driver:"fogos",exp:1.00,idx:"mat",racional:"Soleiras, peitoris e bancadas — proporcionais ao número de fogos."},
+ "SERRALHARIAS":             {driver:"abc",exp:0.95,idx:"mat",racional:"Guardas, portões e elementos comuns — parcialmente independentes da dimensão."},
+ "VÃOS":                     {driver:"fachada",exp:1.00,idx:"mat",racional:"Caixilharia comanda-se pela fachada. Sem esse valor, aproxima-se pela área acima do solo."},
+ "CARPINTARIAS":             {driver:"fogos",exp:1.00,idx:"mat",racional:"Portas interiores e roupeiros — contam-se por fogo."},
+ "EQUIPAMENTOS SANITÁRIOS":  {driver:"fogos",exp:1.00,idx:"mat",racional:"Louças e torneiras contam-se por instalação sanitária, logo por fogo."},
+ "COZINHAS":                 {driver:"fogos",exp:1.00,idx:"mat",racional:"Uma cozinha por fogo. Escalar por m² é o erro clássico."},
+ "PISCINA":                  {driver:"abc",exp:0.30,idx:"mat",racional:"Equipamento singular: existe ou não existe, e o custo quase não varia com a dimensão do edifício."},
+ "ELEVADORES":               {driver:"pisos",exp:0.85,idx:"mep",racional:"Comanda-se pelo número de paragens e de caixas, não pela área. Custo por paragem decresce com a altura."},
+ "REDE DE ESGOTOS":          {driver:"fogos",exp:1.00,idx:"mep",racional:"Ramais e prumadas contam-se por fogo."},
+ "REDE DE ÁGUAS":            {driver:"fogos",exp:1.00,idx:"mep",racional:"Ramais e equipamento por fogo."},
+ "REDE DE ÁGUAS PLUVIAIS":   {driver:"implantacao",exp:1.00,idx:"mep",racional:"Drenagem pluvial comanda-se pela área de cobertura, isto é, pela implantação."},
+ "REDE DE GÁS":              {driver:"fogos",exp:1.00,idx:"mep",racional:"Ramais por fogo."},
+ "ELETRICIDADE E ILUMINAÇÃO":{driver:"abc",exp:1.00,idx:"mep",racional:"Distribui-se por toda a área construída, incluindo caves e comuns."},
+ "SEGURANÇA INTEGRADA":      {driver:"abc",exp:0.90,idx:"mep",racional:"Centrais e equipamento comum têm componente fixa relevante."},
+ "ITED":                     {driver:"fogos",exp:0.95,idx:"mep",racional:"Tomadas e ATI por fogo, com bastidor comum de custo fixo."},
+ "SCIE":                     {driver:"abc",exp:0.85,idx:"mep",racional:"Central de deteção e pressurização são custos de patamar, pouco sensíveis à área."},
+ "AVAC":                     {driver:"fogos",exp:1.00,idx:"mep",racional:"Unidades interiores e exteriores por fogo; ventilação de caves acompanha o programa."},
+ "PAISAGISMO":               {driver:"exterior",exp:1.00,idx:"mo", racional:"Comanda-se pela área exterior livre (lote menos implantação), não pela área construída."},
+ "DIVERSOS":                 {driver:"abc",exp:1.00,idx:"mat",racional:"Rubrica residual — escala com a dimensão global."}
+};
+let TAXO=JSON.parse(JSON.stringify(TAXO_BASE));
+let REGRAS_CAP=[];   /* regras de reconhecimento acrescentadas pelo utilizador */
+
+/* Índices de inflação diferenciados. A inflação da construção não é uniforme:
+   mão-de-obra, material e MEP divergiram fortemente nos últimos anos. */
+const INFL_PESO={mo:1.25, mat:1.00, mep:0.85};
+function fatorInflacao(taxa,modo,idx,anos){
+  if(!taxa||!anos)return 1;
+  const t=(modo==='split')?taxa*(INFL_PESO[idx]||1):taxa;
+  return Math.pow(1+t/100,anos);
+}
+
+/* ---------- 3. Descritores e cálculo de drivers ---------- */
+const PE_DIREITO_CAVE=2.9;   /* pé-direito médio assumido para converter pisos enterrados em volume */
+function descritoresDe(p){
+  const abc=+p.gfa||null, abaixo=+p.ac_abaixo||null;
+  return {abc, acima:+p.gca||(abc&&abaixo?abc-abaixo:null), abaixo,
+          implantacao:+p.area_implantacao||null, lote:+p.area_lote||null,
+          fogos:+p.fogos||null, pisosA:+p.pisos_acima||null, pisosB:+p.pisos_enterrados||null,
+          park:+p.estacionamento||null};
+}
+function descritoresRef(){
+  return {abc:REF.gfa, acima:REF.gca, abaixo:REF.gfa-REF.gca, implantacao:null, lote:null,
+          fogos:REF.fogos, pisosA:null, pisosB:2, park:null};
+}
+function estDescritores(){
+  const g=id=>{const v=parseFloat((document.getElementById(id)||{}).value);return isFinite(v)&&v>0?v:null};
+  const abc=g('estAbc'), abaixo=g('estAbaixo');
+  return {abc, acima:g('estAcima')||(abc&&abaixo?abc-abaixo:null), abaixo,
+          implantacao:g('estImpl'), lote:g('estLote'), fogos:g('estFogos'),
+          pisosA:g('estPisosA'), pisosB:g('estPisosB'), park:g('estPark')};
+}
+function estInputs(){const o={};['estNome','estAbc','estFogos','estAcima','estAbaixo','estImpl','estLote','estPisosA','estPisosB','estPark','estBudget','estBase','estFonte','estInfl','estAno','estInflModo','estPU','estCalib','estSoft'].forEach(id=>{const e=document.getElementById(id);if(e)o[id]=e.value});return o}
+function restoreEstInputs(){const o=readLocal('est');if(!o)return;Object.entries(o).forEach(([id,v])=>{const e=document.getElementById(id);if(e&&v!=="")e.value=v})}
+
+/* Valor do driver. Cadeia de recurso explícita: se a grandeza própria não estiver
+   disponível, cai para a aproximação seguinte e a tabela mostra que caiu. */
+function driverValue(key,D){
+  if(!D)return null;
+  const acima=D.acima||(D.abc&&D.abaixo?D.abc-D.abaixo:D.abc);
+  switch(key){
+    case 'abc':          return D.abc;
+    case 'acima':        return acima||D.abc;
+    case 'abaixo':       return D.abaixo||null;
+    case 'implantacao':  return D.implantacao||(D.abc&&D.pisosA?D.abc/D.pisosA:null);
+    case 'escavacao':    return (D.implantacao&&D.pisosB)?D.implantacao*D.pisosB*PE_DIREITO_CAVE
+                                : (D.abaixo?D.abaixo*PE_DIREITO_CAVE:null);
+    case 'fogos':        return D.fogos;
+    case 'pisos':        return (D.pisosA||0)+(D.pisosB||0)||null;
+    case 'exterior':     return (D.lote&&D.implantacao)?Math.max(D.lote-D.implantacao,0)||null:null;
+    case 'park':         return D.park;
+    case 'fachada':      return D.fachada||(acima||null);   /* aproximação: sem levantamento de fachada usa-se a área acima do solo */
+    default:             return D.abc;
+  }
+}
+
+/* ---------- 4. Calibração pelo desvio histórico orçamento → real ----------
+   O ciclo fechava-se só visualmente: o desvio era mostrado mas nunca voltava
+   ao estimador. Passa a ser um fator multiplicativo por capítulo. */
+let CALIB_CACHE=null;
+async function calibracaoDesvios(){
+  if(CALIB_CACHE)return CALIB_CACHE;
+  const out={};
+  if(!SESSION){CALIB_CACHE=out;return out}
+  for(const p of PROJETOS){
+    const {data:fases}=await sbq(sb.from('fases').select('*').eq('projeto_id',p.id),"Ler fases");
+    if(!fases)continue;
+    const orc=fases.filter(f=>f.fase==='Orçamento').sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+    const real=fases.filter(f=>f.fase==='Real').sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+    if(!orc||!real)continue;
+    const [{data:co},{data:cr}]=await Promise.all([
+      sbq(sb.from('capitulos').select('*').eq('fase_id',orc.id),"Ler capítulos orçamento"),
+      sbq(sb.from('capitulos').select('*').eq('fase_id',real.id),"Ler capítulos reais")]);
+    if(!co||!cr)continue;
+    const mo={},mr={};
+    co.forEach(c=>mo[c.cap]=(mo[c.cap]||0)+ +c.total);
+    cr.forEach(c=>mr[c.cap]=(mr[c.cap]||0)+ +c.total);
+    Object.keys(mr).forEach(cap=>{
+      if(!mo[cap]||mo[cap]<=0)return;
+      (out[cap]=out[cap]||{r:[]}).r.push(mr[cap]/mo[cap]);
+    });
+  }
+  Object.keys(out).forEach(cap=>{
+    const f=med(out[cap].r);
+    /* limite de segurança: a calibração corrige enviesamento, não substitui julgamento */
+    out[cap]={n:out[cap].r.length, fator:Math.min(Math.max(f,0.75),1.40)};
+  });
+  CALIB_CACHE=out; return out;
+}
+
+/* ---------- 5. Biblioteca de preços unitários ----------
+   O ganho de precisão maior disponível: os mapas já traziam quantidade e preço
+   artigo a artigo, e o estimador ignorava tudo isso para usar €/m² de capítulo. */
+const FAMILIAS=[
+ [/bet[ãa]o\s*(armado|c\d|ciclo|leve)?.*(pilar|viga|laje|parede|sapata|muro|funda)/i,"Betão armado em estrutura"],
+ [/\bbet[ãa]o\b(?!ilha)/i,"Betão (genérico)"],
+ [/a[çc]o.*(a\s?500|nerv|arma)|armadura|varão/i,"Aço em armaduras"],
+ [/cofrag/i,"Cofragem"],
+ [/escava[çc]/i,"Escavação"],
+ [/aterro|enchimento/i,"Aterro e enchimento"],
+ [/estaca|jet\s?grout|parede moldada|micro\s?estaca|ancorag/i,"Contenção periférica"],
+ [/alvenaria.*(tijolo|bloco)|parede.*tijolo/i,"Alvenaria de tijolo/bloco"],
+ [/etics|capoto|isolamento.*fachada/i,"ETICS / isolamento de fachada"],
+ [/impermeabiliza/i,"Impermeabilização"],
+ [/isolamento.*(t[ée]rmico|xps|eps|l[ãa] de rocha|l[ãa] mineral)/i,"Isolamento térmico"],
+ [/isolamento ac[úu]stico/i,"Isolamento acústico"],
+ [/reboco|argamassa|estuque/i,"Reboco / argamassa"],
+ [/betonilha|camada de regulariza/i,"Betonilha"],
+ [/gesso cartonado|pladur|placa de gesso/i,"Gesso cartonado"],
+ [/te[ct]?to falso|sanca/i,"Teto falso"],
+ [/mosaico|cer[âa]mic|gr[ée]s|porcelan/i,"Revestimento cerâmico"],
+ [/soalho|flutuante|v[íi]nil|lvt|parquet|madeira.*pavimento/i,"Pavimento em madeira/vinílico"],
+ [/rodap[ée]/i,"Rodapé"],
+ [/pintura.*(te[ct]|paredes|interior)/i,"Pintura interior"],
+ [/pintura.*(exterior|fachada)/i,"Pintura exterior"],
+ [/\bprimário|subcapa|barramento/i,"Preparação de pintura"],
+ [/porta.*(corta.?fogo)/i,"Porta corta-fogo"],
+ [/porta.*(interior|lisa|batente|correr)/i,"Porta interior"],
+ [/porta.*(entrada|seguran[çc]a|blindada)/i,"Porta de entrada"],
+ [/roupeiro|arm[áa]rio/i,"Roupeiro / armário"],
+ [/cozinha.*(m[óo]vel|bancada|equipa)|m[óo]vel de cozinha/i,"Móvel de cozinha"],
+ [/caixilh|janela|vão.*(alum[íi]nio|pvc|madeira)|envidra[çc]/i,"Caixilharia"],
+ [/estore|persiana|blackout/i,"Estore / persiana"],
+ [/guarda.?corpo|corrim[ãa]o|gradeamento/i,"Guarda-corpos / corrimão"],
+ [/soleira|peitoril|cantaria|bancada.*(pedra|m[áa]rmore|granito|silestone)/i,"Cantaria / bancada em pedra"],
+ [/sanita|bacia de retrete/i,"Sanita"],
+ [/lavat[óo]rio/i,"Lavatório"],
+ [/base de duche|banheira/i,"Base de duche / banheira"],
+ [/torneira|misturadora/i,"Torneira / misturadora"],
+ [/tubagem|tubo.*(ppr|pex|pvc|multicamada)|prumada/i,"Tubagem"],
+ [/caixa de visita|caleira|ralo|sif[ãa]o/i,"Acessórios de drenagem"],
+ [/cabo.*(xv|h07|rz1)|condutor el[ée]tr/i,"Cabo elétrico"],
+ [/tomada|interruptor|comutador/i,"Aparelhagem elétrica"],
+ [/quadro el[ée]tr|qe\b|disjuntor/i,"Quadro elétrico"],
+ [/lumin[áa]ria|foco|downlight|fita led/i,"Luminária"],
+ [/unidade (interior|exterior)|multi\s?split|bomba de calor|termoac/i,"Equipamento AVAC"],
+ [/conduta|grelha de (insu|extra)|ventilador/i,"Ventilação"],
+ [/detetor|central de dete[çc]|sprinkler|boca de inc[êe]ndio|extintor/i,"Segurança contra incêndio"],
+ [/elevador|plataforma elevat/i,"Elevador"],
+ [/pavimento exterior|lajeta|deck|calçada/i,"Pavimento exterior"],
+ [/plantação|árvore|arbusto|relva|rega/i,"Paisagismo"]
+];
+function familiaArtigo(desc,un){
+  const d=String(desc||"");
+  if(d.length<8)return null;
+  for(const [re,fam] of FAMILIAS) if(re.test(d)) return fam;
+  return null;
+}
+let PU_ROWS=[], PU_STATS={};
+async function loadPU(){
+  PU_ROWS=[]; PU_STATS={};
+  if(!SESSION)return;
+  const {data}=await sbq(sb.from('precos_unitarios').select('*'),"Ler preços unitários");
+  if(!data)return;
+  PU_ROWS=data;
+  buildPUStats();
+}
+function buildPUStats(){
+  const g={};
+  PU_ROWS.forEach(r=>{
+    const k=r.familia+"|"+normUn(r.un);
+    (g[k]=g[k]||{v:[],projs:new Set()});
+    g[k].v.push(+r.pu); g[k].projs.add(r.projeto);
+  });
+  PU_STATS={};
+  Object.entries(g).forEach(([k,o])=>{
+    PU_STATS[k]={n:o.v.length, mediana:med(o.v), p10:pct(o.v,0.10), p90:pct(o.v,0.90),
+                 min:Math.min(...o.v), max:Math.max(...o.v), projs:[...o.projs]};
+  });
+}
+/* Colheita: chamada ao gravar uma análise com preços ou um auto ao nível do artigo */
+async function colherPU(arts,projeto,ano,fase){
+  if(!SESSION)return 0;
+  const linhas=[];
+  arts.forEach(a=>{
+    const pu=a.pu!=null&&a.pu>0?a.pu:(a.pt&&a.qt?a.pt/a.qt:null);
+    if(!pu||!isFinite(pu)||pu<=0)return;
+    const fam=familiaArtigo(a.desc,a.un); if(!fam)return;
+    const u=normUn(a.un); if(u==="vg")return;
+    linhas.push({familia:fam,un:u,pu:Math.round(pu*100)/100,projeto,ano,fase,
+                 cap:a.cap||null,descricao:String(a.desc).slice(0,240)});
+  });
+  if(!linhas.length)return 0;
+  await sbq(sb.from('precos_unitarios').delete().eq('projeto',projeto).eq('fase',fase),"Limpar preços anteriores");
+  const {error}=await sbq(sb.from('precos_unitarios').insert(linhas),"Gravar preços unitários");
+  if(!error){ await loadPU(); }
+  return linhas.length;
+}
+/* Estimativa por quantidade × preço unitário, usando o MQ analisado do projeto alvo */
+function estimativaPorPU(D){
+  if(!ITENS.length||!Object.keys(PU_STATS).length)return null;
+  const arts=ITENS.filter(x=>x.tipo==='art'&&x.qt!=null&&x.qt>0);
+  if(!arts.length)return null;
+  const porCap={};
+  arts.forEach(a=>{
+    const cap=a.cap; if(!cap)return;
+    const o=porCap[cap]=porCap[cap]||{cobertos:0,total:0,valor:0,lo:0,hi:0};
+    o.total++;
+    const fam=familiaArtigo(a.desc,a.un); if(!fam)return;
+    const st=PU_STATS[fam+"|"+normUn(a.un)]; if(!st||st.n<2)return;
+    o.cobertos++;
+    o.valor+=a.qt*st.mediana; o.lo+=a.qt*st.p10; o.hi+=a.qt*st.p90;
+  });
+  Object.values(porCap).forEach(o=>{ o.cobertura=o.total?o.cobertos/o.total:0;
+    if(o.cobertura>0&&o.cobertura<1){ const esc=1/o.cobertura; o.valor*=esc; o.lo*=esc; o.hi*=esc; } });
+  return {porCap};
+}
+
+/* ---------- 6. Benchmarks de quantidade a partir de toda a biblioteca ----------
+   Antes: comparava-se sempre contra o L'Urbain embutido, e o teste nunca melhorava
+   à medida que a biblioteca crescia. */
+let BENCH={};   /* cap|un -> {vals:[q/abc], projs:[]} */
+let AGG_MQ={};
+async function loadBenchmarks(){
+  BENCH={};
+  const addRef=(cap,u,q,abc,nome)=>{ if(!q||!abc)return; const k=cap+"|"+normUn(u);
+    (BENCH[k]=BENCH[k]||{vals:[],projs:[]}); BENCH[k].vals.push(q/abc); BENCH[k].projs.push(nome); };
+  Object.entries(REF.qty).forEach(([cap,us])=>Object.entries(us).forEach(([u,q])=>addRef(cap,u,q,REF.gfa,"L'Urbain")));
+  if(!SESSION)return;
+  for(const p of PROJETOS){
+    if(!p.metricas||!p.gfa)continue;
+    Object.entries(p.metricas).forEach(([k,v])=>{
+      const cap=k.replace(/\s*\([^)]*\)\s*$/,"").trim();
+      if(norm(p.nome).includes("URBAIN"))return;   /* já entrou pela referência */
+      addRef(cap,v.un||"",v.q,p.gfa,p.nome);
+    });
+  }
+}
+function benchmark(cap,u){
+  const b=BENCH[cap+"|"+normUn(u)];
+  if(!b||!b.vals.length)return null;
+  return {n:b.vals.length, mediana:med(b.vals), lo:Math.min(...b.vals), hi:Math.max(...b.vals),
+          fonte:b.projs.join(", ")};
+}
+
+/* ---------- 7. Coerência entre capítulos ----------
+   As omissões reais de medição aparecem no confronto entre capítulos, não no
+   confronto de um capítulo com a história: o rácio interno é muito mais portável
+   entre projetos do que o rácio absoluto face a um projeto de referência. */
+const REGRAS_CRUZADAS=[
+ {a:["BETONILHAS","m²"], b:["REVESTIMENTOS DE PAVIMENTOS","m²"], min:0.75, max:1.30,
+  lbl:"Betonilha vs. revestimento de pavimento",
+  msg:"A área de betonilha e a área de revestimento de pavimento devem ser da mesma ordem. Uma diferença grande indica omissão de medição num dos dois capítulos."},
+ {a:["REVESTIMENTOS DE TECTOS","m²"], b:["REVESTIMENTOS DE PAVIMENTOS","m²"], min:0.55, max:1.25,
+  lbl:"Revestimento de tetos vs. de pavimentos",
+  msg:"A área de tetos aproxima-se da área de pavimentos (descontando zonas sem teto falso). Um desvio grande sugere teto falso não medido."},
+ {a:["PINTURAS","m²"], b:["REVESTIMENTOS DE PAREDES","m²"], min:0.60, max:3.50,
+  lbl:"Pintura vs. revestimento de paredes",
+  msg:"A pintura cobre as paredes e tetos não revestidos. Um valor muito baixo indica superfícies por pintar não medidas."},
+ {a:["IMPERMEABILIZAÇÕES E ISOLAMENTOS","m²"], b:["COBERTURAS","m²"], min:0.80, max:6.00,
+  lbl:"Impermeabilização vs. cobertura",
+  msg:"A impermeabilização cobre pelo menos a cobertura, mais caves e zonas húmidas. Menos do que a cobertura é omissão certa."},
+ {a:["CANTARIAS","m"], b:["VÃOS","un"], min:0.60, max:5.00, porUnidade:true,
+  lbl:"Cantarias vs. nº de vãos",
+  msg:"Cada vão exige soleira e/ou peitoril. Menos de 0,6 m de cantaria por vão sugere peitoris não medidos."},
+ {a:["CARPINTARIAS","un"], b:["VÃOS","un"], min:0.30, max:4.00,
+  lbl:"Carpintarias vs. vãos",
+  msg:"O número de portas interiores e o número de vãos exteriores mantêm uma relação estável em habitação. Verificar se faltam portas ou roupeiros."}
+];
+function crossChecks(agg,add){
+  const val=(k)=>agg[k[0]+"|"+normUn(k[1])];
+  REGRAS_CRUZADAS.forEach(r=>{
+    const va=val(r.a), vb=val(r.b);
+    if(!va||!vb||vb<=0)return;
+    const rel=va/vb;
+    if(rel>=r.min&&rel<=r.max)return;
+    const dir=rel<r.min?"baixo":"alto";
+    add({tipo:'art',code:"—",desc:r.lbl,un:"—",qt:null,cap:r.a[0],linha:"—"},
+      "Coerência entre capítulos","aviso",
+      `${r.lbl}: ${fmt(va,1)} ${r.a[1]} para ${fmt(vb,1)} ${r.b[1]} (rácio ${fmt(rel,2)}, esperado ${r.min}–${r.max}) — demasiado ${dir}.`,
+      `${r.msg} Rácio medido: ${fmt(rel,2)} (esperado entre ${r.min} e ${r.max}).`);
+  });
+  /* verificações contra os descritores do projeto */
+  const fogos=parseFloat((document.getElementById('pFogos')||{}).value);
+  if(fogos>0){
+    const cz=agg["COZINHAS|un"];
+    if(cz!=null&&cz>0&&(cz<fogos*0.8||cz>fogos*1.5))
+      add({tipo:'art',code:"—",desc:"Cozinhas vs. nº de fogos",un:"un",qt:cz,cap:"COZINHAS",linha:"—"},
+        "Coerência entre capítulos","aviso",
+        `${fmt(cz,0)} unidades de cozinha para ${fmt(fogos,0)} fogos.`,
+        `O número de equipamentos de cozinha medidos não corresponde ao número de fogos do programa — confirmar.`);
+    const sn=agg["EQUIPAMENTOS SANITÁRIOS|un"];
+    if(sn!=null&&sn>0&&sn<fogos*2)
+      add({tipo:'art',code:"—",desc:"Equipamentos sanitários vs. fogos",un:"un",qt:sn,cap:"EQUIPAMENTOS SANITÁRIOS",linha:"—"},
+        "Coerência entre capítulos","aviso",
+        `${fmt(sn,0)} equipamentos sanitários para ${fmt(fogos,0)} fogos (menos de 2 por fogo).`,
+        `Contagem de louças sanitárias abaixo do mínimo plausível por fogo — verificar se falta medir uma instalação sanitária.`);
+  }
+  const impl=parseFloat((document.getElementById('pImplantacao')||{}).value);
+  if(impl>0){
+    const cob=agg["COBERTURAS|m²"];
+    if(cob!=null&&cob>0&&(cob<impl*0.5||cob>impl*2.0))
+      add({tipo:'art',code:"—",desc:"Cobertura vs. área de implantação",un:"m²",qt:cob,cap:"COBERTURAS",linha:"—"},
+        "Coerência entre capítulos","aviso",
+        `${fmt(cob,0)} m² de cobertura para ${fmt(impl,0)} m² de implantação.`,
+        `A área de cobertura afasta-se significativamente da área de implantação — confirmar contra as peças desenhadas.`);
+  }
+}
+
+/* ---------- 8. Soft costs ---------- */
+let SOFT_ROWS=[
+ {k:'proj', lbl:"Projeto e assistência técnica", pct:4.5, nota:"Arquitetura, especialidades e coordenação"},
+ {k:'fisc', lbl:"Fiscalização e coordenação de segurança", pct:1.8, nota:"Equipa de obra do dono da obra"},
+ {k:'lic',  lbl:"Licenças, taxas e compensações", pct:2.5, nota:"Câmara, TRIU, ligações às redes"},
+ {k:'seg',  lbl:"Seguros e garantias", pct:0.8, nota:"CAR, responsabilidade civil, garantias bancárias"},
+ {k:'ctg',  lbl:"Contingência de construção", pct:5.0, nota:"Imprevistos e trabalhos a mais"},
+ {k:'ger',  lbl:"Estrutura e gestão do promotor", pct:2.0, nota:"Custos internos afetos ao projeto"}
+];
+function renderSoftCosts(hard){
+  const tb=document.getElementById('tbSoft'); tb.innerHTML="";
+  let tot=0;
+  SOFT_ROWS.forEach((s,i)=>{
+    const v=hard*s.pct/100; tot+=v;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(s.lbl)}</td>
+      <td class="num"><input type="number" step="0.1" value="${s.pct}" style="text-align:right;padding:5px 7px" onchange="SOFT_ROWS[${i}].pct=parseFloat(this.value)||0;runEstimador()"></td>
+      <td class="num" style="font-weight:600">${fmt(v,0)}</td><td style="color:#69788f;font-size:12px">${esc(s.nota)}</td>`;
+    tb.appendChild(tr);
+  });
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td style="font-weight:700">TOTAL SOFT COSTS</td><td class="num" style="font-weight:700">${fmt(tot/hard*100,1)}%</td><td class="num" style="font-weight:700">${fmt(tot,0)}</td><td></td>`;
+  tb.appendChild(tr);
+  return tot;
+}
+
+/* ---------- 9. CONSULTAS AO MERCADO E MAPA COMPARATIVO ----------
+   Antes, "em consulta" e "proposta firme" eram apenas cores: não existia registo
+   de a quem se consultou, quando, nem com que prazo, e as propostas não podiam
+   ser comparadas lado a lado. */
+let CONSULTAS=[], FORNECEDORES=[];
+function cstTab(t){
+  ['reg','map','hist'].forEach(x=>{
+    document.getElementById('cst-pane-'+x).classList.toggle('hidden',x!==t);
+    document.getElementById('cst-tab-'+x).classList.toggle('on',x===t);
+  });
+  if(t==='map') renderMapaComp();
+  if(t==='hist') renderFornHist();
+}
+async function refreshConsultas(){
+  const selCap=document.getElementById('cstCap');
+  if(selCap&&!selCap.options.length) selCap.innerHTML=CAPS33.map(c=>`<option>${esc(c)}</option>`).join("");
+  const tc=document.getElementById('taxCap');
+  if(tc&&!tc.options.length) tc.innerHTML=CAPS33.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(SESSION){
+    document.getElementById('cstProjList').innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+    await loadConsultas();
+  }
+  renderConsultas();
+  const mc=document.getElementById('mcProj');
+  const nomes=[...new Set(CONSULTAS.map(c=>c.projeto))];
+  if(mc) mc.innerHTML=nomes.map(n=>`<option>${esc(n)}</option>`).join("")||'<option value="">—</option>';
+}
+async function loadConsultas(){
+  const {data}=await sbq(sb.from('consultas').select('*').order('data_envio',{ascending:false}),"Ler consultas");
+  CONSULTAS=data||[];
+  FORNECEDORES=[...new Set(CONSULTAS.map(c=>c.fornecedor))].sort();
+  const dl=document.getElementById('cstFornList');
+  if(dl) dl.innerHTML=FORNECEDORES.map(f=>`<option value="${esc(f)}">`).join("");
+}
+async function cstAbrir(){
+  if(!SESSION)return alertx("Inicia sessão para registar consultas.");
+  const projeto=document.getElementById('cstProj').value.trim();
+  const cap=document.getElementById('cstCap').value;
+  const envio=document.getElementById('cstEnvio').value||new Date().toISOString().slice(0,10);
+  const prazo=document.getElementById('cstPrazo').value||null;
+  const forns=document.getElementById('cstForn').value.split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+  if(!projeto)return alertx("Indica o projeto.");
+  if(!forns.length)return alertx("Indica pelo menos um fornecedor.");
+  const linhas=forns.map(f=>({projeto,cap,fornecedor:f,data_envio:envio,prazo,estado:'enviada',valor:null,data_proposta:null}));
+  const {error}=await sbq(sb.from('consultas').insert(linhas),"Registar consulta");
+  if(error)return;
+  document.getElementById('cstForn').value="";
+  await loadConsultas(); renderConsultas();
+  alertx(forns.length+" consulta(s) registada(s) para "+cap+".",true);
+}
+function estadoConsulta(c){
+  if(c.valor!=null) return {k:'recebida',lbl:'Proposta recebida',cls:'mf-ok'};
+  const hoje=new Date().toISOString().slice(0,10);
+  if(c.prazo&&c.prazo<hoje) return {k:'atraso',lbl:'Em atraso',cls:'mf-err'};
+  return {k:'aguarda',lbl:'A aguardar',cls:'mf-warn'};
+}
+function renderConsultas(){
+  const tb=document.getElementById('tbCst'); if(!tb)return;
+  tb.innerHTML="";
+  document.getElementById('cstEmpty').classList.toggle('hidden',CONSULTAS.length>0);
+  let atraso=0, rec=0;
+  CONSULTAS.forEach(c=>{
+    const st=estadoConsulta(c);
+    if(st.k==='atraso')atraso++; if(st.k==='recebida')rec++;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(c.projeto)}</td><td style="font-size:12px">${esc(c.cap)}</td><td>${esc(c.fornecedor)}</td>
+      <td class="mono">${esc(c.data_envio||"—")}</td><td class="mono">${esc(c.prazo||"—")}</td>
+      <td><span class="miniflag ${st.cls}"></span>${st.lbl}</td>
+      <td class="num"><input type="number" value="${c.valor!=null?c.valor:''}" placeholder="—" style="text-align:right;padding:5px 7px" onchange="cstValor(${c.id},this.value)"></td>
+      <td><input type="date" value="${c.data_proposta||''}" style="padding:5px 7px;font-size:12px" onchange="cstData(${c.id},this.value)"></td>
+      <td><button class="btn ghost" style="padding:4px 9px;font-size:12px" onclick="cstApagar(${c.id})">✕</button></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('cstTag').textContent=CONSULTAS.length+" linhas · "+rec+" com proposta"+(atraso?" · "+atraso+" em atraso":"");
+}
+async function cstValor(id,v){
+  const val=v===""?null:parseFloat(v);
+  const patch={valor:val}; if(val!=null&&!CONSULTAS.find(c=>c.id===id).data_proposta) patch.data_proposta=new Date().toISOString().slice(0,10);
+  await sbq(sb.from('consultas').update(patch).eq('id',id),"Gravar proposta");
+  await loadConsultas(); renderConsultas();
+}
+async function cstData(id,v){
+  await sbq(sb.from('consultas').update({data_proposta:v||null}).eq('id',id),"Gravar data");
+  await loadConsultas();
+}
+async function cstApagar(id){
+  await sbq(sb.from('consultas').delete().eq('id',id),"Apagar consulta");
+  await loadConsultas(); renderConsultas();
+}
+function propostasDoProjeto(projeto){
+  const caps={}, forns=new Set();
+  CONSULTAS.filter(c=>c.projeto===projeto&&c.valor!=null).forEach(c=>{
+    (caps[c.cap]=caps[c.cap]||{})[c.fornecedor]=c.valor; forns.add(c.fornecedor);
+  });
+  return {caps,forns:[...forns].sort()};
+}
+function renderMapaComp(){
+  const proj=(document.getElementById('mcProj')||{}).value;
+  const head=document.getElementById('mcHead'), body=document.getElementById('mcBody');
+  if(!head)return;
+  head.innerHTML=""; body.innerHTML="";
+  if(!proj){document.getElementById('mcNota').textContent="Sem propostas registadas.";return}
+  const {caps,forns}=propostasDoProjeto(proj);
+  const capList=CAPS33.filter(c=>caps[c]).concat(Object.keys(caps).filter(c=>!CAPS33.includes(c)));
+  if(!capList.length){document.getElementById('mcNota').textContent="Este projeto ainda não tem propostas lançadas.";return}
+  const orcMap={}; ORC_ROWS.forEach(r=>orcMap[r.cap]=r.valor);
+  head.innerHTML='<tr><th style="min-width:230px">Capítulo</th>'+
+    forns.map(f=>`<th class="sup" style="text-align:right">${esc(f)}</th>`).join("")+
+    '<th style="text-align:right">Melhor (€)</th><th style="text-align:right">Amplitude</th><th style="text-align:right">Estimativa (€)</th><th style="text-align:right">vs. estim.</th></tr>';
+  let tMelhor=0, tEst=0;
+  capList.forEach(cap=>{
+    const linha=caps[cap], vals=forns.map(f=>linha[f]).filter(v=>v!=null);
+    const mn=vals.length?Math.min(...vals):null, mx=vals.length?Math.max(...vals):null;
+    const est=orcMap[cap]!=null?orcMap[cap]:null;
+    if(mn!=null)tMelhor+=mn; if(est!=null)tEst+=est;
+    const amp=(mn&&mx&&mn>0)?(mx-mn)/mn:null;
+    const dv=(est&&mn)?(mn-est)/est:null;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-size:12.5px">${esc(cap)}</td>`+
+      forns.map(f=>{const v=linha[f];
+        const cls=v==null?"":(v===mn?"best":(v===mx&&vals.length>1?"worst":""));
+        return `<td class="num ${cls}">${v==null?"—":fmt(v,0)}</td>`}).join("")+
+      `<td class="num" style="font-weight:700">${mn==null?"—":fmt(mn,0)}</td>
+       <td class="num" style="color:${amp>0.25?'var(--err)':'#8794a8'}">${amp==null?"—":fmt(amp*100,0)+"%"}</td>
+       <td class="num" style="color:#8794a8">${est==null?"—":fmt(est,0)}</td>
+       <td class="num" style="color:${dv==null?'#8794a8':(dv>0.1?'var(--err)':dv<-0.1?'var(--ok)':'#8794a8')}">${dv==null?"—":(dv>0?"+":"")+fmt(dv*100,0)+"%"}</td>`;
+    body.appendChild(tr);
+  });
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td style="font-weight:700">TOTAL CONSULTADO</td>`+forns.map(()=>'<td></td>').join("")+
+    `<td class="num" style="font-weight:700">${fmt(tMelhor,0)}</td><td></td>
+     <td class="num" style="font-weight:700;color:#8794a8">${tEst?fmt(tEst,0):"—"}</td>
+     <td class="num" style="font-weight:700">${tEst?((tMelhor-tEst)/tEst>0?"+":"")+fmt((tMelhor-tEst)/tEst*100,0)+"%":"—"}</td>`;
+  body.appendChild(tr);
+  const grandes=capList.filter(cap=>{const v=forns.map(f=>caps[cap][f]).filter(x=>x!=null);
+    return v.length>1&&(Math.max(...v)-Math.min(...v))/Math.min(...v)>0.30});
+  document.getElementById('mcNota').innerHTML=
+    "Uma amplitude superior a 30% entre propostas do mesmo capítulo raramente é preço: é âmbito lido de maneira diferente. "+
+    (grandes.length?("Capítulos a rever antes de adjudicar: <b>"+grandes.join(", ")+"</b>.")
+                   :"Nenhum capítulo com amplitude anómala.");
+}
+function adotarMelhores(){
+  const proj=(document.getElementById('mcProj')||{}).value;
+  if(!proj)return alertx("Escolhe um projeto.");
+  if(!ORC_ROWS.length)return alertx("Abre primeiro o orçamento deste projeto no separador Orçamentação.");
+  const {caps}=propostasDoProjeto(proj);
+  let n=0;
+  Object.entries(caps).forEach(([cap,linha])=>{
+    const pares=Object.entries(linha).filter(([,v])=>v!=null);
+    if(!pares.length)return;
+    const [forn,val]=pares.sort((a,b)=>a[1]-b[1])[0];
+    const r=ORC_ROWS.find(x=>x.cap===cap);
+    if(r){ r.valor=val; r.estado='firme'; r.nota=forn+" · proposta adotada "+new Date().toLocaleDateString('pt-PT'); n++; }
+  });
+  ORC_DIRTY=true; renderOrc();
+  alertx(n+" capítulo(s) atualizados com a melhor proposta e marcados como proposta firme.",true);
+  showView('orcamento');
+}
+function exportMapaComp(){
+  const proj=(document.getElementById('mcProj')||{}).value;
+  if(!proj)return alertx("Escolhe um projeto.");
+  const {caps,forns}=propostasDoProjeto(proj);
+  const capList=CAPS33.filter(c=>caps[c]).concat(Object.keys(caps).filter(c=>!CAPS33.includes(c)));
+  const orcMap={}; ORC_ROWS.forEach(r=>orcMap[r.cap]=r.valor);
+  const head=[["SOLIVE — MAPA COMPARATIVO DE PROPOSTAS"],["Projeto: "+proj+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    ["Amplitude > 30% entre propostas do mesmo capítulo indica normalmente âmbito interpretado de forma diferente, não preço."],[],
+    ["Capítulo",...forns,"Melhor (€)","Amplitude %","Estimativa (€)","Desvio vs. estimativa %"]];
+  const body=capList.map(cap=>{
+    const vals=forns.map(f=>caps[cap][f]!=null?Math.round(caps[cap][f]):"");
+    const nums=vals.filter(v=>v!=="");
+    const mn=nums.length?Math.min(...nums):"", mx=nums.length?Math.max(...nums):"";
+    const est=orcMap[cap]!=null?Math.round(orcMap[cap]):"";
+    return [cap,...vals,mn,(mn&&mx&&mn>0)?Math.round((mx-mn)/mn*100):"",est,(est&&mn)?Math.round((mn-est)/est*100):""];
+  });
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:42},...forns.map(()=>({wch:15})),{wch:14},{wch:12},{wch:15},{wch:20}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Mapa comparativo");
+  XLSX.writeFile(wb,("Mapa_Comparativo_"+proj).replace(/\s+/g,"_")+".xlsx");
+}
+function renderFornHist(){
+  const tb=document.getElementById('tbFornHist'); if(!tb)return;
+  tb.innerHTML="";
+  const g={};
+  CONSULTAS.filter(c=>c.valor!=null).forEach(c=>{
+    const p=PROJETOS.find(x=>norm(x.nome)===norm(c.projeto));
+    const abc=p&&p.gfa?p.gfa:null;
+    const k=c.fornecedor+"|"+c.cap;
+    (g[k]=g[k]||{forn:c.fornecedor,cap:c.cap,vals:[],rac:[],projs:new Set(),ult:null,ultD:""});
+    g[k].vals.push(c.valor); if(abc)g[k].rac.push(c.valor/abc);
+    g[k].projs.add(c.projeto);
+    if(!g[k].ultD||(c.data_proposta||"")>g[k].ultD){g[k].ultD=c.data_proposta||"";g[k].ult=c.valor}
+  });
+  const rows=Object.values(g).sort((a,b)=>a.forn.localeCompare(b.forn)||a.cap.localeCompare(b.cap));
+  document.getElementById('fhEmpty').classList.toggle('hidden',rows.length>0);
+  rows.forEach(r=>{
+    const m=r.rac.length?med(r.rac):null;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-weight:500">${esc(r.forn)}</td><td style="font-size:12px">${esc(r.cap)}</td>
+      <td class="num">${r.vals.length}</td><td class="num">${fmt(r.ult,0)}</td>
+      <td class="num">${m==null?"—":fmt(m,1)}</td>
+      <td class="num" style="color:#8794a8">${r.rac.length>1?fmt(Math.min(...r.rac),1)+" – "+fmt(Math.max(...r.rac),1):"—"}</td>
+      <td style="font-size:11.5px;color:#69788f">${esc([...r.projs].join(", "))}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ---------- 10. VERSÕES DO ORÇAMENTO ----------
+   Antes o orçamento era um upsert sobre o nome do projeto: cada gravação apagava
+   a anterior e não havia rasto por trás de um trespasse congelado. */
+async function gravarVersao(nome,comentario){
+  if(!SESSION)return null;
+  const {data:ult}=await sbq(sb.from('orcamento_versoes').select('versao').eq('projeto_nome',nome)
+    .order('versao',{ascending:false}).limit(1),"Ler versões");
+  const v=(ult&&ult.length?ult[0].versao:0)+1;
+  const total=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0);
+  const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado]&&ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
+  const {error}=await sbq(sb.from('orcamento_versoes').insert({
+    projeto_nome:nome, versao:v, comentario:comentario||null,
+    total:Math.round(total), consolidado:total?Math.round(solido/total*100):0,
+    meta:ORC_META, linhas:ORC_ROWS, criado:new Date().toISOString()
+  }),"Gravar versão");
+  return error?null:v;
+}
+let VERSOES=[];
+async function renderVersoes(){
+  const sel=document.getElementById('verProj'); const box=document.getElementById('verLista');
+  if(!sel||!box)return;
+  const nome=sel.value; box.innerHTML="";
+  document.getElementById('verDiffBox').classList.add('hidden');
+  if(!SESSION||!nome){document.getElementById('verEmpty').classList.remove('hidden');return}
+  const {data}=await sbq(sb.from('orcamento_versoes').select('*').eq('projeto_nome',nome)
+    .order('versao',{ascending:false}),"Ler versões");
+  VERSOES=data||[];
+  document.getElementById('verEmpty').classList.toggle('hidden',VERSOES.length>0);
+  VERSOES.forEach((v,i)=>{
+    const d=document.createElement('div');
+    d.className='vrow'+(i===0?' cur':'');
+    d.innerHTML=`<span class="vn">v${v.versao}</span>
+      <span class="mono" style="min-width:150px">${fmt(v.total,0)} €</span>
+      <span style="min-width:110px;color:${v.consolidado>=70?'var(--ok)':v.consolidado>=40?'var(--warn)':'var(--err)'}">${v.consolidado}% consolidado</span>
+      <span class="vc">${esc(v.comentario||"(sem comentário)")}</span>
+      <span style="color:#8794a8;font-size:11.5px">${new Date(v.criado).toLocaleString('pt-PT')}</span>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="verDiff(${v.versao})">Diferenças</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="verRepor(${v.versao})">Repor</button>`;
+    box.appendChild(d);
+  });
+}
+function verDiff(n){
+  const cur=VERSOES.find(v=>v.versao===n), prev=VERSOES.find(v=>v.versao===n-1);
+  if(!cur)return;
+  const box=document.getElementById('verDiffBox'), tb=document.getElementById('tbVerDiff');
+  box.classList.remove('hidden'); tb.innerHTML="";
+  document.getElementById('verDiffTag').textContent=prev?("v"+(n-1)+" → v"+n):("v"+n+" (primeira versão)");
+  const mp={}; (prev?prev.linhas:[]).forEach(r=>mp[r.cap]=r);
+  const caps=[...new Set([...(prev?prev.linhas:[]).map(r=>r.cap),...cur.linhas.map(r=>r.cap)])];
+  let td=0;
+  caps.forEach(cap=>{
+    const a=mp[cap], b=cur.linhas.find(r=>r.cap===cap);
+    const va=a?a.valor||0:0, vb=b?b.valor||0:0, d=vb-va;
+    if(Math.abs(d)<1)return;
+    td+=d;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(cap)}</td><td class="num">${a?fmt(va,0):"—"}</td><td class="num">${b?fmt(vb,0):"—"}</td>
+      <td class="num" style="font-weight:600;color:${d>0?'var(--err)':'var(--ok)'}">${d>0?"+":""}${fmt(d,0)}</td>
+      <td>${b?esc((ORC_EST[b.estado]||{}).lbl||b.estado):"removido"}</td>`;
+    tb.appendChild(tr);
+  });
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td style="font-weight:700">VARIAÇÃO TOTAL</td><td></td><td></td><td class="num" style="font-weight:700;color:${td>0?'var(--err)':'var(--ok)'}">${td>0?"+":""}${fmt(td,0)}</td><td></td>`;
+  tb.appendChild(tr);
+}
+function verRepor(n){
+  const v=VERSOES.find(x=>x.versao===n); if(!v)return;
+  ORC_ROWS=JSON.parse(JSON.stringify(v.linhas)); ORC_META=v.meta||ORC_META; ORC_DIRTY=true;
+  document.getElementById('orcBoard').classList.remove('hidden');
+  document.getElementById('orcTag').textContent=(ORC_META.nome||"")+" · reposta a v"+n;
+  renderOrc(); showView('orcamento');
+  alertx("Versão v"+n+" reposta no quadro de orçamentação. Grava para criar uma nova versão.",true);
+}
+
+/* ---------- 11. TAXONOMIA EDITÁVEL ----------
+   Os 33 capítulos e as ~50 expressões de reconhecimento estavam fixos no código:
+   cada designação nova de um projetista obrigava a republicar a plataforma. */
+async function loadTaxonomia(){
+  TAXO=JSON.parse(JSON.stringify(TAXO_BASE));
+  REGRAS_CAP=[];
+  if(!SESSION)return;
+  const {data}=await sbq(sb.from('taxonomia').select('*'),"Ler taxonomia");
+  if(data) data.forEach(t=>{ TAXO[t.cap]={driver:t.driver,exp:+t.expoente,idx:t.indice,racional:t.racional||""} });
+  const {data:r}=await sbq(sb.from('taxonomia_regras').select('*').order('id'),"Ler regras de capítulo");
+  if(r){ REGRAS_CAP=r; aplicarRegrasCap(); }
+}
+function aplicarRegrasCap(){
+  /* as regras do utilizador entram à frente das regras embutidas */
+  REGRAS_CAP.slice().reverse().forEach(r=>{
+    try{ CAP_MAP.unshift([new RegExp(r.expressao,"i"), r.cap]); }catch(e){ console.warn("regra inválida",r); }
+  });
+}
+function renderTaxonomia(){
+  const tb=document.getElementById('tbTax'); if(!tb)return;
+  tb.innerHTML="";
+  CAPS33.forEach(cap=>{
+    const t=TAXO[cap]||TAXO_DEFAULT;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-size:12.5px;font-weight:500">${esc(cap)}</td>
+      <td><select style="padding:5px 7px;font-size:12px" onchange="TAXO['${cap.replace(/'/g,"\\'")}'].driver=this.value">
+        ${Object.entries(DRIVER_LBL).map(([k,l])=>`<option value="${k}" ${t.driver===k?'selected':''}>${esc(l)}</option>`).join("")}
+      </select></td>
+      <td class="num"><input type="number" step="0.05" min="0.1" max="1.5" value="${t.exp}" style="text-align:right;padding:5px 7px" onchange="TAXO['${cap.replace(/'/g,"\\'")}'].exp=parseFloat(this.value)||1"></td>
+      <td><select style="padding:5px 7px;font-size:12px" onchange="TAXO['${cap.replace(/'/g,"\\'")}'].idx=this.value">
+        <option value="mo" ${t.idx==='mo'?'selected':''}>Mão-de-obra intensiva</option>
+        <option value="mat" ${t.idx==='mat'?'selected':''}>Material</option>
+        <option value="mep" ${t.idx==='mep'?'selected':''}>MEP / equipamento</option>
+      </select></td>
+      <td style="font-size:11.5px;color:#69788f;max-width:340px">${esc(t.racional||"")}</td>`;
+    tb.appendChild(tr);
+  });
+  const tr2=document.getElementById('tbRegras'); if(!tr2)return;
+  tr2.innerHTML="";
+  REGRAS_CAP.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono">${esc(r.expressao)}</td><td>${esc(r.cap)}</td>
+      <td><button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarRegraCap(${r.id})">✕</button></td>`;
+    tr2.appendChild(tr);
+  });
+}
+async function saveTaxonomia(){
+  if(!SESSION)return alertx("Inicia sessão para gravar a taxonomia.");
+  const linhas=CAPS33.map((cap,i)=>{const t=TAXO[cap]||TAXO_DEFAULT;
+    return {cap,ordem:i,driver:t.driver,expoente:t.exp,indice:t.idx,racional:t.racional||null}});
+  const {error}=await sbq(sb.from('taxonomia').upsert(linhas,{onConflict:'cap'}),"Gravar taxonomia");
+  if(!error){CALIB_CACHE=null;alertx("Taxonomia gravada. O estimador passa a usar estes drivers.",true)}
+}
+async function addRegraCap(){
+  if(!SESSION)return alertx("Inicia sessão para acrescentar regras.");
+  const expressao=document.getElementById('taxRegex').value.trim().toUpperCase();
+  const cap=document.getElementById('taxCap').value;
+  if(!expressao)return alertx("Escreve a expressão a reconhecer.");
+  const {error}=await sbq(sb.from('taxonomia_regras').insert({expressao,cap}),"Gravar regra");
+  if(error)return;
+  document.getElementById('taxRegex').value="";
+  await loadTaxonomia(); renderTaxonomia();
+  alertx("Regra acrescentada. Aplica-se a partir do próximo mapa analisado.",true);
+}
+async function apagarRegraCap(id){
+  await sbq(sb.from('taxonomia_regras').delete().eq('id',id),"Apagar regra");
+  await loadTaxonomia(); renderTaxonomia();
+}
+
+/* ---------- 12. PONTE COM O SISTEMA DPR ----------
+   Os dois sistemas partilham projeto, os 33 capítulos e o formato Legendre, e não
+   falavam um com o outro. O baseline sai daqui; a execução volta do DPR. */
+let DPR_LAST=null;
+function baselineDoProjeto(nome){
+  if(ORC_ROWS.length&&(ORC_META.nome===nome||!ORC_META.nome)) 
+    return ORC_ROWS.filter(r=>r.valor).map(r=>({cap:r.cap,valor:r.valor,estado:r.estado}));
+  return null;
+}
+function exportDprBaseline(formato){
+  const nome=(document.getElementById('dprProj')||{}).value;
+  if(!nome)return alertx("Escolhe um projeto.");
+  const linhas=baselineDoProjeto(nome);
+  if(!linhas)return alertx("Abre o orçamento deste projeto no separador Orçamentação antes de exportar o baseline.");
+  const total=linhas.reduce((s,r)=>s+r.valor,0);
+  const consolidado=linhas.filter(r=>ORC_EST[r.estado]&&ORC_EST[r.estado].solido).reduce((s,r)=>s+r.valor,0);
+  if(formato==='json'){
+    const payload={
+      origem:"Solive · Plataforma de Orçamentação v2.1",
+      projeto:nome, data:new Date().toISOString().slice(0,10),
+      categoria_dpr:"Hard Costs",
+      hard_costs_budget:Math.round(total),
+      consolidacao_pct:total?Math.round(consolidado/total*100):0,
+      capitulos:linhas.map(r=>({cap:r.cap,budget:Math.round(r.valor),estado:r.estado})),
+      nota:"Baseline de hard costs para o separador Budget do DPR. A decomposição por capítulo suporta a atribuição de PMIs a rubricas concretas."
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=("DPR_Baseline_"+nome).replace(/\s+/g,"_")+".json"; a.click();
+    alertx("Baseline exportado. Cola no separador Budget do DPR do projeto.",true);
+    return;
+  }
+  const head=[["SOLIVE — BASELINE DE HARD COSTS PARA O DPR"],
+    ["Projeto: "+nome+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    ["Categoria DPR: Hard Costs   ·   Consolidação: "+(total?Math.round(consolidado/total*100):0)+"%"],
+    ["Este é o valor que o DPR deve medir em Cost Control. Alterações de âmbito depois desta data são PMIs."],[],
+    ["Capítulo","Budget (€)","Estado da evidência"]];
+  const body=linhas.map(r=>[r.cap,Math.round(r.valor),(ORC_EST[r.estado]||{}).lbl||r.estado]);
+  body.push(["TOTAL HARD COSTS",Math.round(total),""]);
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
+  ws['!cols']=[{wch:44},{wch:16},{wch:24}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Baseline DPR");
+  XLSX.writeFile(wb,("DPR_Baseline_"+nome).replace(/\s+/g,"_")+".xlsx");
+}
+function importDprJson(){
+  const raw=document.getElementById('dprJson').value.trim();
+  if(!raw)return alertx("Cola o JSON exportado pelo DPR.");
+  let j;
+  try{ j=JSON.parse(raw.replace(/[\u2018\u2019\u201C\u201D]/g,'"')); }
+  catch(e){ return alertx("JSON inválido: "+e.message); }
+  const cc=Array.isArray(j.cc)?j.cc:[];
+  const hard=cc.find(x=>/hard/i.test(x.c||""))||null;
+  if(!hard&&!j.ct) return alertx("Não encontrei a categoria Hard Costs nem os totais neste JSON.");
+  const bud=hard?+hard.b:null, eos=hard?+hard.e:null, spent=hard?+hard.s:null;
+  const plat=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0)||null;
+  DPR_LAST={projeto:(document.getElementById('dprProj')||{}).value||j.projeto||"",bud,eos,spent,updated:j.updated||""};
+  document.getElementById('dprOut').classList.remove('hidden');
+  document.getElementById('dprKBud').textContent=bud!=null?fmt(bud,0):"—";
+  document.getElementById('dprKEos').textContent=eos!=null?fmt(eos,0):"—";
+  document.getElementById('dprKSpent').textContent=spent!=null?fmt(spent,0):"—";
+  document.getElementById('dprKPlat').textContent=plat!=null?fmt(plat,0):"—";
+  const box=document.getElementById('dprKDeltaBox'), el=document.getElementById('dprKDelta');
+  if(plat&&eos){const d=(plat-eos)/eos;el.textContent=(d>0?"+":"")+fmt(d*100,1)+"%";
+    box.className="kpi "+(Math.abs(d)<0.03?"ok":Math.abs(d)<0.08?"warn":"err");}
+  else{el.textContent="—";box.className="kpi"}
+  document.getElementById('dprNota').innerHTML=
+    "Período do DPR: <b>"+esc(j.updated||"—")+"</b>. O DPR agrega por categoria de desenvolvimento, esta plataforma por capítulo de construção — "+
+    "a comparação é de topo e serve para confirmar que os dois sistemas partem do mesmo número. "+
+    "Uma divergência acima de 3% significa que o baseline não foi atualizado num dos lados.";
+}
+async function dprGravarParcial(){
+  if(!SESSION)return alertx("Inicia sessão para gravar.");
+  if(!DPR_LAST||DPR_LAST.spent==null)return alertx("Importa primeiro um JSON com custos executados.");
+  const nome=DPR_LAST.projeto;
+  if(!nome)return alertx("Escolhe o projeto correspondente.");
+  let proj=PROJETOS.find(p=>norm(p.nome)===norm(nome));
+  if(!proj){const {data}=await sbq(sb.from('projetos').insert({nome}).select().single(),"Criar projeto");if(!data)return;proj=data;await loadProjetos()}
+  const {data:fase}=await sbq(sb.from('fases').insert({
+    projeto_id:proj.id, fase:'Real', etiqueta:'DPR parcial · '+(DPR_LAST.updated||new Date().toISOString().slice(0,7))+' · só total',
+    data:new Date().toISOString().slice(0,10), total:Math.round(DPR_LAST.spent)}).select().single(),"Gravar fase Real parcial");
+  if(!fase)return;
+  await sbq(sb.from('capitulos').insert([{fase_id:fase.id,cap:"DIVERSOS",total:Math.round(DPR_LAST.spent),
+    comentario:"Total de hard costs executado importado do DPR — sem decomposição por capítulo."}]),"Gravar capítulo");
+  CALIB_CACHE=null;
+  alertx("Fase Real parcial gravada. Nota: sem decomposição por capítulo, não entra na calibração por capítulo.",true);
+}
+
+/* ---------- 13. VISTAS DA BIBLIOTECA ---------- */
+function libTab(t){
+  ['caps','pu','ver','tax','dpr'].forEach(x=>{
+    document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
+    document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
+  });
+  if(t==='pu') renderPU();
+  if(t==='ver'){ preencherProjSelect('verProj'); renderVersoes(); }
+  if(t==='tax') renderTaxonomia();
+  if(t==='dpr') preencherProjSelect('dprProj');
+}
+function preencherProjSelect(id){
+  const s=document.getElementById(id); if(!s)return;
+  const atual=s.value;
+  const nomes=[...new Set([...PROJETOS.map(p=>p.nome), ...(ORC_META.nome?[ORC_META.nome]:[])])];
+  s.innerHTML=nomes.map(n=>`<option>${esc(n)}</option>`).join("")||'<option value="">—</option>';
+  if(atual&&nomes.includes(atual))s.value=atual;
+}
+function renderPU(){
+  const tb=document.getElementById('tbPU'); if(!tb)return;
+  tb.innerHTML="";
+  const filtro=norm((document.getElementById('puFiltro')||{}).value||"");
+  const minN=parseInt((document.getElementById('puMinN')||{}).value)||1;
+  const rows=Object.entries(PU_STATS).map(([k,st])=>{const [fam,un]=k.split("|");return {fam,un,...st}})
+    .filter(r=>r.n>=minN&&(!filtro||norm(r.fam).includes(filtro)))
+    .sort((a,b)=>b.n-a.n||a.fam.localeCompare(b.fam));
+  document.getElementById('puEmpty').classList.toggle('hidden',rows.length>0);
+  rows.forEach(r=>{
+    const disp=r.mediana?(r.p90-r.p10)/r.mediana:null;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-size:12.5px">${esc(r.fam)}</td><td class="mono">${esc(r.un)}</td>
+      <td class="num">${r.n}</td><td class="num" style="font-weight:700">${fmt(r.mediana,2)}</td>
+      <td class="num" style="color:#8794a8">${fmt(r.p10,2)}</td><td class="num" style="color:#8794a8">${fmt(r.p90,2)}</td>
+      <td class="num" style="color:${disp>0.6?'var(--err)':disp>0.3?'var(--warn)':'var(--ok)'}">${disp==null?"—":fmt(disp*100,0)+"%"}</td>
+      <td style="font-size:11.5px;color:#69788f">${esc(r.projs.join(", "))}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function exportPU(){
+  const rows=Object.entries(PU_STATS).map(([k,st])=>{const [fam,un]=k.split("|");return [fam,un,st.n,
+    Math.round(st.mediana*100)/100,Math.round(st.p10*100)/100,Math.round(st.p90*100)/100,
+    Math.round(st.min*100)/100,Math.round(st.max*100)/100,st.projs.join(", ")]});
+  if(!rows.length)return alertx("Biblioteca de preços unitários ainda vazia.");
+  const head=[["SOLIVE — BIBLIOTECA DE PREÇOS UNITÁRIOS"],
+    ["Data: "+new Date().toLocaleDateString('pt-PT')+"   ·   "+rows.length+" famílias   ·   "+PU_ROWS.length+" observações"],
+    ["Colhida automaticamente dos mapas de quantidades com preços e dos autos de medição importados."],
+    ["Uma dispersão P10–P90 elevada significa que a família agrega artigos de âmbito diferente — usar com cuidado."],[],
+    ["Família","Un","Nº obs.","Mediana (€)","P10 (€)","P90 (€)","Mín (€)","Máx (€)","Projetos"]];
+  const ws=XLSX.utils.aoa_to_sheet(head.concat(rows.sort((a,b)=>b[2]-a[2])));
+  ws['!cols']=[{wch:36},{wch:7},{wch:9},{wch:13},{wch:11},{wch:11},{wch:11},{wch:11},{wch:34}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Preços unitários");
+  XLSX.writeFile(wb,"Solive_Precos_Unitarios.xlsx");
+}
+
+/* ---------- 14. AUTOTESTES ----------
+   A lógica de leitura de mapas é o núcleo de valor da plataforma e estava validada
+   uma única vez, à mão. Passa a haver um conjunto de casos que corre em ?test=1. */
+const FIXTURES=[
+  {nome:"Linha de soma não é artigo",
+   f:()=>RE_SOMA.test("SUBTOTAL")&&RE_SOMA.test("Total do capítulo")&&RE_SOMA.test("A transportar")&&!RE_SOMA.test("Totalidade da parede")},
+  {nome:"Normalização de unidades",
+   f:()=>normUn("M2")==="m²"&&normUn("m³")==="m³"&&normUn("ml")==="m"&&normUn("Und.")==="un"&&normUn("m 3")==="m³"},
+  {nome:"m³ entra nos rácios",
+   f:()=>UNIDADES_RACIO.includes("m³")},
+  {nome:"Duplicado aproximado detetado",
+   f:()=>jaccard(tokenSet("Fornecimento e assentamento de mosaico cerâmico 60x60 em pavimento"),
+                 tokenSet("Assentamento e fornecimento de mosaico cerâmico 60x60 em pavimentos"))>=0.82},
+  {nome:"Descrições distintas não são duplicados",
+   f:()=>jaccard(tokenSet("Fornecimento e montagem de porta interior lisa em MDF lacado"),
+                 tokenSet("Fornecimento e aplicação de betonilha de regularização com 5 cm"))<0.5},
+  {nome:"Classificação em família de artigo",
+   f:()=>familiaArtigo("Betão armado C30/37 em pilares e vigas","m³")==="Betão armado em estrutura"
+      && familiaArtigo("Fornecimento e aplicação de sistema ETICS com 8cm de EPS","m²")==="ETICS / isolamento de fachada"
+      && familiaArtigo("xx","un")===null},
+  {nome:"Driver de escavação usa implantação × pisos enterrados",
+   f:()=>Math.abs(driverValue('escavacao',{implantacao:800,pisosB:2})-800*2*PE_DIREITO_CAVE)<0.01},
+  {nome:"Driver cai para ABC quando falta a grandeza própria",
+   f:()=>driverValue('acima',{abc:5000})===5000},
+  {nome:"Área exterior = lote menos implantação",
+   f:()=>driverValue('exterior',{lote:1200,implantacao:800})===400},
+  {nome:"Expoente <1 modera o crescimento do estaleiro",
+   f:()=>{const t=TAXO_BASE["ESTALEIRO"];return Math.pow(2,t.exp)<2&&t.exp<1}},
+  {nome:"Inflação diferenciada agrava mão-de-obra face a MEP",
+   f:()=>fatorInflacao(4,'split','mo',3)>fatorInflacao(4,'split','mep',3)},
+  {nome:"Inflação uniforme ignora o índice",
+   f:()=>fatorInflacao(4,'flat','mo',3)===fatorInflacao(4,'flat','mep',3)},
+  {nome:"Mediana e percentis",
+   f:()=>med([1,2,3,4])===2.5&&med([5,1,3])===3&&pct([1,2,3,4,5],0.5)===3},
+  {nome:"Coerência cruzada dispara com betonilha a menos",
+   f:()=>{const F=[];crossChecks({"BETONILHAS|m²":300,"REVESTIMENTOS DE PAVIMENTOS|m²":1000},
+          (it,tipo,sev,msg,c)=>F.push(tipo));return F.includes("Coerência entre capítulos")}},
+  {nome:"Coerência cruzada silenciosa quando as áreas batem certo",
+   f:()=>{const F=[];crossChecks({"BETONILHAS|m²":980,"REVESTIMENTOS DE PAVIMENTOS|m²":1000},
+          (it,tipo,sev,msg,c)=>F.push(tipo));return F.length===0}},
+  {nome:"Calibração limitada a um intervalo defensável",
+   f:()=>{const v=Math.min(Math.max(3.0,0.75),1.40);return v===1.40}},
+  /* --- ponta a ponta: mapa sintético com erros conhecidos --- */
+  {nome:"E2E · mapa limpo não gera erros",
+   f:()=>{const r=runChecks(MQ_LIMPO());return r.F.filter(x=>x.sev==='erro').length===0}},
+  {nome:"E2E · unidade em falta é erro",
+   f:()=>{const it=MQ_LIMPO();it[1].un="";return runChecks(it).F.some(x=>x.tipo==="Unidade em falta")}},
+  {nome:"E2E · quantidade negativa é erro",
+   f:()=>{const it=MQ_LIMPO();it[1].qt=-5;return runChecks(it).F.some(x=>x.tipo==="Quantidade negativa")}},
+  {nome:"E2E · erro aritmético qt×pu≠total é detetado",
+   f:()=>{const it=MQ_LIMPO();it[1].pt=it[1].pt*1.3;return runChecks(it).F.some(x=>x.tipo==="Erro aritmético")}},
+  {nome:"E2E · aritmética correta não dispara falso positivo",
+   f:()=>{return runChecks(MQ_LIMPO()).F.every(x=>x.tipo!=="Erro aritmético")}},
+  {nome:"E2E · quantidade fracionada em unidade contável",
+   f:()=>{const it=MQ_LIMPO();it[3].qt=12.4;return runChecks(it).F.some(x=>x.tipo==="Quantidade fracionada")}},
+  {nome:"E2E · duplicado quase idêntico é apanhado",
+   f:()=>{const it=MQ_LIMPO();
+     it.push({tipo:'art',linha:99,code:"1.9",cap:"BETONILHAS",un:"m²",qt:900,pu:9.5,pt:8550,
+       desc:"Aplicacao e fornecimento de betonilha de regularizacao com 5 cm de espessura em pavimentos"});
+     return runChecks(it).F.some(x=>x.tipo==="Possível duplicado")}}
+];
+/* mapa sintético coerente: betonilha ≈ revestimento, aritmética certa, unidades certas */
+function MQ_LIMPO(){
+  return [
+   {tipo:'art',linha:10,code:"1.1",cap:"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",un:"m³",qt:4600,pu:18.5,pt:85100,
+    desc:"Escavacao em terreno de qualquer natureza para abertura de caves, incluindo transporte a vazadouro"},
+   {tipo:'art',linha:11,code:"1.2",cap:"BETONILHAS",un:"m²",qt:950,pu:9.5,pt:9025,
+    desc:"Fornecimento e aplicacao de betonilha de regularizacao com 5 cm de espessura em pavimentos"},
+   {tipo:'art',linha:12,code:"1.3",cap:"REVESTIMENTOS DE PAVIMENTOS",un:"m²",qt:940,pu:34,pt:31960,
+    desc:"Fornecimento e assentamento de pavimento flutuante em madeira sobre betonilha regularizada"},
+   {tipo:'art',linha:13,code:"1.4",cap:"CARPINTARIAS",un:"un",qt:12,pu:320,pt:3840,
+    desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
+  ];
+}
+function runSelfTests(){
+  const res=FIXTURES.map(t=>{let ok=false,err=null;try{ok=!!t.f()}catch(e){err=e.message}return {nome:t.nome,ok,err}});
+  const bad=res.filter(r=>!r.ok);
+  console.table(res.map(r=>({teste:r.nome,resultado:r.ok?"OK":"FALHOU",erro:r.err||""})));
+  const el=document.getElementById('selfTestFooter');
+  if(el) el.innerHTML=" · <b style='color:"+(bad.length?"var(--err)":"var(--teal)")+"'>Autotestes: "+
+    (res.length-bad.length)+"/"+res.length+(bad.length?" — falhou: "+bad.map(b=>b.nome).join("; "):" OK")+"</b>";
+  return bad.length===0;
+}
+
+/* ---------- 15. ARRANQUE ---------- */
+const _afterLogin=afterLogin;
+afterLogin=async function(){
+  await _afterLogin();
+  await loadTaxonomia();
+  await loadPU();
+  await loadBenchmarks();
+  await refreshConsultas();
+  CALIB_CACHE=null;
+};
+const _saveOrcBoard=saveOrcBoard;
+saveOrcBoard=async function(){
+  await _saveOrcBoard();
+  if(SESSION&&ORC_ROWS.length){
+    const nome=(ORC_META.nome||document.getElementById('orcNome').value.trim()||"Projeto");
+    const c=prompt("Comentário desta versão (o que mudou e porquê):","");
+    if(c!==null){ const v=await gravarVersao(nome,c); if(v) alertx("Versão v"+v+" gravada no histórico.",true); }
+  }
+};
+const _saveAnalysis=saveAnalysis;
+saveAnalysis=async function(){
+  await _saveAnalysis();
+  const arts=ITENS.filter(x=>x.tipo==='art'&&(x.pu||x.pt));
+  if(SESSION&&arts.length){
+    const nome=document.getElementById('pNome').value.trim();
+    if(nome){
+      const n=await colherPU(arts,nome,new Date().getFullYear(),'Orçamento');
+      if(n) alertx(n+" preços unitários colhidos para a biblioteca.",true);
+    }
+  }
+  await loadBenchmarks();
+  clearLocal('anal');
+};
+
+/* autosave dos descritores do analisador */
+['pNome','pGFA','pGCA','pAbaixo','pFogos','pPisosAcima','pPisosAbaixo','pImplantacao','pLote','pEstacionamento'].forEach(id=>{
+  const e=document.getElementById(id);
+  if(e) e.addEventListener('input',()=>{
+    const o={}; ['pNome','pGFA','pGCA','pAbaixo','pFogos','pPisosAcima','pPisosAbaixo','pImplantacao','pLote','pEstacionamento']
+      .forEach(k=>{const el=document.getElementById(k);if(el)o[k]=el.value});
+    saveLocal('anal',o);
+  });
+});
+(function restaurarAnalisador(){
+  const o=readLocal('anal'); if(!o)return;
+  let algum=false;
+  Object.entries(o).forEach(([k,v])=>{const el=document.getElementById(k);if(el&&v!==""&&!el.value){el.value=v;algum=true}});
+  if(algum){
+    const h=document.querySelector('#view-analisador .card .hint');
+    if(h){const s=document.createElement('span');s.className='autosave';s.textContent='· descritores restaurados da sessão anterior';h.appendChild(s)}
+  }
+})();
+restoreEstInputs();
+['estAbc','estFogos','estAcima','estAbaixo','estImpl','estLote','estPisosA','estPisosB','estPark','estBudget','estNome']
+  .forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener('change',()=>saveLocal('est',estInputs()))});
+
+loadBenchmarks();
+if(new URLSearchParams(location.search).get('test')==='1') runSelfTests();
+
+/* ==========================================================================
+   v2.2 — CONTEXTO DE PROJETO, DESEMPENHO E ERGONOMIA
+   ========================================================================== */
+
+/* ---------- 1. Feedback: um único canal ----------
+   Havia dois sistemas de notificação em cantos opostos do ecrã. Passa a haver um. */
+toast = function(msg){ alertx(msg,true) };
+
+let _busy=0;
+function busy(on,msg){
+  const bar=document.getElementById('busy');
+  _busy=Math.max(0,_busy+(on?1:-1));
+  if(bar) bar.className=_busy>0?'on':'done';
+  document.querySelectorAll('.busytxt').forEach(e=>e.remove());
+  if(_busy>0&&msg){
+    const d=document.createElement('div'); d.className='busytxt'; d.textContent=msg;
+    document.body.appendChild(d);
+  }
+  if(_busy===0&&bar) setTimeout(()=>{if(_busy===0)bar.className=''},700);
+}
+async function comBusy(msg,fn){ busy(true,msg); try{ return await fn() } finally { busy(false) } }
+
+/* Confirmação para ações destrutivas — antes desapareciam ao primeiro clique. */
+function confirmar(msg){ return window.confirm(msg) }
+
+/* ---------- 2. CONTEXTO DE PROJETO ----------
+   O problema estrutural da v2.1: oito seletores de projeto independentes e quatro
+   campos de ABC. Bastava uma diferença de grafia para o mesmo projeto se dividir
+   em três registos sem aviso. Passa a existir um único projeto ativo. */
+let CTX={nome:"",D:{abc:null,acima:null,abaixo:null,fogos:null,pisosA:null,pisosB:null,implantacao:null,lote:null,park:null},novo:true};
+const CTX_CAMPOS=[["abc","ABC","m²"],["acima","Acima solo","m²"],["abaixo","Abaixo solo","m²"],
+  ["fogos","Fogos",""],["pisosA","Pisos elev.",""],["pisosB","Pisos ent.",""],
+  ["implantacao","Implantação","m²"],["lote","Lote","m²"],["park","Estac.",""]];
+
+function ctxAplicar(){
+  /* espelha o contexto nos campos que o resto da aplicação já lê — sem reescrever
+     todas as vistas, mas com uma única fonte de verdade */
+  const set=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?"":v)};
+  const D=CTX.D;
+  set('pNome',CTX.nome); set('estNome',CTX.nome); set('orcNome',CTX.nome); set('cstProj',CTX.nome);
+  set('pGFA',D.abc); set('pGCA',D.acima); set('pAbaixo',D.abaixo); set('pFogos',D.fogos);
+  set('pPisosAcima',D.pisosA); set('pPisosAbaixo',D.pisosB); set('pImplantacao',D.implantacao);
+  set('pLote',D.lote); set('pEstacionamento',D.park);
+  set('estAbc',D.abc); set('estAcima',D.acima); set('estAbaixo',D.abaixo); set('estFogos',D.fogos);
+  set('estPisosA',D.pisosA); set('estPisosB',D.pisosB); set('estImpl',D.implantacao);
+  set('estLote',D.lote); set('estPark',D.park);
+  set('orcAbc',D.abc); set('orcFogos',D.fogos);
+  set('foAbc',D.abc); set('foFogos',D.fogos); set('foAcima',D.acima); set('foAbaixo',D.abaixo);
+  set('foPisosAcima',D.pisosA); set('foPisosAbaixo',D.pisosB); set('foImplantacao',D.implantacao);
+  set('foLote',D.lote); set('foEstacionamento',D.park);
+  const fp=document.getElementById('foProjeto'); if(fp&&!fp.value) fp.value=CTX.nome;
+  if(ORC_META) ORC_META.nome=ORC_META.nome||CTX.nome;
+  ctxRender();
+  saveLocal('ctx',CTX);
+}
+function ctxResumoHTML(){
+  if(!CTX.nome) return '<span class="miss">Sem projeto ativo — escolhe ou escreve um nome na barra de topo.</span>';
+  const partes=CTX_CAMPOS.filter(([k])=>CTX.D[k]!=null)
+    .map(([k,l,u])=>`${l} <b>${fmt(CTX.D[k],0)}${u?" "+u:""}</b>`);
+  return partes.length?partes.join(" · "):'<span class="miss">Sem descritores preenchidos</span>';
+}
+function ctxRender(){
+  const bar=document.getElementById('ctxDesc'); if(bar) bar.innerHTML=ctxResumoHTML();
+  const inp=document.getElementById('ctxNome'); if(inp&&inp.value!==CTX.nome) inp.value=CTX.nome;
+  const tag=document.getElementById('ctxNew');
+  if(tag) tag.classList.toggle('hidden', !(CTX.nome&&CTX.novo));
+  const eco=CTX.nome
+    ? `<span class="pn">${esc(CTX.nome)}</span>${CTX.novo?'<span class="tag">novo</span>':''}<span style="color:#c4ccd8;margin:0 4px">|</span> ${ctxResumoHTML()}`
+    : ctxResumoHTML();
+  ['anEcho','estEcho','orcEcho'].forEach(id=>{const e=document.getElementById(id); if(e) e.innerHTML=eco});
+  ['libProjeto','verProj','dprProj','mcProj'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(sel&&CTX.nome){const o=[...sel.options].find(x=>norm(x.text)===norm(CTX.nome)||norm(x.value)===norm(CTX.nome)); if(o) sel.value=o.value;}
+  });
+}
+async function ctxDefinir(nome){
+  nome=(nome||"").trim();
+  CTX.nome=nome;
+  const p=PROJETOS.find(x=>norm(x.nome)===norm(nome));
+  if(p){ CTX.novo=false; CTX.D=descritoresDe(p); }
+  else  { CTX.novo=true; }
+  ctxAplicar();
+  if(p&&SESSION){ await loadOrcBoard(p.nome); }
+}
+function abrirDescritores(){
+  const g=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?"":v)};
+  g('dAbc',CTX.D.abc); g('dAcima',CTX.D.acima); g('dAbaixo',CTX.D.abaixo); g('dFogos',CTX.D.fogos);
+  g('dPisosA',CTX.D.pisosA); g('dPisosB',CTX.D.pisosB); g('dImpl',CTX.D.implantacao);
+  g('dLote',CTX.D.lote); g('dPark',CTX.D.park);
+  document.getElementById('descOverlay').classList.remove('hidden');
+}
+function fecharDescritores(){ document.getElementById('descOverlay').classList.add('hidden') }
+function guardarDescritores(){
+  const n=id=>{const v=parseFloat((document.getElementById(id)||{}).value); return isFinite(v)&&v>0?v:null};
+  CTX.D={abc:n('dAbc'),acima:n('dAcima'),abaixo:n('dAbaixo'),fogos:n('dFogos'),
+         pisosA:n('dPisosA'),pisosB:n('dPisosB'),implantacao:n('dImpl'),lote:n('dLote'),park:n('dPark')};
+  if(CTX.D.abc&&CTX.D.abaixo&&!CTX.D.acima) CTX.D.acima=CTX.D.abc-CTX.D.abaixo;
+  ctxAplicar(); fecharDescritores();
+  alertx("Descritores aplicados a todos os separadores.",true);
+}
+
+/* ---------- 3. Desempenho: fim das consultas em cascata ----------
+   gatherProjectData, calibracaoDesvios, loadBenchmarks e renderComparar faziam,
+   cada uma, uma consulta por projeto e outra por fase. Com dez projetos eram mais
+   de vinte idas ao servidor, em série, com o ecrã parado. Agora: duas consultas. */
+let SNAP=null, SNAP_T=0;
+async function snapshot(force){
+  if(!SESSION) return {fases:[],caps:[]};
+  if(SNAP&&!force&&Date.now()-SNAP_T<20000) return SNAP;
+  const [f,c]=await Promise.all([
+    sbq(sb.from('fases').select('*'),"Ler fases"),
+    sbq(sb.from('capitulos').select('*'),"Ler capítulos")
+  ]);
+  SNAP={fases:f.data||[],caps:c.data||[]}; SNAP_T=Date.now();
+  return SNAP;
+}
+function invalidarSnapshot(){ SNAP=null; CALIB_CACHE=null; }
+
+gatherProjectData=async function(pref){
+  const data=[];
+  const lurbCaps=Object.fromEntries(REF.capitulos.filter(c=>c.total>0).map(c=>[c.cap,c.total]));
+  data.push({nome:"L'Urbain",ano:2024,gfa:REF.gfa,fogos:REF.fogos,caps:lurbCaps,fase:"Orçamento",D:descritoresRef()});
+  if(!SESSION) return data;
+  const {fases,caps}=await snapshot();
+  const porFase={}; caps.forEach(c=>{(porFase[c.fase_id]=porFase[c.fase_id]||[]).push(c)});
+  for(const p of PROJETOS){
+    const fs=fases.filter(f=>f.projeto_id===p.id);
+    if(!fs.length) continue;
+    const ordem=pref==='todas'?null:{real:['Real','Contrato','Orçamento'],contrato:['Contrato','Real','Orçamento'],orcamento:['Orçamento','Contrato','Real']}[pref];
+    let escolhidas=[];
+    if(ordem){ for(const t of ordem){const m=fs.filter(x=>x.fase===t); if(m.length){escolhidas=[m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]];break}} }
+    else escolhidas=fs;
+    for(const fase of escolhidas){
+      const cs=porFase[fase.id]||[]; if(!cs.length) continue;
+      const capObj={}; cs.forEach(c=>{if(+c.total>0)capObj[c.cap]=(capObj[c.cap]||0)+ +c.total});
+      const ano=fase.data?+fase.data.slice(0,4):new Date().getFullYear();
+      data.push({nome:p.nome+(escolhidas.length>1?" · "+fase.fase:""),ano,gfa:p.gfa,fogos:p.fogos,
+                 caps:capObj,fase:fase.fase,D:descritoresDe(p)});
+    }
+  }
+  return data;
+};
+
+calibracaoDesvios=async function(){
+  if(CALIB_CACHE) return CALIB_CACHE;
+  const out={};
+  if(!SESSION){CALIB_CACHE=out;return out}
+  const {fases,caps}=await snapshot();
+  const porFase={}; caps.forEach(c=>{(porFase[c.fase_id]=porFase[c.fase_id]||[]).push(c)});
+  const ultima=(fs,tipo)=>fs.filter(f=>f.fase===tipo).sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+  PROJETOS.forEach(p=>{
+    const fs=fases.filter(f=>f.projeto_id===p.id);
+    const orc=ultima(fs,'Orçamento'), real=ultima(fs,'Real');
+    if(!orc||!real) return;
+    const mo={},mr={};
+    (porFase[orc.id]||[]).forEach(c=>mo[c.cap]=(mo[c.cap]||0)+ +c.total);
+    (porFase[real.id]||[]).forEach(c=>mr[c.cap]=(mr[c.cap]||0)+ +c.total);
+    Object.keys(mr).forEach(cap=>{ if(mo[cap]>0) (out[cap]=out[cap]||{r:[]}).r.push(mr[cap]/mo[cap]) });
+  });
+  Object.keys(out).forEach(cap=>{
+    out[cap]={n:out[cap].r.length, fator:Math.min(Math.max(med(out[cap].r),0.75),1.40)};
+  });
+  CALIB_CACHE=out; return out;
+};
+
+const _renderComparar=renderComparar;
+renderComparar=function(){ return comBusy("A comparar projetos…",()=>_renderComparar()) };
+const _runEstimador=runEstimador;
+runEstimador=function(){ return comBusy("A calcular a estimativa…",()=>_runEstimador()) };
+const _runAnalysis=runAnalysis;
+runAnalysis=function(){ busy(true,"A analisar o mapa de quantidades…"); try{ return _runAnalysis() } finally { busy(false) } };
+
+/* ---------- 4. Ergonomia ---------- */
+function foldPurpose(btn){
+  const box=btn.closest('.purpose');
+  const dobrado=box.classList.toggle('folded');
+  btn.textContent=dobrado?"mostrar":"esconder";
+  const estados=readLocal('folds')||{};
+  estados[box.querySelector('h1').textContent.slice(0,40)]=dobrado;
+  saveLocal('folds',estados);
+}
+(function restaurarFolds(){
+  const estados=readLocal('folds')||{};
+  document.querySelectorAll('.purpose[data-fold]').forEach(box=>{
+    const k=box.querySelector('h1').textContent.slice(0,40);
+    if(estados[k]){ box.classList.add('folded'); const b=box.querySelector('.toggle'); if(b) b.textContent="mostrar"; }
+  });
+})();
+
+/* triagem de alertas: o que já foi tratado deixa de reaparecer em cada passagem */
+function chaveTriagem(){ return 'triagem_'+norm(CTX.nome||"—") }
+function guardarTriagem(){
+  saveLocal(chaveTriagem(), FINDINGS.filter(f=>f.resolvido).map(f=>f.tipo+"|"+(f.it.code||"")+"|"+(f.it.linha||"")));
+}
+function aplicarTriagem(){
+  const g=readLocal(chaveTriagem()); if(!g||!g.length) return;
+  const set=new Set(g);
+  FINDINGS.forEach(f=>{ if(set.has(f.tipo+"|"+(f.it.code||"")+"|"+(f.it.linha||""))) f.resolvido=true });
+}
+const _renderFindings=renderFindings;
+renderFindings=function(){
+  _renderFindings();
+  const tot=FINDINGS.length, res=FINDINGS.filter(f=>f.resolvido).length;
+  const t=document.getElementById('findTag');
+  if(t) t.textContent=tot?`${res} de ${tot} tratados`:"";
+};
+
+/* confirmação antes de apagar ou substituir */
+const _cstApagar=cstApagar;
+cstApagar=async function(id){
+  const c=CONSULTAS.find(x=>x.id===id);
+  if(!confirmar("Apagar a consulta a "+(c?c.fornecedor:"este fornecedor")+"? Esta ação não pode ser desfeita.")) return;
+  return _cstApagar(id);
+};
+const _apagarRegraCap=apagarRegraCap;
+apagarRegraCap=async function(id){
+  if(!confirmar("Apagar esta regra de reconhecimento de capítulo?")) return;
+  return _apagarRegraCap(id);
+};
+const _verRepor=verRepor;
+verRepor=function(n){
+  if(ORC_ROWS.length&&!confirmar("Repor a versão v"+n+" substitui o orçamento que tens aberto. Continuar?")) return;
+  return _verRepor(n);
+};
+
+/* ---------- 5. Ligação da barra de contexto ---------- */
+(function ligarCtx(){
+  const inp=document.getElementById('ctxNome');
+  if(!inp) return;
+  let t=null;
+  inp.addEventListener('input',()=>{ clearTimeout(t); t=setTimeout(()=>ctxDefinir(inp.value),450) });
+  inp.addEventListener('change',()=>ctxDefinir(inp.value));
+})();
+const _loadProjetos=loadProjetos;
+loadProjetos=async function(){
+  await _loadProjetos();
+  const dl=document.getElementById('ctxList');
+  if(dl) dl.innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+  if(CTX.nome&&PROJETOS.some(p=>norm(p.nome)===norm(CTX.nome))) CTX.novo=false;
+  ctxRender();
+};
+const _showView=showView;
+showView=function(v){ _showView(v); ctxRender(); };
+
+/* invalidar a fotografia da base sempre que algo é gravado */
+['saveReal','saveAnalysis','saveOrcamento','freezeTrespasse','dprGravarParcial'].forEach(fn=>{
+  if(typeof window[fn]==='function'){
+    const orig=window[fn];
+    window[fn]=async function(){ const r=await orig.apply(this,arguments); invalidarSnapshot(); return r };
+  }
+});
+
+/* restaurar o último projeto ativo */
+(function restaurarCtx(){
+  const c=readLocal('ctx');
+  if(c&&c.nome){ CTX=Object.assign(CTX,c); ctxAplicar(); }
+  else ctxRender();
+})();
+
 
 initSupa();
 refreshLib();
