@@ -102,10 +102,10 @@ td.num{text-align:right;font-family:'Roboto Mono',monospace}
 .flowbar .arr{color:#c4ccd8}
 /* semáforo de orçamentação */
 .estado-sel{border:none;border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;font-weight:600;color:#fff;cursor:pointer;width:100%}
-.e-racio{background:#E62336} .e-consulta{background:#E86A2C} .e-antiga{background:#D9A400} .e-firme{background:#5FA85B} .e-adjudicado{background:#298893}
+.e-racio{background:#E62336} .e-consulta{background:#E86A2C} .e-antiga{background:#D9A400} .e-firme{background:#5FA85B} .e-compromisso,.e-adjudicado{background:#298893}
 .consbar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#eef1f6;font-size:0}
 .consbar div{height:100%}
-.cb-racio{background:#E62336} .cb-consulta{background:#E86A2C} .cb-antiga{background:#D9A400} .cb-firme{background:#5FA85B} .cb-adjudicado{background:#298893}
+.cb-racio{background:#E62336} .cb-consulta{background:#E86A2C} .cb-antiga{background:#D9A400} .cb-firme{background:#5FA85B} .cb-compromisso,.cb-adjudicado{background:#298893}
 .dotleg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-size:12px}
 .overlay{position:fixed;inset:0;background:rgba(20,58,103,.92);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -532,7 +532,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
     <h1>Orçamentar com semáforo de consolidação</h1>
-    <p>Cada capítulo começa em estimativa por rácio (vermelho) e vai ganhando solidez à medida que consultas o mercado e recebes propostas. Marca o estado de cada capítulo e vê, a qualquer momento, quanto do orçamento já é sólido e quanto ainda é aposta. A cor segue a melhor evidência disponível: rácio → em consulta → proposta antiga → proposta firme → adjudicado.</p>
+    <p>Cada capítulo começa em estimativa por rácio (vermelho) e vai ganhando solidez à medida que consultas o mercado e recebes propostas. Marca o estado de cada capítulo e vê, a qualquer momento, quanto do orçamento já é sólido e quanto ainda é aposta. A cor segue a melhor evidência disponível: rácio → em consulta → proposta antiga → proposta firme → compromisso do subempreiteiro. O compromisso é o máximo que se consegue nesta fase: a empreitada só é contratada pela equipa de Produção, depois da transferência.</p>
     <div class="io"><span class="in">Arranca de: estimativa por rácios</span><span class="out">Produz: orçamento com índice de consolidação</span></div>
   </div>
 
@@ -578,9 +578,9 @@ tr.resolved td textarea{text-decoration:line-through}
       <span><i class="dotleg e-consulta"></i>Em consulta</span>
       <span><i class="dotleg e-antiga"></i>Proposta antiga (&gt;2 anos)</span>
       <span><i class="dotleg e-firme"></i>Proposta firme</span>
-      <span><i class="dotleg e-adjudicado"></i>Adjudicado</span>
+      <span><i class="dotleg e-compromisso"></i>Compromisso do subempreiteiro</span>
     </div>
-    <div class="hint">"Consolidado" = valor em proposta firme ou adjudicado. Edita o valor e o estado de cada capítulo; o semáforo e os indicadores atualizam-se na hora. A coluna de origem mostra de onde veio a estimativa inicial.</div>
+    <div class="hint">"Consolidado" = valor em proposta firme ou com compromisso do subempreiteiro. <b>Não</b> significa contratado: nesta fase não se assinam empreitadas — os contratos são celebrados pela equipa de Produção depois da transferência. Edita o valor e o estado de cada capítulo; o semáforo e os indicadores atualizam-se na hora. A coluna de origem mostra de onde veio a estimativa inicial.</div>
     <div style="overflow-x:auto">
     <table>
       <thead><tr><th>Capítulo</th><th style="text-align:right;width:140px">Valor (€)</th><th style="width:180px">Estado</th><th style="text-align:right;width:110px">€/m² ABC</th><th style="width:220px">Nota / fornecedor</th></tr></thead>
@@ -2304,10 +2304,12 @@ const ORC_ESTADOS=[
   {k:"consulta",lbl:"Em consulta",cls:"e-consulta",cb:"cb-consulta",solido:false},
   {k:"antiga",lbl:"Proposta antiga (>2 anos)",cls:"e-antiga",cb:"cb-antiga",solido:false},
   {k:"firme",lbl:"Proposta firme",cls:"e-firme",cb:"cb-firme",solido:true},
-  {k:"adjudicado",lbl:"Adjudicado",cls:"e-adjudicado",cb:"cb-adjudicado",solido:true}
+  {k:"compromisso",lbl:"Compromisso do subempreiteiro",cls:"e-compromisso",cb:"cb-compromisso",solido:true}
 ];
 const ORC_EST=Object.fromEntries(ORC_ESTADOS.map(e=>[e.k,e]));
 let ORC_ROWS=[], ORC_META={}, ORC_DIRTY=false;
+/* compatibilidade: orçamentos gravados antes de "Adjudicado" passar a "Compromisso" */
+function migrarEstado(e){ return e==='adjudicado'?'compromisso':e }
 window.addEventListener('beforeunload',e=>{
   if(ORC_DIRTY&&ORC_ROWS.length){e.preventDefault();e.returnValue="Tens alterações por gravar no orçamento.";}
 });
@@ -2325,7 +2327,7 @@ async function loadOrcBoard(nome){
   const {data}=await sb.from('orcamentos').select('*').eq('projeto_nome',nome).maybeSingle();
   if(!data)return false;
   ORC_META=data.meta||{nome};
-  ORC_ROWS=data.linhas||[];
+  ORC_ROWS=(data.linhas||[]).map(r=>Object.assign(r,{estado:migrarEstado(r.estado)}));
   if(ORC_META.abc)document.getElementById('orcAbc').value=ORC_META.abc;
   if(ORC_META.fogos)document.getElementById('orcFogos').value=ORC_META.fogos;
   document.getElementById('orcBoard').classList.remove('hidden');
@@ -2684,7 +2686,7 @@ async function freezeTrespasse(){
   const caps=linhas.map(r=>{const v=r.venda!=null?r.venda:Math.round(r.valor*f);return {cap:r.cap,total:Math.round(v),comentario:"venda · custo "+Math.round(r.valor)+" · margem "+(r.valor?Math.round((v-r.valor)/r.valor*100):0)+"%"};});
   const totalTres=caps.reduce((s,c)=>s+c.total,0);
   const {data:fase,error}=await sb.from('fases').insert({
-    projeto_id:proj.id,fase:'Contrato',etiqueta:'Trespasse · factor '+fmt(f,4)+' · '+com.slice(0,70),
+    projeto_id:proj.id,fase:'Contrato',etiqueta:'Preço de trespasse (transferência p/ Produção) · factor '+fmt(f,4)+' · '+com.slice(0,70),
     data:new Date().toISOString().slice(0,10),total:totalTres
   }).select().single();
   if(error){alertx("Erro a criar a fase Contrato: "+error.message);return}
@@ -2701,7 +2703,7 @@ function exportOrcamento(){
   const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
   const head=[["SOLIVE — ORÇAMENTO PRELIMINAR · CONSOLIDAÇÃO"],
     ["Projeto: "+ORC_META.nome+"   ·   ABC: "+(abc||"—")+" m²   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
-    ["Total: "+fmt(total,0)+" €   ·   Consolidado (firme/adjudicado): "+(total?fmt(solido/total*100,0):"0")+"%"],
+    ["Total: "+fmt(total,0)+" €   ·   Consolidado (proposta firme ou compromisso): "+(total?fmt(solido/total*100,0):"0")+"%"],
     [],
     ["Capítulo","Valor (€)","Estado","€/m² ABC","Origem","Nota / fornecedor / exclusões"]];
   const body=ORC_ROWS.map(r=>[r.cap,Math.round(r.valor||0),ORC_EST[r.estado].lbl,abc&&r.valor?Math.round(r.valor/abc):"",r.origem,r.nota||""]);
@@ -3991,7 +3993,7 @@ function exportDprBaseline(formato){
   const consolidado=linhas.filter(r=>ORC_EST[r.estado]&&ORC_EST[r.estado].solido).reduce((s,r)=>s+r.valor,0);
   if(formato==='json'){
     const payload={
-      origem:"Solive · Plataforma de Orçamentação v2.1",
+      origem:"Solive · Plataforma de Orçamentação v2.2",
       projeto:nome, data:new Date().toISOString().slice(0,10),
       categoria_dpr:"Hard Costs",
       hard_costs_budget:Math.round(total),
