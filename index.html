@@ -886,10 +886,22 @@ tr.resolved td textarea{text-decoration:line-through}
       <div class="hint">Esta tabela é o motor do estimador. Para cada capítulo define-se a grandeza física que comanda o custo (<b>driver</b>), o <b>expoente de escala</b> (1 = cresce proporcionalmente; &lt;1 = tem componente fixa) e o <b>índice de inflação</b> aplicável. Editável aqui e gravada na base — não é preciso republicar a plataforma.</div>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Capítulo</th><th style="width:230px">Driver</th><th style="width:110px;text-align:right">Expoente</th><th style="width:180px">Índice de inflação</th><th>Racional</th></tr></thead>
+        <thead><tr><th>Capítulo</th><th style="width:230px">Driver</th><th style="width:110px;text-align:right">Expoente</th><th style="width:180px">Índice de inflação</th><th>Racional</th><th style="width:52px"></th></tr></thead>
         <tbody id="tbTax"></tbody>
       </table>
       </div>
+      <div class="card" style="margin-top:16px;background:#fafbfd">
+        <h2 style="font-size:13px">Acrescentar um capítulo</h2>
+        <div class="hint">Os 33 capítulos do standard português são o ponto de partida, não um limite. Se um projeto tiver trabalhos que não cabem em nenhum deles — fachada ventilada, domótica, reabilitação estrutural, arqueologia — acrescenta o capítulo aqui e ele passa a existir em todos os separadores: orçamento, consultas, fecho de obra e biblioteca.</div>
+        <div class="grid g6">
+          <div style="grid-column:span 2"><label>Nome do capítulo</label><input type="text" id="novoCapNome" placeholder="ex.: FACHADA VENTILADA"></div>
+          <div><label>Driver</label><select id="novoCapDrv"></select></div>
+          <div><label>Expoente</label><input type="number" id="novoCapExp" value="1" step="0.05" min="0.1" max="1.5"></div>
+          <div><label>Índice</label><select id="novoCapIdx"><option value="mat">Material</option><option value="mo">Mão-de-obra</option><option value="mep">MEP</option></select></div>
+          <div style="display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="addCapitulo()">Acrescentar</button></div>
+        </div>
+      </div>
+
       <div class="card" style="margin-top:16px;background:#fafbfd">
         <h2 style="font-size:13px">Regras de reconhecimento de capítulo</h2>
         <div class="hint">Quando o mapa de um projetista usa uma designação que a plataforma não reconhece, acrescenta aqui a regra. Fica gravada e passa a aplicar-se a todos os mapas seguintes.</div>
@@ -1033,7 +1045,10 @@ const REF = {
   "SERRALHARIAS":{"m":538.12,"un":13},"VÃOS":{"un":325}
  }
 };
-const CAPS33 = REF.capitulos.map(c=>c.cap);
+/* Lista de capítulos. Arranca nos 33 do standard português mas é substituída
+   pela taxonomia gravada assim que há sessão — pode ter mais ou menos entradas. */
+let CAPS = REF.capitulos.map(c=>c.cap);
+const CAPS_BASE = REF.capitulos.map(c=>c.cap);
 const CAPS_ESPERADOS = ["COBERTURAS","IMPERMEABILIZAÇÕES E ISOLAMENTOS","PAREDES","REVESTIMENTOS DE PAREDES","REVESTIMENTOS DE PAVIMENTOS","REVESTIMENTOS DE TECTOS","PINTURAS","CANTARIAS","SERRALHARIAS","VÃOS","CARPINTARIAS","EQUIPAMENTOS SANITÁRIOS","COZINHAS","DIVERSOS"];
 
 const CAP_MAP = [
@@ -1997,7 +2012,7 @@ document.addEventListener('input',e=>{
 function genModelo(){
   const pnome=document.getElementById('foProjeto').value||"Projeto";
   const rows=[["SOLIVE — FECHO DE OBRA · CONTA FINAL POR CAPÍTULO"],["Projeto: "+pnome+"   ·   Preencher pela equipa de obra: total real por capítulo e comentários"],[],["CAPÍTULO","TOTAL REAL (€)","COMENTÁRIOS DA OBRA"]];
-  CAPS33.forEach(c=>rows.push([c,null,null]));
+  CAPS.forEach(c=>rows.push([c,null,null]));
   const ws=XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[{wch:48},{wch:18},{wch:60}];
   const wb=XLSX.utils.book_new();
@@ -2055,8 +2070,8 @@ function processFecho(sheet){
     const out=extractAuto(rows)||{};
     FO_METRICAS=out.__metricas||null; delete out.__metricas;
     Object.entries(out).forEach(([cap,total])=>{
-      const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
-      FO_ROWS.push({raw:cap,std:std||(CAPS33.includes(cap)?cap:null),total,com:""});
+      const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
+      FO_ROWS.push({raw:cap,std:std||(CAPS.includes(cap)?cap:null),total,com:""});
     });
     // trabalhos adicionais ao contrato (folha TAD_Auto), somados ao custo final de cada capítulo
     let tadInfo="";
@@ -2092,8 +2107,8 @@ function processFecho(sheet){
       const caps=Object.entries(custos).filter(([c,v])=>c!=="(sem capítulo)"&&v>0);
       if(caps.length){
         caps.forEach(([cap,total])=>{
-          const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
-          FO_ROWS.push({raw:cap,std:std||(CAPS33.includes(cap)?cap:null),total,com:""});
+          const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
+          FO_ROWS.push({raw:cap,std:std||(CAPS.includes(cap)?cap:null),total,com:""});
         });
         document.getElementById('foFich').innerHTML='<span class="tag">mapa com preços · custos por capítulo</span>';
       } else {
@@ -2105,7 +2120,7 @@ function processFecho(sheet){
         const raw=r2[cCap]!=null?String(r2[cCap]).trim():"";
         if(!raw||/^TOTAL/i.test(raw)) continue;
         const tot=typeof r2[cTot]==='number'?r2[cTot]:null;
-        const std=CAPS33.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
+        const std=CAPS.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
         FO_ROWS.push({raw,std,total:tot,com:cCom>-1&&r2[cCom]!=null?String(r2[cCom]):""});
       }
     }
@@ -2120,7 +2135,7 @@ function renderFoPreview(){
   const tb=document.getElementById('tbFoPrev'); tb.innerHTML="";
   FO_ROWS.forEach((r,i)=>{
     const tr=document.createElement('tr');
-    const opts=['<option value="">— ignorar —</option>'].concat(CAPS33.map(c=>`<option ${r.std===c?'selected':''}>${esc(c)}</option>`)).join("");
+    const opts=['<option value="">— ignorar —</option>'].concat(CAPS.map(c=>`<option ${r.std===c?'selected':''}>${esc(c)}</option>`)).join("");
     tr.innerHTML=`<td>${esc(r.raw)}</td>
       <td><select data-i="${i}" class="foStd">${opts}</select></td>
       <td class="num"><input type="number" step="0.01" data-i="${i}" class="foTot" value="${r.total==null?'':r.total}" style="text-align:right"></td>
@@ -2393,12 +2408,12 @@ function processOrcResumo(sheet){
   // construir linhas a partir do resumo: mapear ao capítulo standard, estado pela fonte dominante
   const byCap={};
   data.forEach(d=>{
-    const std=CAPS33.find(c=>norm(c)===norm(d.name))||mapCapitulo(d.name);
+    const std=CAPS.find(c=>norm(c)===norm(d.name))||mapCapitulo(d.name);
     if(!std)return;
     byCap[std]=byCap[std]||{total:0,recebida:0,antiga:0,sem:0};
     byCap[std].total+=d.total; byCap[std].recebida+=d.recebida; byCap[std].antiga+=d.antiga; byCap[std].sem+=d.sem;
   });
-  ORC_ROWS=CAPS33.map(cap=>{
+  ORC_ROWS=CAPS.map(cap=>{
     const b=byCap[cap];
     if(!b) return {cap,valor:0,estado:"racio",nota:"",origem:"—"};
     const pct=v=>b.total?Math.round(v/b.total*100):0;
@@ -2458,7 +2473,7 @@ function processOrcProp(sheet,fname){
   // garantir board: se ainda não há, inicializar vazio com os 33 capítulos
   if(!ORC_ROWS.length){
     ORC_META={nome:document.getElementById('orcNome').value.trim()||"Projeto",abc:parseFloat(document.getElementById('orcAbc').value)||null,fogos:parseFloat(document.getElementById('orcFogos').value)||null};
-    ORC_ROWS=CAPS33.map(cap=>({cap,valor:0,estado:"racio",nota:"",origem:"—"}));
+    ORC_ROWS=CAPS.map(cap=>({cap,valor:0,estado:"racio",nota:"",origem:"—"}));
     document.getElementById('orcBoard').classList.remove('hidden');
     document.getElementById('orcTag').textContent=ORC_META.nome;
   }
@@ -2466,7 +2481,7 @@ function processOrcProp(sheet,fname){
   // mapear cada capítulo da proposta ao standard e atualizar o board
   const cobertos=[]; let totalProp=0;
   caps.forEach(([cap,v])=>{
-    const std=CAPS33.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS33.includes(cap)?cap:null);
+    const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
     if(!std)return;
     const row=ORC_ROWS.find(r=>r.cap===std);
     if(row){
@@ -2478,7 +2493,7 @@ function processOrcProp(sheet,fname){
     }
   });
   // capítulos NÃO cobertos pela proposta (potenciais exclusões a confirmar)
-  const naoCobertos=CAPS33.filter(c=>!cobertos.includes(c));
+  const naoCobertos=CAPS.filter(c=>!cobertos.includes(c));
   renderOrc();
   const box=document.getElementById('orcPropCober');
   box.className="note";
@@ -2503,7 +2518,7 @@ async function orcSeed(){
     Object.keys(per).forEach(cap=>{const m=med(per[cap]);if(m!=null)seedByCap[cap]=Math.round(m*abc);});
   }
   // construir linhas: todos os 33 capítulos, valor do seed (ou 0), estado inicial rácio
-  ORC_ROWS=CAPS33.map(cap=>({cap,valor:seedByCap[cap]!=null?seedByCap[cap]:0,estado:"racio",nota:"",origem:seedByCap[cap]!=null?"rácio biblioteca":"—"}));
+  ORC_ROWS=CAPS.map(cap=>({cap,valor:seedByCap[cap]!=null?seedByCap[cap]:0,estado:"racio",nota:"",origem:seedByCap[cap]!=null?"rácio biblioteca":"—"}));
   document.getElementById('orcBoard').classList.remove('hidden');
   document.getElementById('orcTag').textContent=nome+(abc?" · ABC "+fmt(abc)+" m²":"");
   renderOrc();
@@ -2788,7 +2803,7 @@ async function runEstimador(){
     });
   });
 
-  const ordemCap=CAPS33.concat(Object.keys(perCap).filter(c=>!CAPS33.includes(c)));
+  const ordemCap=CAPS.concat(Object.keys(perCap).filter(c=>!CAPS.includes(c)));
   const rows=[]; let tC=0,tLo=0,tHi=0;
   ordemCap.forEach(cap=>{
     const lst=perCap[cap]; if(!lst||!lst.length)return;
@@ -3048,7 +3063,7 @@ async function renderLibProj(){
   const orcCaps=await capsDe(fOrc), realCaps=await capsDe(fReal);
   const todos=[...new Set([...Object.keys(orcCaps),...Object.keys(realCaps)])];
   // ordenar pela ordem standard dos 33 capítulos
-  todos.sort((a,b)=>{const ia=CAPS33.findIndex(c=>norm(c)===norm(a)),ib=CAPS33.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
+  todos.sort((a,b)=>{const ia=CAPS.findIndex(c=>norm(c)===norm(a)),ib=CAPS.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
   if(!todos.length){ tb.innerHTML='<tr><td colspan="6" style="color:#8794a8">Sem valores gravados. Importa o auto no Fecho de Obra para preencher a fase Real.</td></tr>'; LIB_SHOWN=null; renderLibQty(proj); return; }
   let tOrc=0,tReal=0;
   todos.forEach(cap=>{
@@ -3179,7 +3194,7 @@ function renderLibQty(proj){
     fonte=REF.qty; nome=(proj?proj.nome+" — ":"")+"referência de arquitetura (L'Urbain BOQ-Arq)";
   }
   if(titulo) titulo.textContent="Rácios de quantidades físicas — "+nome;
-  const caps=Object.keys(fonte).sort((a,b)=>{const ia=CAPS33.findIndex(c=>norm(c)===norm(a)),ib=CAPS33.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
+  const caps=Object.keys(fonte).sort((a,b)=>{const ia=CAPS.findIndex(c=>norm(c)===norm(a)),ib=CAPS.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
   caps.forEach(cap=>{
     const uns=Object.keys(fonte[cap]);
     uns.forEach((u,i)=>{
@@ -3641,9 +3656,9 @@ function cstTab(t){
 }
 async function refreshConsultas(){
   const selCap=document.getElementById('cstCap');
-  if(selCap&&!selCap.options.length) selCap.innerHTML=CAPS33.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(selCap&&!selCap.options.length) selCap.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
   const tc=document.getElementById('taxCap');
-  if(tc&&!tc.options.length) tc.innerHTML=CAPS33.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(tc&&!tc.options.length) tc.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
   if(SESSION){
     document.getElementById('cstProjList').innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
     await loadConsultas();
@@ -3729,7 +3744,7 @@ function renderMapaComp(){
   head.innerHTML=""; body.innerHTML="";
   if(!proj){document.getElementById('mcNota').textContent="Sem propostas registadas.";return}
   const {caps,forns}=propostasDoProjeto(proj);
-  const capList=CAPS33.filter(c=>caps[c]).concat(Object.keys(caps).filter(c=>!CAPS33.includes(c)));
+  const capList=CAPS.filter(c=>caps[c]).concat(Object.keys(caps).filter(c=>!CAPS.includes(c)));
   if(!capList.length){document.getElementById('mcNota').textContent="Este projeto ainda não tem propostas lançadas.";return}
   const orcMap={}; ORC_ROWS.forEach(r=>orcMap[r.cap]=r.valor);
   head.innerHTML='<tr><th style="min-width:230px">Capítulo</th>'+
@@ -3788,7 +3803,7 @@ function exportMapaComp(){
   const proj=(document.getElementById('mcProj')||{}).value;
   if(!proj)return alertx("Escolhe um projeto.");
   const {caps,forns}=propostasDoProjeto(proj);
-  const capList=CAPS33.filter(c=>caps[c]).concat(Object.keys(caps).filter(c=>!CAPS33.includes(c)));
+  const capList=CAPS.filter(c=>caps[c]).concat(Object.keys(caps).filter(c=>!CAPS.includes(c)));
   const orcMap={}; ORC_ROWS.forEach(r=>orcMap[r.cap]=r.valor);
   const head=[["SOLIVE — MAPA COMPARATIVO DE PROPOSTAS"],["Projeto: "+proj+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
     ["Amplitude > 30% entre propostas do mesmo capítulo indica normalmente âmbito interpretado de forma diferente, não preço."],[],
@@ -3914,7 +3929,14 @@ async function loadTaxonomia(){
   REGRAS_CAP=[];
   if(!SESSION)return;
   const {data}=await sbq(sb.from('taxonomia').select('*'),"Ler taxonomia");
-  if(data) data.forEach(t=>{ TAXO[t.cap]={driver:t.driver,exp:+t.expoente,idx:t.indice,racional:t.racional||""} });
+  if(data&&data.length){
+    data.forEach(t=>{ TAXO[t.cap]={driver:t.driver,exp:+t.expoente,idx:t.indice,racional:t.racional||""} });
+    CAPS=data.slice().sort((a,b)=>(a.ordem??999)-(b.ordem??999)).map(t=>t.cap);
+    /* separadores que constroem listas a partir dos capítulos têm de ser reconstruídos */
+    const cc=document.getElementById('cstCap'), tc=document.getElementById('taxCap');
+    if(cc) cc.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
+    if(tc) tc.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
+  }
   const {data:r}=await sbq(sb.from('taxonomia_regras').select('*').order('id'),"Ler regras de capítulo");
   if(r){ REGRAS_CAP=r; aplicarRegrasCap(); }
 }
@@ -3925,9 +3947,11 @@ function aplicarRegrasCap(){
   });
 }
 function renderTaxonomia(){
+  const nd=document.getElementById('novoCapDrv');
+  if(nd&&!nd.options.length) nd.innerHTML=Object.entries(DRIVER_LBL).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("");
   const tb=document.getElementById('tbTax'); if(!tb)return;
   tb.innerHTML="";
-  CAPS33.forEach(cap=>{
+  CAPS.forEach(cap=>{
     const t=TAXO[cap]||TAXO_DEFAULT;
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="font-size:12.5px;font-weight:500">${esc(cap)}</td>
@@ -3940,7 +3964,8 @@ function renderTaxonomia(){
         <option value="mat" ${t.idx==='mat'?'selected':''}>Material</option>
         <option value="mep" ${t.idx==='mep'?'selected':''}>MEP / equipamento</option>
       </select></td>
-      <td style="font-size:11.5px;color:#69788f;max-width:340px">${esc(t.racional||"")}</td>`;
+      <td style="font-size:11.5px;color:#69788f;max-width:300px">${esc(t.racional||"")}</td>
+      <td>${CAPS_BASE.includes(cap)?'<span style="color:#c4ccd8;font-size:11px" title="Capítulo do standard">std</span>':`<button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarCapitulo('${cap.replace(/'/g,"\\'")}')">✕</button>`}</td>`;
     tb.appendChild(tr);
   });
   const tr2=document.getElementById('tbRegras'); if(!tr2)return;
@@ -3954,10 +3979,30 @@ function renderTaxonomia(){
 }
 async function saveTaxonomia(){
   if(!SESSION)return alertx("Inicia sessão para gravar a taxonomia.");
-  const linhas=CAPS33.map((cap,i)=>{const t=TAXO[cap]||TAXO_DEFAULT;
+  const linhas=CAPS.map((cap,i)=>{const t=TAXO[cap]||TAXO_DEFAULT;
     return {cap,ordem:i,driver:t.driver,expoente:t.exp,indice:t.idx,racional:t.racional||null}});
   const {error}=await sbq(sb.from('taxonomia').upsert(linhas,{onConflict:'cap'}),"Gravar taxonomia");
   if(!error){CALIB_CACHE=null;alertx("Taxonomia gravada. O estimador passa a usar estes drivers.",true)}
+}
+async function addCapitulo(){
+  if(!SESSION) return alertx("Inicia sessão para acrescentar capítulos.");
+  const nome=(document.getElementById('novoCapNome').value||"").trim().toUpperCase();
+  if(!nome) return alertx("Escreve o nome do capítulo.");
+  if(CAPS.some(c=>norm(c)===norm(nome))) return alertx("Já existe um capítulo com esse nome.");
+  const drv=document.getElementById('novoCapDrv').value;
+  const exp=parseFloat(document.getElementById('novoCapExp').value)||1;
+  const idx=document.getElementById('novoCapIdx').value;
+  const {error}=await sbq(sb.from('taxonomia').insert({cap:nome,ordem:CAPS.length,driver:drv,expoente:exp,
+    indice:idx,racional:"Capítulo acrescentado manualmente."}),"Gravar capítulo");
+  if(error) return;
+  document.getElementById('novoCapNome').value="";
+  await loadTaxonomia(); renderTaxonomia();
+  alertx("Capítulo \""+nome+"\" acrescentado. Já aparece no orçamento, nas consultas e no fecho de obra.",true);
+}
+async function apagarCapitulo(cap){
+  if(!confirmar("Apagar o capítulo \""+cap+"\"?\n\nOs valores já gravados na biblioteca com este capítulo não são apagados, mas deixa de aparecer nas listas.")) return;
+  await sbq(sb.from('taxonomia').delete().eq('cap',cap),"Apagar capítulo");
+  await loadTaxonomia(); renderTaxonomia();
 }
 async function addRegraCap(){
   if(!SESSION)return alertx("Inicia sessão para acrescentar regras.");
@@ -4171,6 +4216,15 @@ const FIXTURES=[
    f:()=>{return runChecks(MQ_LIMPO()).F.every(x=>x.tipo!=="Erro aritmético")}},
   {nome:"E2E · quantidade fracionada em unidade contável",
    f:()=>{const it=MQ_LIMPO();it[3].qt=12.4;return runChecks(it).F.some(x=>x.tipo==="Quantidade fracionada")}},
+  {nome:"Lista de capítulos é dinâmica, não fixa em 33",
+   f:()=>{const n=CAPS.length; CAPS.push("CAPÍTULO DE TESTE");
+     const ok=CAPS.length===n+1 && CAPS.includes("CAPÍTULO DE TESTE"); CAPS.pop(); return ok}},
+  {nome:"Capítulo fora do standard entra no orçamento",
+   f:()=>{CAPS.push("FACHADA VENTILADA");
+     const linhas=CAPS.map(cap=>({cap,valor:0,estado:"racio"}));
+     const ok=linhas.some(r=>r.cap==="FACHADA VENTILADA"); CAPS.pop(); return ok}},
+  {nome:"Capítulo sem driver definido cai no pressuposto por omissão",
+   f:()=>{const t=TAXO["INEXISTENTE"]||TAXO_DEFAULT; return t.driver==='abc'&&t.exp===1}},
   {nome:"E2E · duplicado quase idêntico é apanhado",
    f:()=>{const it=MQ_LIMPO();
      it.push({tipo:'art',linha:99,code:"1.9",cap:"BETONILHAS",un:"m²",qt:900,pu:9.5,pt:8550,
