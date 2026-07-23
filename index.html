@@ -798,17 +798,6 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
-  <div class="card hidden" id="autoOpt" style="background:#fafbfd">
-    <div class="grid g6" style="align-items:end">
-      <div style="grid-column:span 3"><label>Valor a considerar no auto de medição</label>
-        <select id="autoBase" onchange="AUTO_BASE=this.value;if(FO_WB&&FO_SHEET)processFecho(FO_SHEET)">
-          <option value="con">Total contratado, com aditamentos (recomendado)</option>
-          <option value="exec">Executado/certificado à data do auto</option>
-        </select></div>
-      <div style="grid-column:span 3"><div class="hint" style="margin:0">O total contratado é o custo da obra. O executado só interessa se a obra ainda estiver a decorrer e quiseres a posição àquela data.</div></div>
-    </div>
-  </div>
-
   <div class="card hidden" id="tadCard" style="border-left:3px solid var(--warn)">
     <h2>Trabalhos adicionais por classificar <span class="tag" id="tadTag"></span>
       <button class="btn ghost" style="float:right;padding:6px 14px" onclick="tadAlocarRestantes()">Alocar restantes a DIVERSOS</button>
@@ -1042,7 +1031,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 4b90ef9</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · a5db0cc</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -1099,6 +1088,9 @@ const REF = {
 /* Lista de capítulos. Arranca nos 33 do standard português mas é substituída
    pela taxonomia gravada assim que há sessão — pode ter mais ou menos entradas. */
 let CAPS = REF.capitulos.map(c=>c.cap);
+/* Ordem alfabética em todas as listas e tabelas. Usa colação portuguesa para
+   que ÁGUAS, CERÂMICOS e VÃOS fiquem no sítio certo. */
+function capsOrd(){ return CAPS.slice().sort((a,b)=>a.localeCompare(b,'pt')) }
 const CAPS_BASE = REF.capitulos.map(c=>c.cap);
 const CAPS_ESPERADOS = ["COBERTURAS","IMPERMEABILIZAÇÕES E ISOLAMENTOS","PAREDES","REVESTIMENTOS DE PAREDES","REVESTIMENTOS DE PAVIMENTOS","REVESTIMENTOS DE TECTOS","PINTURAS","CANTARIAS","SERRALHARIAS","VÃOS","CARPINTARIAS","EQUIPAMENTOS SANITÁRIOS","COZINHAS","DIVERSOS"];
 
@@ -1386,6 +1378,8 @@ const ALIAS_CAP={
   "ESTRUTURAS":"ESTABILIDADE",
   "PAVIMENTO TERREO":"ESTABILIDADE",
   "TRABALHOS PREPARATÓRIOS":"ESTALEIRO",
+  "DEMOLIÇÕES":"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",
+  "DEMOLICOES":"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",
   "ISOLAMENTOS":"IMPERMEABILIZAÇÕES E ISOLAMENTOS",
   "IMPERMEABILIZAÇÕES E DRENAGENS":"IMPERMEABILIZAÇÕES E ISOLAMENTOS",
   "ESGOTOS DOMÉSTICOS":"REDE DE ESGOTOS",
@@ -1402,6 +1396,13 @@ const ALIAS_CAP={
   "INFRAESTRUTURAS DE TELECOMUNICAÇÕES EM EDIFÍCIOS":"ITED"
 };
 /* garante que o capítulo devolvido existe mesmo na lista ativa */
+/* compara ignorando conectores e plurais: "REVESTIMENTO PAVIMENTOS",
+   "REVESTIMENTOS DE PAVIMENTOS" e "REVESTIMENTO EM PAVIMENTO" passam a
+   ser a mesma coisa. Era isto que deixava capítulos por classificar. */
+function chaveCap(x){
+  return norm(x).replace(/\b(DE|DA|DO|DAS|DOS|EM|E|A|O|AO|AOS)\b/g,' ')
+                .replace(/S\b/g,'').replace(/[^A-Z0-9]+/g,' ').trim();
+}
 function normalizaCap(c){
   if(!c) return null;
   const pre=ALIAS_CAP[c]; if(pre&&CAPS.includes(pre)) return pre;   // equivalência tem prioridade
@@ -1410,6 +1411,11 @@ function normalizaCap(c){
   const n=norm(c); const hit=CAPS.find(x=>norm(x)===n); if(hit) return hit;
   const al=Object.keys(ALIAS_CAP).find(k=>norm(k)===n);
   if(al&&CAPS.includes(ALIAS_CAP[al])) return ALIAS_CAP[al];
+  /* último recurso: comparação tolerante a conectores e plurais */
+  const k=chaveCap(c);
+  const direto=CAPS.find(x=>chaveCap(x)===k); if(direto) return direto;
+  const viaAlias=Object.keys(ALIAS_CAP).find(x=>chaveCap(x)===k);
+  if(viaAlias&&CAPS.includes(ALIAS_CAP[viaAlias])) return ALIAS_CAP[viaAlias];
   return null;
 }
 function mapCapitulo(txt){
@@ -2111,7 +2117,7 @@ document.addEventListener('input',e=>{
 function genModelo(){
   const pnome=document.getElementById('foProjeto').value||"Projeto";
   const rows=[["SOLIVE — FECHO DE OBRA · CONTA FINAL POR CAPÍTULO"],["Projeto: "+pnome+"   ·   Preencher pela equipa de obra: total real por capítulo e comentários"],[],["CAPÍTULO","TOTAL REAL (€)","COMENTÁRIOS DA OBRA"]];
-  CAPS.forEach(c=>rows.push([c,null,null]));
+  capsOrd().forEach(c=>rows.push([c,null,null]));
   const ws=XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[{wch:48},{wch:18},{wch:60}];
   const wb=XLSX.utils.book_new();
@@ -2184,7 +2190,6 @@ function processFecho(sheet){
     if(A&&Object.keys(A.caps).length){
       const inf=autoParaFO(A);
       document.getElementById('foPreviewCard').classList.remove('hidden');
-      document.getElementById('autoOpt').classList.remove('hidden');
       renderFoPreview();
       const g=A.totGlobal!=null?" · Valor Global Geral "+fmt(A.totGlobal,0)+" €":"";
       alertx("Auto de medição lido: "+Object.keys(A.caps).length+" capítulos executados, "+
@@ -2265,7 +2270,7 @@ function renderFoPreview(){
   const tb=document.getElementById('tbFoPrev'); tb.innerHTML="";
   FO_ROWS.forEach((r,i)=>{
     const tr=document.createElement('tr');
-    const opts=['<option value="">— ignorar —</option>'].concat(CAPS.map(c=>`<option ${r.std===c?'selected':''}>${esc(c)}</option>`)).join("");
+    const opts=['<option value="">— ignorar —</option>'].concat(capsOrd().map(c=>`<option ${r.std===c?'selected':''}>${esc(c)}</option>`)).join("");
     const ad=r.adic||0;
     tr.innerHTML=`<td>${esc(r.raw)}</td>
       <td><select data-i="${i}" class="foStd">${opts}</select></td>
@@ -2307,7 +2312,7 @@ function renderTadPendentes(){
   document.getElementById('tadTag').textContent=pend.length+" por classificar · "+fmt(pend.reduce((s,x)=>s+x.total,0),0)+" €";
   const tb=document.getElementById('tbTad'); tb.innerHTML="";
   pend.forEach(x=>{
-    const opts=['<option value="">— escolher capítulo —</option>'].concat(CAPS.map(c=>`<option>${esc(c)}</option>`)).join("");
+    const opts=['<option value="">— escolher capítulo —</option>'].concat(capsOrd().map(c=>`<option>${esc(c)}</option>`)).join("");
     const tr=document.createElement('tr');
     tr.innerHTML=`<td class="mono">${esc(x.code||"—")}</td><td>${esc(x.desc)}</td>
       <td class="num" style="font-weight:600">${fmt(x.total,0)}</td>
@@ -2600,7 +2605,7 @@ function processOrcResumo(sheet){
     byCap[std]=byCap[std]||{total:0,recebida:0,antiga:0,sem:0};
     byCap[std].total+=d.total; byCap[std].recebida+=d.recebida; byCap[std].antiga+=d.antiga; byCap[std].sem+=d.sem;
   });
-  ORC_ROWS=CAPS.map(cap=>{
+  ORC_ROWS=capsOrd().map(cap=>{
     const b=byCap[cap];
     if(!b) return {cap,valor:0,estado:"racio",nota:"",origem:"—"};
     const pct=v=>b.total?Math.round(v/b.total*100):0;
@@ -2660,7 +2665,7 @@ function processOrcProp(sheet,fname){
   // garantir board: se ainda não há, inicializar vazio com os 33 capítulos
   if(!ORC_ROWS.length){
     ORC_META={nome:document.getElementById('orcNome').value.trim()||"Projeto",abc:parseFloat(document.getElementById('orcAbc').value)||null,fogos:parseFloat(document.getElementById('orcFogos').value)||null};
-    ORC_ROWS=CAPS.map(cap=>({cap,valor:0,estado:"racio",nota:"",origem:"—"}));
+    ORC_ROWS=capsOrd().map(cap=>({cap,valor:0,estado:"racio",nota:"",origem:"—"}));
     document.getElementById('orcBoard').classList.remove('hidden');
     document.getElementById('orcTag').textContent=ORC_META.nome;
   }
@@ -2705,7 +2710,7 @@ async function orcSeed(){
     Object.keys(per).forEach(cap=>{const m=med(per[cap]);if(m!=null)seedByCap[cap]=Math.round(m*abc);});
   }
   // construir linhas: todos os 33 capítulos, valor do seed (ou 0), estado inicial rácio
-  ORC_ROWS=CAPS.map(cap=>({cap,valor:seedByCap[cap]!=null?seedByCap[cap]:0,estado:"racio",nota:"",origem:seedByCap[cap]!=null?"rácio biblioteca":"—"}));
+  ORC_ROWS=capsOrd().map(cap=>({cap,valor:seedByCap[cap]!=null?seedByCap[cap]:0,estado:"racio",nota:"",origem:seedByCap[cap]!=null?"rácio biblioteca":"—"}));
   document.getElementById('orcBoard').classList.remove('hidden');
   document.getElementById('orcTag').textContent=nome+(abc?" · ABC "+fmt(abc)+" m²":"");
   renderOrc();
@@ -2990,7 +2995,7 @@ async function runEstimador(){
     });
   });
 
-  const ordemCap=CAPS.concat(Object.keys(perCap).filter(c=>!CAPS.includes(c)));
+  const ordemCap=capsOrd().concat(Object.keys(perCap).filter(c=>!CAPS.includes(c)));
   const rows=[]; let tC=0,tLo=0,tHi=0;
   ordemCap.forEach(cap=>{
     const lst=perCap[cap]; if(!lst||!lst.length)return;
@@ -3843,9 +3848,9 @@ function cstTab(t){
 }
 async function refreshConsultas(){
   const selCap=document.getElementById('cstCap');
-  if(selCap&&!selCap.options.length) selCap.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(selCap&&!selCap.options.length) selCap.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
   const tc=document.getElementById('taxCap');
-  if(tc&&!tc.options.length) tc.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(tc&&!tc.options.length) tc.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
   if(SESSION){
     document.getElementById('cstProjList').innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
     await loadConsultas();
@@ -4121,8 +4126,8 @@ async function loadTaxonomia(){
     CAPS=data.slice().sort((a,b)=>(a.ordem??999)-(b.ordem??999)).map(t=>t.cap);
     /* separadores que constroem listas a partir dos capítulos têm de ser reconstruídos */
     const cc=document.getElementById('cstCap'), tc=document.getElementById('taxCap');
-    if(cc) cc.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
-    if(tc) tc.innerHTML=CAPS.map(c=>`<option>${esc(c)}</option>`).join("");
+    if(cc) cc.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
+    if(tc) tc.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
   }
   const {data:r}=await sbq(sb.from('taxonomia_regras').select('*').order('id'),"Ler regras de capítulo");
   if(r){ REGRAS_CAP=r; aplicarRegrasCap(); }
@@ -4138,7 +4143,7 @@ function renderTaxonomia(){
   if(nd&&!nd.options.length) nd.innerHTML=Object.entries(DRIVER_LBL).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join("");
   const tb=document.getElementById('tbTax'); if(!tb)return;
   tb.innerHTML="";
-  CAPS.forEach(cap=>{
+  capsOrd().forEach(cap=>{
     const t=TAXO[cap]||TAXO_DEFAULT;
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="font-size:12.5px;font-weight:500">${esc(cap)}</td>
@@ -4416,7 +4421,7 @@ const FIXTURES=[
      const ok=CAPS.length===n+1 && CAPS.includes("CAPÍTULO DE TESTE"); CAPS.pop(); return ok}},
   {nome:"Capítulo fora do standard entra no orçamento",
    f:()=>{CAPS.push("FACHADA VENTILADA");
-     const linhas=CAPS.map(cap=>({cap,valor:0,estado:"racio"}));
+     const linhas=capsOrd().map(cap=>({cap,valor:0,estado:"racio"}));
      const ok=linhas.some(r=>r.cap==="FACHADA VENTILADA"); CAPS.pop(); return ok}},
   {nome:"Capítulo sem driver definido cai no pressuposto por omissão",
    f:()=>{const t=TAXO["INEXISTENTE"]||TAXO_DEFAULT; return t.driver==='abc'&&t.exp===1}},
@@ -4439,7 +4444,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · 4b90ef9";
+const BUILD="2026-07-23 · a5db0cc";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4881,7 +4886,7 @@ function colunasAuto(rows){
             É o custo da obra, independentemente de quanto estava medido à data.
    'exec' = Total acumulado — quanto estava certificado naquele auto.
             Só faz sentido para obra ainda a decorrer. */
-let AUTO_BASE='con';
+const AUTO_BASE='con';   /* só o total contratado: o executado não interessa enquanto não for final */
 const RE_ADIT=/^A\s?\d+$/i, RE_TOTADIT=/^TOTAL DO ADITAMENTO/i,
       RE_TOTCONTR=/^TOTAL DO CONTRATO/i, RE_GLOBAL=/^VALOR GLOBAL/i;
 function parseAutoMedicao(rows){
