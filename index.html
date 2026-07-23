@@ -772,12 +772,23 @@ tr.resolved td textarea{text-decoration:line-through}
     <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
   </div>
 
+  <div class="card hidden" id="tadCard" style="border-left:3px solid var(--warn)">
+    <h2>Trabalhos adicionais por classificar <span class="tag" id="tadTag"></span>
+      <button class="btn ghost" style="float:right;padding:6px 14px" onclick="tadAlocarRestantes()">Alocar restantes a DIVERSOS</button>
+    </h2>
+    <div class="hint">Estes adicionais não foram reconhecidos automaticamente. Aloca cada um ao capítulo respetivo — é o que faz o custo real ficar corretamente distribuído. <b>Ficam sempre registados como adicionais</b>, por isso entram nos rácios da biblioteca mas não na calibração: alteração de âmbito não é erro de estimativa.</div>
+    <div style="overflow-x:auto">
+    <table><thead><tr><th style="width:90px">Ref.</th><th>Designação</th><th style="text-align:right;width:120px">Valor (€)</th><th style="width:280px">Capítulo</th></tr></thead>
+    <tbody id="tbTad"></tbody></table>
+    </div>
+  </div>
+
   <div class="card hidden" id="foPreviewCard">
     <div class="step"><div class="n">3</div><h2>Conferir e gravar <span class="tag" id="foFich"></span></h2></div>
     <div class="hint">Confere o mapeamento e os totais antes de gravar. Podes corrigir qualquer valor diretamente na tabela.</div>
     <div style="overflow-x:auto">
     <table class="preview">
-      <thead><tr><th>Capítulo (ficheiro da obra)</th><th>Capítulo standard</th><th style="text-align:right;width:150px">Total real (€)</th><th>Comentário da obra</th></tr></thead>
+      <thead><tr><th>Capítulo (ficheiro da obra)</th><th>Capítulo standard</th><th style="text-align:right;width:135px">Contrato (€)</th><th style="text-align:right;width:135px">Adicionais (€)</th><th style="text-align:right;width:135px">Total real (€)</th><th>Comentário da obra</th></tr></thead>
       <tbody id="tbFoPrev"></tbody>
     </table>
     </div>
@@ -2069,16 +2080,18 @@ function loadFecho(f){
 }
 function processFecho(sheet){
   const rows=XLSX.utils.sheet_to_json(FO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
-  FO_ROWS=[]; FO_METRICAS=null;
+  FO_ROWS=[]; FO_METRICAS=null; TAD_ITENS=[];
   if(isAutoSheet(rows)){
     // auto de medição: agregação automática por capítulo (Totais Finais) + quantidades físicas reais
     const out=extractAuto(rows)||{};
     FO_METRICAS=out.__metricas||null; delete out.__metricas;
     Object.entries(out).forEach(([cap,total])=>{
       const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
-      FO_ROWS.push({raw:cap,std:std||(CAPS.includes(cap)?cap:null),total,com:""});
+      FO_ROWS.push({raw:cap,std:std||(CAPS.includes(cap)?cap:null),total,adic:0,com:""});
     });
-    // trabalhos adicionais ao contrato (folha TAD_Auto), somados ao custo final de cada capítulo
+    // trabalhos adicionais: guardados EM SEPARADO do valor contratual.
+    // O total do capítulo é base+adicionais (é o custo real), mas a calibração
+    // usa só a base — senão mede alteração de âmbito em vez de erro de estimativa.
     let tadInfo="";
     const tadSheet=FO_WB.SheetNames.find(n=>/TAD_?Auto|ADICIONA/i.test(n));
     if(tadSheet){
@@ -2086,13 +2099,12 @@ function processFecho(sheet){
       if(tad){
         Object.entries(tad.porCap).forEach(([cap,val])=>{
           const row=FO_ROWS.find(r=>r.std===cap);
-          if(row){row.total+=val; row.com=(row.com?row.com+" · ":"")+"inclui trab. adicionais "+fmt(val,0)+" €";}
-          else FO_ROWS.push({raw:cap+" (trab. adicionais)",std:cap,total:val,com:"trabalhos adicionais ao contrato"});
+          if(row){ row.adic=(row.adic||0)+val; }
+          else FO_ROWS.push({raw:cap+" (só adicionais)",std:cap,total:0,adic:val,com:"sem valor contratual neste capítulo"});
         });
-        const semCap=tad.items.filter(x=>!x.cap);
-        const somaSem=semCap.reduce((s,x)=>s+x.total,0);
-        if(semCap.length) FO_ROWS.push({raw:"Trabalhos adicionais (a classificar)",std:"DIVERSOS",total:somaSem,com:semCap.length+" trab. adicionais sem capítulo automático — reclassifica se necessário"});
-        tadInfo=" · TAD "+fmt(tad.total,0)+" € ("+tad.items.length+" adicionais)";
+        TAD_ITENS=tad.items.map((x,i)=>({i,desc:x.desc,total:x.total,cap:x.cap||null,code:x.code||""}));
+        const semCap=TAD_ITENS.filter(x=>!x.cap).length;
+        tadInfo=" · TAD "+fmt(tad.total,0)+" € ("+tad.items.length+" adicionais"+(semCap?", "+semCap+" por classificar":"")+")";
       }
     }
     const nq=FO_METRICAS?Object.keys(FO_METRICAS).length:0;
@@ -2141,19 +2153,64 @@ function renderFoPreview(){
   FO_ROWS.forEach((r,i)=>{
     const tr=document.createElement('tr');
     const opts=['<option value="">— ignorar —</option>'].concat(CAPS.map(c=>`<option ${r.std===c?'selected':''}>${esc(c)}</option>`)).join("");
+    const ad=r.adic||0;
     tr.innerHTML=`<td>${esc(r.raw)}</td>
       <td><select data-i="${i}" class="foStd">${opts}</select></td>
       <td class="num"><input type="number" step="0.01" data-i="${i}" class="foTot" value="${r.total==null?'':r.total}" style="text-align:right"></td>
+      <td class="num"><input type="number" step="0.01" data-i="${i}" class="foAd" value="${ad||''}" placeholder="0" style="text-align:right;color:var(--warn)"></td>
+      <td class="num" style="font-weight:700">${fmt((r.total||0)+ad,0)}</td>
       <td>${esc(r.com)}</td>`;
     tb.appendChild(tr);
   });
   tb.querySelectorAll('.foStd').forEach(s=>s.addEventListener('change',e=>{FO_ROWS[+e.target.dataset.i].std=e.target.value||null;updFoTotal()}));
-  tb.querySelectorAll('.foTot').forEach(s=>s.addEventListener('input',e=>{const v=parseFloat(e.target.value);FO_ROWS[+e.target.dataset.i].total=isNaN(v)?null:v;updFoTotal()}));
+  tb.querySelectorAll('.foTot').forEach(s=>s.addEventListener('input',e=>{const v=parseFloat(e.target.value);FO_ROWS[+e.target.dataset.i].total=isNaN(v)?null:v;renderFoPreview()}));
+  tb.querySelectorAll('.foAd').forEach(s=>s.addEventListener('input',e=>{const v=parseFloat(e.target.value);FO_ROWS[+e.target.dataset.i].adic=isNaN(v)?0:v;renderFoPreview()}));
   updFoTotal();
 }
 function updFoTotal(){
-  const t=FO_ROWS.filter(r=>r.std&&r.total!=null).reduce((s,r)=>s+r.total,0);
-  document.getElementById('foTotal').textContent=fmt(t,0)+" €";
+  const v=FO_ROWS.filter(r=>r.std&&r.total!=null);
+  const base=v.reduce((s,r)=>s+(r.total||0),0);
+  const ad=v.reduce((s,r)=>s+(r.adic||0),0);
+  document.getElementById('foTotal').innerHTML=fmt(base+ad,0)+" €"+
+    (ad?' <span style="font-size:12px;font-weight:400;color:var(--warn)">(contrato '+fmt(base,0)+' + adicionais '+fmt(ad,0)+')</span>':'');
+  renderTadPendentes();
+}
+/* ---- alocação dos trabalhos adicionais que o classificador não reconheceu ---- */
+let TAD_ITENS=[];
+function renderTadPendentes(){
+  const card=document.getElementById('tadCard'); if(!card)return;
+  const pend=TAD_ITENS.filter(x=>!x.cap);
+  card.classList.toggle('hidden',!pend.length);
+  if(!pend.length)return;
+  document.getElementById('tadTag').textContent=pend.length+" por classificar · "+fmt(pend.reduce((s,x)=>s+x.total,0),0)+" €";
+  const tb=document.getElementById('tbTad'); tb.innerHTML="";
+  pend.forEach(x=>{
+    const opts=['<option value="">— escolher capítulo —</option>'].concat(CAPS.map(c=>`<option>${esc(c)}</option>`)).join("");
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono">${esc(x.code||"—")}</td><td>${esc(x.desc)}</td>
+      <td class="num" style="font-weight:600">${fmt(x.total,0)}</td>
+      <td><select data-t="${x.i}" class="tadCap">${opts}</select></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.tadCap').forEach(sel=>sel.addEventListener('change',e=>{
+    const it=TAD_ITENS.find(z=>z.i===+e.target.dataset.t); if(!it||!e.target.value)return;
+    it.cap=e.target.value;
+    const row=FO_ROWS.find(r=>r.std===it.cap);
+    if(row) row.adic=(row.adic||0)+it.total;
+    else FO_ROWS.push({raw:it.cap+" (só adicionais)",std:it.cap,total:0,adic:it.total,com:"trabalhos adicionais alocados manualmente"});
+    renderFoPreview();
+  }));
+}
+function tadAlocarRestantes(){
+  const pend=TAD_ITENS.filter(x=>!x.cap);
+  if(!pend.length)return;
+  if(!confirmar("Alocar os "+pend.length+" trabalhos adicionais por classificar a DIVERSOS?\n\nFicam registados como adicionais, fora da calibração."))return;
+  pend.forEach(x=>{ x.cap="DIVERSOS";
+    const row=FO_ROWS.find(r=>r.std==="DIVERSOS");
+    if(row) row.adic=(row.adic||0)+x.total;
+    else FO_ROWS.push({raw:"DIVERSOS (só adicionais)",std:"DIVERSOS",total:0,adic:x.total,com:"adicionais não classificados"});
+  });
+  renderFoPreview();
 }
 async function resolveFaseExistente(projeto_id,faseTipo){
   // Se já existe fase deste tipo, pergunta: substituir a(s) anterior(es) ou guardar como nova versão.
@@ -2195,14 +2252,17 @@ async function saveReal(){
   }
   await loadProjetos();
   await resolveFaseExistente(proj.id,faseTipo);
-  const total=linhas.reduce((s,r)=>s+r.total,0);
+  const total=linhas.reduce((s,r)=>s+(r.total||0)+(r.adic||0),0);
   const etiqueta=ehReal?('Auto/conta final · '+(document.getElementById('foFich').textContent||'')):('Orçamento de obra · '+(document.getElementById('foFich').textContent||''));
   const {data:fase,error}=await sb.from('fases').insert({
     projeto_id:proj.id,fase:faseTipo,etiqueta,
     data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
   }).select().single();
   if(error){alertx("Erro a criar a fase: "+error.message);return}
-  const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,total:r.total,comentario:r.com||null}));
+  const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,
+    total:(r.total||0)+(r.adic||0),          // custo real do capítulo
+    adicionais:r.adic||0,                    // parcela de alteração de âmbito
+    comentario:(r.adic?("inclui "+fmt(r.adic,0)+" € de trabalhos adicionais"+(r.com?" · ":"")):"")+(r.com||"")||null}));
   const {error:e2}=await sb.from('capitulos').insert(caps);
   if(e2){alertx("Erro a gravar capítulos: "+e2.message);return}
   toast("Fase "+faseTipo+" gravada — "+proj.nome+" · "+linhas.length+" capítulos, "+fmt(total,0)+" €.");
@@ -4490,7 +4550,9 @@ calibracaoDesvios=async function(){
     if(!orc||!real) return;
     const mo={},mr={};
     (porFase[orc.id]||[]).forEach(c=>mo[c.cap]=(mo[c.cap]||0)+ +c.total);
-    (porFase[real.id]||[]).forEach(c=>mr[c.cap]=(mr[c.cap]||0)+ +c.total);
+    // base contratual = total menos trabalhos adicionais: a calibração mede erro de
+    // estimativa, não alteração de âmbito nem revisão de preços
+    (porFase[real.id]||[]).forEach(c=>mr[c.cap]=(mr[c.cap]||0)+(+c.total - (+c.adicionais||0)));
     Object.keys(mr).forEach(cap=>{ if(mo[cap]>0) (out[cap]=out[cap]||{r:[]}).r.push(mr[cap]/mo[cap]) });
   });
   Object.keys(out).forEach(cap=>{
