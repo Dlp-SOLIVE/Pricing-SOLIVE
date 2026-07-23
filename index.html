@@ -4216,6 +4216,14 @@ const FIXTURES=[
    f:()=>{return runChecks(MQ_LIMPO()).F.every(x=>x.tipo!=="Erro aritmético")}},
   {nome:"E2E · quantidade fracionada em unidade contável",
    f:()=>{const it=MQ_LIMPO();it[3].qt=12.4;return runChecks(it).F.some(x=>x.tipo==="Quantidade fracionada")}},
+  {nome:"Referência embutida sai quando o projeto entra na base",
+   f:()=>{const s0=SESSION, orig=PROJETOS.slice();
+     SESSION={teste:true}; PROJETOS.length=0;
+     const semBase=lurbainNaBase();                 /* base vazia -> semente entra */
+     PROJETOS.push({nome:"L'Urbain"});
+     const comBase=lurbainNaBase();                 /* projeto na base -> semente sai */
+     PROJETOS.length=0; orig.forEach(p=>PROJETOS.push(p)); SESSION=s0;
+     return semBase===false && comBase===true}},
   {nome:"Lista de capítulos é dinâmica, não fixa em 33",
    f:()=>{const n=CAPS.length; CAPS.push("CAPÍTULO DE TESTE");
      const ok=CAPS.length===n+1 && CAPS.includes("CAPÍTULO DE TESTE"); CAPS.pop(); return ok}},
@@ -4418,6 +4426,7 @@ function guardarDescritores(){
    gatherProjectData, calibracaoDesvios, loadBenchmarks e renderComparar faziam,
    cada uma, uma consulta por projeto e outra por fase. Com dez projetos eram mais
    de vinte idas ao servidor, em série, com o ecrã parado. Agora: duas consultas. */
+function lurbainNaBase(){ return !!(SESSION && PROJETOS.some(p=>norm(p.nome).includes("URBAIN"))) }
 let SNAP=null, SNAP_T=0;
 async function snapshot(force){
   if(!SESSION) return {fases:[],caps:[]};
@@ -4433,8 +4442,15 @@ function invalidarSnapshot(){ SNAP=null; CALIB_CACHE=null; }
 
 gatherProjectData=async function(pref){
   const data=[];
-  const lurbCaps=Object.fromEntries(REF.capitulos.filter(c=>c.total>0).map(c=>[c.cap,c.total]));
-  data.push({nome:"L'Urbain",ano:2024,gfa:REF.gfa,fogos:REF.fogos,caps:lurbCaps,fase:"Orçamento",D:descritoresRef()});
+  /* A referência L'Urbain está embutida no código como semente da v1. Assim que o
+     projeto passa a existir na base — com o seu orçamento e o seu real — a semente
+     tem de sair, senão o L'Urbain conta duas vezes: puxa a mediana para si e finge
+     uma dispersão que não existe. */
+  if(!lurbainNaBase()){
+    const lurbCaps=Object.fromEntries(REF.capitulos.filter(c=>c.total>0).map(c=>[c.cap,c.total]));
+    data.push({nome:"L'Urbain (referência embutida)",ano:2024,gfa:REF.gfa,fogos:REF.fogos,
+               caps:lurbCaps,fase:"Orçamento",D:descritoresRef()});
+  }
   if(!SESSION) return data;
   const {fases,caps}=await snapshot();
   const porFase={}; caps.forEach(c=>{(porFase[c.fase_id]=porFase[c.fase_id]||[]).push(c)});
