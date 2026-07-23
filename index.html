@@ -1032,7 +1032,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 3c11187</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · abf9f3f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -3285,11 +3285,10 @@ async function renderLibProj(){
   const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',proj.id);
   const maisRecente=tipo=>{const m=(fases||[]).filter(f=>f.fase===tipo);return m.length?m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]:null;};
   const fOrc=maisRecente('Orçamento')||maisRecente('Contrato'), fReal=maisRecente('Real');
-  const capsDe=async f=>{ if(!f)return {}; const {data}=await sb.from('capitulos').select('*').eq('fase_id',f.id); const o={}; (data||[]).forEach(c=>{o[c.cap]=+c.total}); return o; };
+  const capsDe=async f=>{ if(!f)return {}; const {data}=await sb.from('capitulos').select('*').eq('fase_id',f.id); const o={}; (data||[]).forEach(c=>{o[c.cap]=(o[c.cap]||0)+ +c.total}); return o; };   // somar: pode haver mais do que uma linha por capítulo
   const orcCaps=await capsDe(fOrc), realCaps=await capsDe(fReal);
   const todos=[...new Set([...Object.keys(orcCaps),...Object.keys(realCaps)])];
-  // ordenar pela ordem standard dos 33 capítulos
-  todos.sort((a,b)=>{const ia=CAPS.findIndex(c=>norm(c)===norm(a)),ib=CAPS.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
+  todos.sort((a,b)=>a.localeCompare(b,'pt'));
   if(!todos.length){ tb.innerHTML='<tr><td colspan="6" style="color:#8794a8">Sem valores gravados. Importa o auto no Fecho de Obra para preencher a fase Real.</td></tr>'; LIB_SHOWN=null; renderLibQty(proj); return; }
   let tOrc=0,tReal=0;
   todos.forEach(cap=>{
@@ -4492,7 +4491,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · 3c11187";
+const BUILD="2026-07-23 · abf9f3f";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
