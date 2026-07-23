@@ -772,6 +772,17 @@ tr.resolved td textarea{text-decoration:line-through}
     <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
   </div>
 
+  <div class="card hidden" id="pricingOpt" style="background:#fafbfd">
+    <div class="grid g6" style="align-items:end">
+      <div style="grid-column:span 3"><label>Coluna do pricing sheet a importar</label>
+        <select id="pricingCol" onchange="PRICING_COL=this.value;if(FO_WB&&FO_SHEET)processFecho(FO_SHEET)">
+          <option value="venda">Venda — contrato de empreitada (recomendado)</option>
+          <option value="custo">Dry costs — custo da construtora</option>
+        </select></div>
+      <div style="grid-column:span 3"><div class="hint" style="margin:0">A biblioteca guarda valores de contrato de empreitada. O custo da construtora só interessa durante a orçamentação de projetos novos.</div></div>
+    </div>
+  </div>
+
   <div class="card hidden" id="autoOpt" style="background:#fafbfd">
     <div class="grid g6" style="align-items:end">
       <div style="grid-column:span 3"><label>Valor a considerar no auto de medição</label>
@@ -1016,7 +1027,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · a3de9ac</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · e95703f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -2138,6 +2149,20 @@ function loadFecho(f){
 function processFecho(sheet){
   FO_SHEET=sheet;
   const rows=XLSX.utils.sheet_to_json(FO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
+  /* pricing sheet Legendre: folha Selling Sheet, capítulos com prefixo TOTAL */
+  if(detectaPricing(rows)){
+    const P=parsePricingSheet(rows);
+    if(P&&Object.keys(P.caps).length){
+      const inf=pricingParaFO(P);
+      document.getElementById('foPreviewCard').classList.remove('hidden');
+      document.getElementById('pricingOpt').classList.remove('hidden');
+      renderFoPreview();
+      alertx("Pricing sheet lido: "+inf.n+" capítulos, "+fmt(inf.soma,0)+" €"+
+        (P.total!=null?" (total da folha "+fmt(P.total,0)+" €)":"")+
+        ". Coluna usada: "+(PRICING_COL==='custo'?"dry costs (custo)":"venda / contrato de empreitada")+".",true);
+      return;
+    }
+  }
   /* auto de medição: formato próprio, com valor executado e aditamentos */
   if(detectaAuto(rows)){
     const A=parseAutoMedicao(rows);
@@ -4399,7 +4424,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · a3de9ac";
+const BUILD="2026-07-23 · e95703f";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4410,7 +4435,8 @@ const FUNCIONALIDADES=[
  ["Consultas ao mercado","cstAbrir"],
  ["Versões do orçamento","gravarVersao"],
  ["Preços unitários","colherPU"],
- ["Ponte com o DPR","exportDprBaseline"]
+ ["Ponte com o DPR","exportDprBaseline"],
+ ["Leitor de pricing sheet","parsePricingSheet"]
 ];
 function runSelfTests(){
   console.log("BUILD: "+BUILD);
@@ -4888,6 +4914,57 @@ function autoParaFO(A){
   return {nAdit:A.aditItens.length,
           somaAdit:A.aditItens.reduce((s,x)=>s+x.total,0),
           porClassificar:A.aditItens.filter(x=>!x.cap).length};
+}
+
+/* ==========================================================================
+   LEITOR DE PRICING SHEET (formato Legendre)
+   Folha "Selling Sheet": uma linha por capítulo, com o prefixo "TOTAL ".
+   Era precisamente esse prefixo que fazia o leitor genérico descartar as
+   linhas — RE_SOMA trata "TOTAL ..." como linha de somatório.
+   Colunas: C = venda (contrato de empreitada) · I = dry costs (custo).
+   ========================================================================== */
+let PRICING_COL='venda';   // 'venda' = contrato promotora | 'custo' = dry costs
+function detectaPricing(rows){
+  let n=0;
+  for(let i=0;i<Math.min(rows.length,60);i++){
+    const b=norm((rows[i]||[])[1]);
+    if(/^TOTAL\s+\S/.test(b)) n++;
+    if(/^TOTAL PROJETO/.test(b)) return n>=8;
+  }
+  return false;
+}
+function parsePricingSheet(rows){
+  const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
+  /* localiza as colunas pelos rótulos COSTS / DRY COSTS, com recurso a posições fixas */
+  let cVenda=2, cCusto=8;
+  for(let i=0;i<Math.min(rows.length,20);i++){
+    const r=(rows[i]||[]).map(x=>norm(x));
+    const iDry=r.findIndex(x=>/^DRY COSTS?$/.test(x));
+    if(iDry>0){ cCusto=iDry; break; }
+  }
+  const caps={}; let total=null, totalCusto=null;
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i]||[];
+    const b=String(r[1]==null?'':r[1]).trim();
+    if(!/^TOTAL\s+\S/i.test(b)) continue;
+    const nome=b.replace(/^TOTAL\s+/i,'').trim();
+    const vVenda=num(r[cVenda]), vCusto=num(r[cCusto]);
+    if(/^PROJETO|^PROJECTO/i.test(nome)){ total=vVenda; totalCusto=vCusto; break; }
+    const v = PRICING_COL==='custo' ? vCusto : vVenda;
+    if(v==null) continue;
+    const std=normalizaCap(CAPS.find(c=>norm(c)===norm(nome))||mapCapitulo(nome)||nome);
+    const chave=std||nome;
+    caps[chave]=(caps[chave]||0)+v;
+  }
+  return {caps,total,totalCusto};
+}
+function pricingParaFO(P){
+  FO_ROWS=[]; TAD_ITENS=[];
+  Object.entries(P.caps).forEach(([raw,val])=>{
+    const std=normalizaCap(CAPS.find(c=>norm(c)===norm(raw))||mapCapitulo(raw)||raw);
+    FO_ROWS.push({raw,std,total:val,adic:0,com:""});
+  });
+  return {n:FO_ROWS.length,soma:Object.values(P.caps).reduce((s,v)=>s+v,0)};
 }
 
 
