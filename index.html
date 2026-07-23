@@ -241,8 +241,13 @@ tr.resolved td textarea{text-decoration:line-through}
 
 <div id="ctxbar">
   <span class="lbl">Projeto ativo</span>
-  <input type="text" id="ctxNome" list="ctxList" placeholder="Escolhe ou escreve um nome" autocomplete="off">
-  <datalist id="ctxList"></datalist>
+  <div style="position:relative">
+    <input type="text" id="ctxNome" list="ctxList" placeholder="Escolhe ou escreve um nome" autocomplete="off">
+    <datalist id="ctxList"></datalist>
+    <button id="ctxSeta" onclick="toggleCtxLista(event)" title="Ver projetos existentes"
+      style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9FB6D4;cursor:pointer;font-size:11px;padding:3px 5px;line-height:1">&#9662;</button>
+    <div id="ctxLista" class="hidden" style="position:absolute;top:calc(100% + 5px);left:0;min-width:250px;max-height:290px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 26px rgba(20,58,103,.22);z-index:320;padding:5px"></div>
+  </div>
   <span id="ctxNew" class="newtag hidden">NOVO</span>
   <div class="desc" id="ctxDesc"></div>
   <button class="btnctx" style="margin-left:auto" onclick="abrirDescritores()">Editar descritores</button>
@@ -772,6 +777,16 @@ tr.resolved td textarea{text-decoration:line-through}
     <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
   </div>
 
+  <div class="card" id="accCard" style="background:#fafbfd;padding:13px 18px">
+    <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">
+      <input type="checkbox" id="foAcumular" onchange="toggleAcumular(this)" style="width:16px;height:16px;accent-color:var(--teal)">
+      <span><b>Somar a este ficheiro os que já importei</b> — para obras com mais do que uma empreitada</span>
+    </label>
+    <div id="accAviso" class="hidden" style="margin-top:9px;font-size:12px;color:#48566b;background:#EEF6F7;border-left:3px solid var(--teal);padding:9px 12px;border-radius:6px">
+      Modo acumulação ligado. Cada ficheiro que carregares soma-se por capítulo ao que já está no quadro, em vez de o substituir. Grava só depois de teres importado todos. Desliga a caixa para recomeçar do zero.
+    </div>
+  </div>
+
   <div class="card hidden" id="pricingOpt" style="background:#fafbfd">
     <div class="grid g6" style="align-items:end">
       <div style="grid-column:span 3"><label>Coluna do pricing sheet a importar</label>
@@ -1027,7 +1042,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · e95703f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 4b90ef9</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -4424,7 +4439,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · e95703f";
+const BUILD="2026-07-23 · 4b90ef9";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4436,7 +4451,9 @@ const FUNCIONALIDADES=[
  ["Versões do orçamento","gravarVersao"],
  ["Preços unitários","colherPU"],
  ["Ponte com o DPR","exportDprBaseline"],
- ["Leitor de pricing sheet","parsePricingSheet"]
+ ["Leitor de pricing sheet","parsePricingSheet"],
+ ["Acumular vários ficheiros","fundirFO"],
+ ["Troca de projeto propaga","refrescarVistaAtual"]
 ];
 function runSelfTests(){
   console.log("BUILD: "+BUILD);
@@ -4562,7 +4579,8 @@ function ctxAplicar(){
   set('foAbc',D.abc); set('foFogos',D.fogos); set('foAcima',D.acima); set('foAbaixo',D.abaixo);
   set('foPisosAcima',D.pisosA); set('foPisosAbaixo',D.pisosB); set('foImplantacao',D.implantacao);
   set('foLote',D.lote); set('foEstacionamento',D.park);
-  const fp=document.getElementById('foProjeto'); if(fp&&!fp.value) fp.value=CTX.nome;
+  set('foProjeto',CTX.nome);   // sincroniza sempre: antes só preenchia se estivesse vazio,
+                               // e trocar de projeto deixava o Fecho de Obra no anterior
   if(ORC_META) ORC_META.nome=ORC_META.nome||CTX.nome;
   ctxRender();
   saveLocal('ctx',CTX);
@@ -4573,6 +4591,29 @@ function ctxResumoHTML(){
     .map(([k,l,u])=>`${l} <b>${fmt(CTX.D[k],0)}${u?" "+u:""}</b>`);
   return partes.length?partes.join(" · "):'<span class="miss">Sem descritores preenchidos</span>';
 }
+function toggleCtxLista(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation()}
+  const box=document.getElementById('ctxLista'); if(!box)return;
+  if(!box.classList.contains('hidden')){ box.classList.add('hidden'); return; }
+  box.innerHTML="";
+  if(!PROJETOS.length){
+    box.innerHTML='<div style="padding:10px 12px;font-size:12.5px;color:#8794a8">Ainda não há projetos gravados. Escreve um nome para criar.</div>';
+  } else {
+    PROJETOS.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(p=>{
+      const d=document.createElement('div');
+      d.style.cssText="padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-radius:6px";
+      d.onmouseover=()=>d.style.background='#F0F3F8'; d.onmouseout=()=>d.style.background='';
+      d.innerHTML=esc(p.nome)+(p.gfa?'<span style="color:#8794a8;font-size:11.5px"> · '+fmt(p.gfa,0)+' m²</span>':'');
+      d.onclick=()=>{ box.classList.add('hidden'); document.getElementById('ctxNome').value=p.nome; ctxDefinir(p.nome); };
+      box.appendChild(d);
+    });
+  }
+  box.classList.remove('hidden');
+}
+document.addEventListener('click',e=>{
+  const box=document.getElementById('ctxLista');
+  if(box&&!box.classList.contains('hidden')&&!e.target.closest('#ctxLista')&&e.target.id!=='ctxSeta') box.classList.add('hidden');
+});
 function ctxRender(){
   const bar=document.getElementById('ctxDesc'); if(bar) bar.innerHTML=ctxResumoHTML();
   const inp=document.getElementById('ctxNome'); if(inp&&inp.value!==CTX.nome) inp.value=CTX.nome;
@@ -4595,6 +4636,28 @@ async function ctxDefinir(nome){
   else  { CTX.novo=true; }
   ctxAplicar();
   if(p&&SESSION){ await loadOrcBoard(p.nome); }
+  await refrescarVistaAtual();
+}
+/* Trocar de projeto tem de repercutir-se na vista aberta, senão fica-se a olhar
+   para os números do projeto anterior sem nada o indicar. */
+async function refrescarVistaAtual(){
+  const v=['analisador','estimador','orcamento','consultas','fecho','comparar','biblioteca']
+    .find(x=>{const e=document.getElementById('view-'+x);return e&&!e.classList.contains('hidden')});
+  if(!v) return;
+  try{
+    if(v==='biblioteca'){ await refreshLib(); ['libProjeto','verProj','dprProj'].forEach(preencherProjSelect); }
+    if(v==='fecho')      { refreshFecho(); }
+    if(v==='consultas')  { await refreshConsultas(); }
+    if(v==='comparar')   { renderComparar(); }
+    if(v==='estimador'){
+      /* a estimativa anterior é de outro projeto — esconder em vez de a deixar a enganar */
+      const r=document.getElementById('estResults');
+      if(r&&!r.classList.contains('hidden')){
+        r.classList.add('hidden'); EST_LAST=null;
+        alertx("Mudaste de projeto — a estimativa anterior foi limpa. Carrega em Estimar outra vez.",true);
+      }
+    }
+  }catch(e){ console.warn('refrescarVistaAtual',e); }
 }
 function abrirDescritores(){
   const g=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?"":v)};
@@ -4965,6 +5028,48 @@ function pricingParaFO(P){
     FO_ROWS.push({raw,std,total:val,adic:0,com:""});
   });
   return {n:FO_ROWS.length,soma:Object.values(P.caps).reduce((s,v)=>s+v,0)};
+}
+
+/* ==========================================================================
+   ACUMULAR VÁRIOS FICHEIROS NA MESMA FASE
+   Uma obra pode ter mais do que uma empreitada (o Parque Atlântico tem duas).
+   Importar em duas fases separadas não serve: o estimador e a calibração usam
+   sempre a fase mais recente de cada tipo, pelo que metade da obra ficaria de
+   fora sem qualquer aviso. Aqui os ficheiros somam-se por capítulo antes de
+   gravar, produzindo uma única fase com o total correto.
+   ========================================================================== */
+let FO_ACUMULA=false, FO_FONTES=[];
+function fundirFO(anterior){
+  anterior.forEach(a=>{
+    if(!a.std){ FO_ROWS.push(a); return; }
+    const m=FO_ROWS.find(r=>r.std===a.std);
+    if(m){
+      m.total=(m.total||0)+(a.total||0);
+      m.adic =(m.adic ||0)+(a.adic ||0);
+      m.raw  =[a.raw,m.raw].filter(Boolean).join(" + ");
+      m.com  =[a.com,m.com].filter(Boolean).join(" · ");
+    } else FO_ROWS.push(a);
+  });
+}
+const _processFecho_acc=processFecho;
+processFecho=function(sheet){
+  const acumular=FO_ACUMULA&&FO_ROWS.length>0;
+  const anterior=acumular?FO_ROWS.map(r=>Object.assign({},r)):null;
+  const tadAnterior=acumular?TAD_ITENS.slice():null;
+  const r=_processFecho_acc(sheet);
+  if(anterior){
+    fundirFO(anterior);
+    if(tadAnterior&&tadAnterior.length) TAD_ITENS=tadAnterior.concat(TAD_ITENS.map((x,i)=>Object.assign({},x,{i:tadAnterior.length+i})));
+    renderFoPreview();
+    const tot=FO_ROWS.reduce((s,x)=>s+(x.total||0)+(x.adic||0),0);
+    alertx("Ficheiro somado ao anterior. "+FO_ROWS.length+" capítulos · total acumulado "+fmt(tot,0)+" €.",true);
+  }
+  return r;
+};
+function toggleAcumular(cb){
+  FO_ACUMULA=cb.checked;
+  const av=document.getElementById('accAviso');
+  if(av) av.classList.toggle('hidden',!cb.checked);
 }
 
 
