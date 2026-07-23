@@ -1032,7 +1032,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 27c4c6f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · d4aa197</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -2380,6 +2380,12 @@ async function saveReal(){
   }
   await loadProjetos();
   await resolveFaseExistente(proj.id,faseTipo);
+  /* agregar por capítulo ANTES de calcular o total: duas empreitadas podem
+     trazer o mesmo capítulo e não pode haver linhas repetidas na base */
+  const agg={};
+  linhas.forEach(r=>{const o=agg[r.std]=agg[r.std]||{total:0,adic:0,com:[]};
+    o.total+=(r.total||0); o.adic+=(r.adic||0); if(r.com)o.com.push(r.com);});
+  const linhasAgg=Object.entries(agg).map(([std,o])=>({std,total:o.total,adic:o.adic,com:o.com.join(" · ")}));
   const total=linhasAgg.reduce((s,r)=>s+(r.total||0)+(r.adic||0),0);
   const etiqueta=ehReal?('Auto/conta final · '+(document.getElementById('foFich').textContent||'')):('Orçamento de obra · '+(document.getElementById('foFich').textContent||''));
   const {data:fase,error}=await sb.from('fases').insert({
@@ -2387,11 +2393,6 @@ async function saveReal(){
     data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
   }).select().single();
   if(error){alertx("Erro a criar a fase: "+error.message);return}
-  /* agregar por capítulo: duas empreitadas podem trazer o mesmo capítulo */
-  const agg={};
-  linhas.forEach(r=>{const o=agg[r.std]=agg[r.std]||{total:0,adic:0,com:[]};
-    o.total+=(r.total||0); o.adic+=(r.adic||0); if(r.com)o.com.push(r.com);});
-  const linhasAgg=Object.entries(agg).map(([std,o])=>({std,total:o.total,adic:o.adic,com:o.com.join(" · ")}));
   const caps=linhasAgg.map(r=>({fase_id:fase.id,cap:r.std,
     total:(r.total||0)+(r.adic||0),          // custo real do capítulo
     adicionais:r.adic||0,                    // parcela de alteração de âmbito
@@ -3462,7 +3463,20 @@ async function sbq(promise,ctx){
     return r;
   }catch(e){ console.error(ctx,e); alertx(ctx+": "+(e.message||e)); return {data:null,error:e}; }
 }
-window.addEventListener('error',e=>{ if(e.message&&!/ResizeObserver/.test(e.message)) console.error('[erro]',e.message,e.filename,e.lineno); });
+window.addEventListener('error',e=>{
+  if(e.message&&!/ResizeObserver/.test(e.message)){
+    console.error('[erro]',e.message,e.filename,e.lineno);
+    alertx("Erro inesperado: "+e.message+"\n\nSe voltar a acontecer, comunica esta mensagem.");
+  }
+});
+/* promessas rejeitadas sem catch: era assim que os erros nos botões desapareciam
+   sem deixar rasto e a plataforma parecia simplesmente não fazer nada */
+window.addEventListener('unhandledrejection',e=>{
+  const m=(e.reason&&e.reason.message)||String(e.reason||'');
+  if(!m)return;
+  console.error('[promessa]',m);
+  alertx("A ação falhou: "+m+"\n\nComunica esta mensagem para eu corrigir.");
+});
 
 /* Autosave local: uma atualização de página deixava de custar uma sessão inteira de análise. */
 const LS='solive_orc_v21_';
@@ -4498,7 +4512,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · 27c4c6f";
+const BUILD="2026-07-23 · d4aa197";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
