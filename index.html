@@ -1032,7 +1032,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · d4aa197</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · d54b06f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -3257,8 +3257,18 @@ async function refreshLib(){
 /* O seletor da Biblioteca e a barra de topo têm de ser a mesma coisa. Ter dois
    controlos a apontar para projetos diferentes era a última herança do desenho
    antigo, e dava exatamente o conflito que se via no ecrã. */
+/* Alinha o seletor da Biblioteca com o projeto ativo. Tem de casar pelo TEXTO
+   da opção, porque o valor é o id numérico do projeto. */
+async function alinharLibProjeto(){
+  const sel=document.getElementById('libProjeto');
+  if(!sel||!CTX.nome) return;
+  const o=[...sel.options].find(x=>norm(x.text)===norm(CTX.nome));
+  if(o&&sel.value!==o.value){ sel.value=o.value; await renderLibProj(); }
+}
 async function libProjetoMudou(v){
-  if(v&&norm(v)!==norm(CTX.nome)) await ctxDefinir(v);   // arrasta a barra de topo
+  const p=PROJETOS.find(x=>x.id===+v);
+  const nome=p?p.nome:v;
+  if(nome&&norm(nome)!==norm(CTX.nome)) await ctxDefinir(nome);   // arrasta a barra de topo
   else await renderLibProj();
 }
 async function renderLibProj(){
@@ -4512,7 +4522,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · d4aa197";
+const BUILD="2026-07-23 · d54b06f";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4713,7 +4723,7 @@ function ctxRender(){
     ? `<span class="pn">${esc(CTX.nome)}</span>${CTX.novo?'<span class="tag">novo</span>':''}<span style="color:#c4ccd8;margin:0 4px">|</span> ${ctxResumoHTML()}`
     : ctxResumoHTML();
   ['anEcho','estEcho','orcEcho'].forEach(id=>{const e=document.getElementById(id); if(e) e.innerHTML=eco});
-  ['libProjeto','verProj','dprProj','mcProj'].forEach(id=>{
+  ['verProj','dprProj','mcProj'].forEach(id=>{
     const sel=document.getElementById(id);
     if(sel&&CTX.nome){const o=[...sel.options].find(x=>norm(x.text)===norm(CTX.nome)||norm(x.value)===norm(CTX.nome)); if(o) sel.value=o.value;}
   });
@@ -4736,13 +4746,9 @@ async function refrescarVistaAtual(){
   if(!v) return;
   try{
     if(v==='biblioteca'){
-      await refreshLib();
-      ['libProjeto','verProj','dprProj'].forEach(preencherProjSelect);
-      const sel=document.getElementById('libProjeto');
-      if(sel&&CTX.nome){
-        const o=[...sel.options].find(x=>norm(x.value)===norm(CTX.nome)||norm(x.text)===norm(CTX.nome));
-        if(o){ sel.value=o.value; await renderLibProj(); }   // redesenhar, não só mudar o valor
-      }
+      await refreshLib();                       // reconstrói o libProjeto com as opções por ID
+      ['verProj','dprProj'].forEach(preencherProjSelect);   // estes sim funcionam por nome
+      await alinharLibProjeto();
       renderVersoes();
     }
     if(v==='fecho')      { refreshFecho(); }
