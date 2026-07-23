@@ -832,7 +832,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <div class="hint">Comparação por capítulo entre a fase de orçamento mais recente e os valores reais da obra.</div>
     <div style="overflow-x:auto">
     <table class="preview">
-      <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² ABC</th></tr></thead>
+      <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Contrato (€)</th><th style="text-align:right">Adicionais (€)</th><th style="text-align:right">Real total (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² ABC</th></tr></thead>
       <tbody id="tbDesvios"></tbody>
     </table>
     </div>
@@ -922,6 +922,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <div class="card">
       <h2>Taxonomia de capítulos e drivers de escala
         <button class="btn teal" style="float:right;padding:6px 14px" onclick="saveTaxonomia()">Gravar taxonomia</button>
+        <button class="btn ghost" style="float:right;padding:6px 14px;margin-right:8px" onclick="reporTaxonomia()">Repor standard</button>
       </h2>
       <div class="hint">Esta tabela é o motor do estimador. Para cada capítulo define-se a grandeza física que comanda o custo (<b>driver</b>), o <b>expoente de escala</b> (1 = cresce proporcionalmente; &lt;1 = tem componente fixa) e o <b>índice de inflação</b> aplicável. Editável aqui e gravada na base — não é preciso republicar a plataforma.</div>
       <div style="overflow-x:auto">
@@ -1031,7 +1032,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · a5db0cc</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 3c11187</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -2379,14 +2380,19 @@ async function saveReal(){
   }
   await loadProjetos();
   await resolveFaseExistente(proj.id,faseTipo);
-  const total=linhas.reduce((s,r)=>s+(r.total||0)+(r.adic||0),0);
+  const total=linhasAgg.reduce((s,r)=>s+(r.total||0)+(r.adic||0),0);
   const etiqueta=ehReal?('Auto/conta final · '+(document.getElementById('foFich').textContent||'')):('Orçamento de obra · '+(document.getElementById('foFich').textContent||''));
   const {data:fase,error}=await sb.from('fases').insert({
     projeto_id:proj.id,fase:faseTipo,etiqueta,
     data:document.getElementById('foData').value||new Date().toISOString().slice(0,10),total
   }).select().single();
   if(error){alertx("Erro a criar a fase: "+error.message);return}
-  const caps=linhas.map(r=>({fase_id:fase.id,cap:r.std,
+  /* agregar por capítulo: duas empreitadas podem trazer o mesmo capítulo */
+  const agg={};
+  linhas.forEach(r=>{const o=agg[r.std]=agg[r.std]||{total:0,adic:0,com:[]};
+    o.total+=(r.total||0); o.adic+=(r.adic||0); if(r.com)o.com.push(r.com);});
+  const linhasAgg=Object.entries(agg).map(([std,o])=>({std,total:o.total,adic:o.adic,com:o.com.join(" · ")}));
+  const caps=linhasAgg.map(r=>({fase_id:fase.id,cap:r.std,
     total:(r.total||0)+(r.adic||0),          // custo real do capítulo
     adicionais:r.adic||0,                    // parcela de alteração de âmbito
     comentario:(r.adic?("inclui "+fmt(r.adic,0)+" € de trabalhos adicionais"+(r.com?" · ":"")):"")+(r.com||"")||null}));
@@ -2416,22 +2422,50 @@ async function renderDesvios(proj,linhas){
   const tb=document.getElementById('tbDesvios'); tb.innerHTML="";
   document.getElementById('foDesvTag').textContent=proj.nome+" · base: "+baseTag;
   const gfa=proj.gfa||null;
-  let tOrc=0,tReal=0;
+
+  /* Agregar por capítulo antes de comparar. Sem isto, duas linhas com o mesmo
+     capítulo (típico quando se acumulam duas empreitadas) apareciam duas vezes
+     e o total do orçamento era contado a dobrar. */
+  const real={};
   linhas.forEach(r=>{
-    const orc=base[r.std]!=null?base[r.std]:null;
-    if(orc!=null)tOrc+=orc; tReal+=r.total;
-    const dv=orc!=null&&orc>0?(r.total-orc)/orc:null;
+    if(!r.std)return;
+    const o=real[r.std]=real[r.std]||{base:0,adic:0};
+    o.base+=(r.total||0); o.adic+=(r.adic||0);
+  });
+  /* União dos capítulos das duas fases: os que existem no orçamento mas não no
+     real também têm de aparecer — antes desapareciam sem deixar rasto. */
+  const todos=[...new Set([...Object.keys(base),...Object.keys(real)])]
+    .sort((a,b)=>a.localeCompare(b,'pt'));
+
+  let tOrc=0,tReal=0,tAdic=0;
+  todos.forEach(cap=>{
+    const orc=base[cap]!=null?base[cap]:null;
+    const o=real[cap]||null;
+    const rBase=o?o.base:null, rAdic=o?o.adic:0;
+    const rTot=o?o.base+o.adic:null;          // custo real = contrato + adicionais
+    if(orc!=null)tOrc+=orc;
+    if(rTot!=null){tReal+=rTot; tAdic+=rAdic}
+    const dv=(orc!=null&&orc>0&&rTot!=null)?(rTot-orc)/orc:null;
     const c=dv==null?"#8794a8":dv>0.05?"var(--err)":dv<-0.05?"var(--ok)":"var(--ink)";
+    const nota=orc==null?'<span class="tag">só no real</span>':(rTot==null?'<span class="tag">não executado</span>':'');
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(r.std)}</td><td class="num">${orc==null?"—":fmt(orc,0)}</td><td class="num">${fmt(r.total,0)}</td>
-      <td class="num" style="color:${c}">${orc==null?"—":(r.total-orc>0?"+":"")+fmt(r.total-orc,0)}</td>
+    tr.innerHTML=`<td>${esc(cap)} ${nota}</td>
+      <td class="num">${orc==null?"—":fmt(orc,0)}</td>
+      <td class="num">${rBase==null?"—":fmt(rBase,0)}</td>
+      <td class="num" style="color:${rAdic?'var(--warn)':'#c4ccd8'}">${rAdic?fmt(rAdic,0):"—"}</td>
+      <td class="num" style="font-weight:600">${rTot==null?"—":fmt(rTot,0)}</td>
+      <td class="num" style="color:${c}">${(orc==null||rTot==null)?"—":(rTot-orc>0?"+":"")+fmt(rTot-orc,0)}</td>
       <td class="num" style="color:${c};font-weight:700">${dv==null?"—":(dv>0?"+":"")+fmt(dv*100,1)+"%"}</td>
-      <td class="num">${gfa?fmt(r.total/gfa,2):"—"}</td>`;
+      <td class="num">${(gfa&&rTot!=null)?fmt(rTot/gfa,2):"—"}</td>`;
     tb.appendChild(tr);
   });
   const dvT=tOrc>0?(tReal-tOrc)/tOrc:null;
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td style="font-weight:700">TOTAL</td><td class="num" style="font-weight:700">${fmt(tOrc,0)}</td><td class="num" style="font-weight:700">${fmt(tReal,0)}</td>
+  tr.innerHTML=`<td style="font-weight:700">TOTAL</td>
+    <td class="num" style="font-weight:700">${fmt(tOrc,0)}</td>
+    <td class="num" style="font-weight:700">${fmt(tReal-tAdic,0)}</td>
+    <td class="num" style="font-weight:700;color:var(--warn)">${tAdic?fmt(tAdic,0):"—"}</td>
+    <td class="num" style="font-weight:700">${fmt(tReal,0)}</td>
     <td class="num" style="font-weight:700">${(tReal-tOrc>0?"+":"")+fmt(tReal-tOrc,0)}</td>
     <td class="num" style="font-weight:700;color:${dvT!=null&&dvT>0.05?'var(--err)':'var(--ok)'}">${dvT==null?"—":(dvT>0?"+":"")+fmt(dvT*100,1)+"%"}</td>
     <td class="num" style="font-weight:700">${gfa?fmt(tReal/gfa,2):"—"}</td>`;
@@ -4145,6 +4179,8 @@ function renderTaxonomia(){
   tb.innerHTML="";
   capsOrd().forEach(cap=>{
     const t=TAXO[cap]||TAXO_DEFAULT;
+    const base=TAXO_BASE[cap]||TAXO_DEFAULT;
+    const alterado=base.driver!==t.driver||base.exp!==t.exp;
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="font-size:12.5px;font-weight:500">${esc(cap)}</td>
       <td><select style="padding:5px 7px;font-size:12px" onchange="TAXO['${cap.replace(/'/g,"\\'")}'].driver=this.value">
@@ -4156,10 +4192,16 @@ function renderTaxonomia(){
         <option value="mat" ${t.idx==='mat'?'selected':''}>Material</option>
         <option value="mep" ${t.idx==='mep'?'selected':''}>MEP / equipamento</option>
       </select></td>
-      <td style="font-size:11.5px;color:#69788f;max-width:300px">${esc(t.racional||"")}</td>
+      <td style="max-width:320px"><textarea data-r="${esc(cap)}" class="taxRac" rows="2"
+        style="width:100%;font-size:11.5px;color:#69788f;padding:5px 7px;min-height:0"
+        placeholder="Porque é que este capítulo escala assim">${esc(t.racional||"")}</textarea>
+        ${alterado?'<div style="font-size:10.5px;color:var(--warn);margin-top:3px">Driver alterado face ao standard ('+esc(DRIVER_LBL[base.driver]||base.driver)+')</div>':''}</td>
       <td>${CAPS_BASE.includes(cap)?'<span style="color:#c4ccd8;font-size:11px" title="Capítulo do standard">std</span>':`<button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarCapitulo('${cap.replace(/'/g,"\\'")}')">✕</button>`}</td>`;
     tb.appendChild(tr);
   });
+  tb.querySelectorAll('.taxRac').forEach(t=>t.addEventListener('input',e=>{
+    const c=e.target.dataset.r; if(TAXO[c]) TAXO[c].racional=e.target.value;
+  }));
   const tr2=document.getElementById('tbRegras'); if(!tr2)return;
   tr2.innerHTML="";
   REGRAS_CAP.forEach(r=>{
@@ -4168,6 +4210,12 @@ function renderTaxonomia(){
       <td><button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarRegraCap(${r.id})">✕</button></td>`;
     tr2.appendChild(tr);
   });
+}
+function reporTaxonomia(){
+  if(!confirmar("Repor todos os drivers, expoentes e racionais nos valores do standard?\n\nPerdes as alterações que fizeste nesta tabela."))return;
+  TAXO=JSON.parse(JSON.stringify(TAXO_BASE));
+  renderTaxonomia();
+  alertx("Taxonomia reposta no standard. Grava para confirmar na base.",true);
 }
 async function saveTaxonomia(){
   if(!SESSION)return alertx("Inicia sessão para gravar a taxonomia.");
@@ -4444,7 +4492,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · a5db0cc";
+const BUILD="2026-07-23 · 3c11187";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4493,6 +4541,23 @@ saveOrcBoard=async function(){
     const c=prompt("Comentário desta versão (o que mudou e porquê):","");
     if(c!==null){ const v=await gravarVersao(nome,c); if(v) alertx("Versão v"+v+" gravada no histórico.",true); }
   }
+};
+/* O Fecho de Obra importa autos com centenas de artigos com preço unitário,
+   e nada disso chegava à biblioteca de preços — só o Analisador colhia. */
+const _saveReal_pu=saveReal;
+saveReal=async function(){
+  const r=await _saveReal_pu.apply(this,arguments);
+  try{
+    if(SESSION&&FO_ARTIGOS&&FO_ARTIGOS.length){
+      const nome=document.getElementById('foProjeto').value.trim();
+      const dt=document.getElementById('foData').value||"";
+      const ano=dt?+dt.slice(0,4):new Date().getFullYear();
+      const faseTipo=(document.querySelector('input[name=foFase]:checked')||{}).value||'Real';
+      const n=await colherPU(FO_ARTIGOS,nome,ano,faseTipo);
+      if(n) alertx(n+" preços unitários colhidos para a biblioteca.",true);
+    }
+  }catch(e){ console.warn('colheita de PU',e); }
+  return r;
 };
 const _saveAnalysis=saveAnalysis;
 saveAnalysis=async function(){
@@ -4815,6 +4880,16 @@ verRepor=function(n){
   return _verRepor(n);
 };
 
+/* A roda do rato sobre um <select> altera-lhe o valor sem que o utilizador
+   perceba. Numa tabela como a da taxonomia, basta uma passagem de scroll para
+   trocar vários drivers sem deixar rasto. Bloqueado. */
+document.addEventListener('wheel',e=>{
+  if(e.target&&e.target.tagName==='SELECT'&&document.activeElement!==e.target){ e.target.blur(); }
+},{passive:true});
+document.addEventListener('mousedown',e=>{
+  if(e.target&&e.target.tagName==='SELECT') e.target.dataset.tocado='1';
+});
+
 /* ---------- 5. Ligação da barra de contexto ---------- */
 (function ligarCtx(){
   const inp=document.getElementById('ctxNome');
@@ -4894,7 +4969,7 @@ function parseAutoMedicao(rows){
   if(!C) return null;
   const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
   let secao=null, cap=null, adit=null;
-  const caps={}, aditItens=[], aditTot={};
+  const caps={}, aditItens=[], aditTot={}, artigos=[];
   let totContrato=null, totGlobal=null, totContratoExec=null, totGlobalExec=null;
   for(let i=C.hdr+1;i<rows.length;i++){
     const r=rows[i]||[];
@@ -4911,13 +4986,18 @@ function parseAutoMedicao(rows){
     if(!adit){
       if(/^(I|V|X|L)+$/i.test(a)&&d&&!un){ secao=d; continue; }
       if(/^CAP\.?\s*\d+/i.test(a)&&d){ cap=d; if(!(cap in caps)) caps[cap]=0; continue; }
-      if(un&&V!=null&&V!==0&&cap) caps[cap]+=V;   // soma artigos, não subtotais
+      if(un&&V!=null&&V!==0&&cap){
+        caps[cap]+=V;                                   // soma artigos, não subtotais
+        const qt=num(r[C.un+1]);                        // coluna de quantidade contratual
+        if(qt!=null&&qt>0) artigos.push({desc:d,un,qt,cap:normalizaCap(mapCapitulo(cap)||cap),
+                                         pu:qt?V/qt:null,pt:V});
+      }
     } else {
       if(un&&V!=null&&V!==0&&d)
         aditItens.push({adit,desc:d,total:V,executado:vExec,cap:classificaTrabalho(d)});
     }
   }
-  return {caps,aditItens,aditTot,totContrato,totGlobal,totContratoExec,totGlobalExec};
+  return {caps,aditItens,aditTot,totContrato,totGlobal,totContratoExec,totGlobalExec,artigos};
 }
 /* classificação de um trabalho adicional pela sua descrição.
    ~95% de acerto no auto nº29 do Parque Atlântico; o resto vai para
@@ -4964,6 +5044,13 @@ function classificaTrabalho(d){
 /* transforma o resultado do parser nas linhas do quadro de importação */
 function autoParaFO(A){
   FO_ROWS=[]; TAD_ITENS=[];
+  /* o auto traz quantidades ao nível do artigo: alimentam os rácios físicos
+     do Comparar e a biblioteca de preços unitários. Sem isto o projeto entrava
+     na biblioteca sem uma única quantidade. */
+  if(A.artigos&&A.artigos.length){
+    FO_METRICAS=extractPhys(A.artigos);
+    FO_ARTIGOS=A.artigos;
+  }
   Object.entries(A.caps).forEach(([raw,val])=>{
     if(!val) return;
     const std=normalizaCap(CAPS.find(c=>norm(c)===norm(raw))||mapCapitulo(raw)||raw);
@@ -5043,7 +5130,7 @@ function pricingParaFO(P){
    fora sem qualquer aviso. Aqui os ficheiros somam-se por capítulo antes de
    gravar, produzindo uma única fase com o total correto.
    ========================================================================== */
-let FO_ACUMULA=false, FO_FONTES=[];
+let FO_ACUMULA=false, FO_FONTES=[], FO_ARTIGOS=[];
 function fundirFO(anterior){
   anterior.forEach(a=>{
     if(!a.std){ FO_ROWS.push(a); return; }
