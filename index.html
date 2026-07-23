@@ -248,6 +248,7 @@ tr.resolved td textarea{text-decoration:line-through}
   <button class="btnctx" style="margin-left:auto" onclick="abrirDescritores()">Editar descritores</button>
 </div>
 <div id="busy"></div>
+<datalist id="projList"></datalist><datalist id="orcProjList"></datalist><datalist id="cstProjList"></datalist>
 <div class="hidden" id="ctxMirror">
   <input type="text" id="pNome"><input type="number" id="pGFA"><input type="number" id="pGCA">
   <input type="number" id="pAbaixo"><input type="number" id="pFogos"><input type="number" id="pPisosAcima">
@@ -344,6 +345,7 @@ tr.resolved td textarea{text-decoration:line-through}
       <h2>Alertas e comentários para a equipa projetista <span class="tag" id="findTag"></span></h2>
       <div class="hint">Edita o comentário de cada linha antes de exportar — o texto pré-preenchido é uma sugestão.</div>
       <div class="filters">
+        <div><label>Mostrar</label><select id="fRes" onchange="renderFindings()"><option value="todos">Todos os alertas</option><option value="pend">Só por tratar</option></select></div>
         <div><label>Severidade</label><select id="fSev" onchange="renderFindings()"><option value="">Todas</option><option value="erro">Erro</option><option value="aviso">Aviso</option><option value="info">Nota</option></select></div>
         <div><label>Tipo de teste</label><select id="fTipo" onchange="renderFindings()"><option value="">Todos</option></select></div>
         <div><label>Capítulo</label><select id="fCap" onchange="renderFindings()"><option value="">Todos</option></select></div>
@@ -1152,7 +1154,10 @@ async function loadProjetos(){
   const {data,error}=await sb.from('projetos').select('*').order('nome');
   if(error){console.error(error);return}
   PROJETOS=data||[];
-  document.getElementById('projList').innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+  const opts=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
+  ['projList','orcProjList','cstProjList','ctxList','foProjList'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=opts;   // nunca rebentar se faltar um
+  });
 }
 async function loadMappings(){
   const {data}=await sb.from('mapeamentos').select('*');
