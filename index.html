@@ -1016,7 +1016,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · a3de9ac</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -4399,13 +4399,31 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
+const BUILD="2026-07-23 · a3de9ac";
+const FUNCIONALIDADES=[
+ ["Leitor de autos de medição","detectaAuto"],
+ ["Escolha contratual/executado","colunasAuto"],
+ ["Trabalhos adicionais separados","classificaTrabalho"],
+ ["Equivalências de capítulo","normalizaCap"],
+ ["Contexto de projeto único","ctxDefinir"],
+ ["Capítulos extensíveis","addCapitulo"],
+ ["Consultas ao mercado","cstAbrir"],
+ ["Versões do orçamento","gravarVersao"],
+ ["Preços unitários","colherPU"],
+ ["Ponte com o DPR","exportDprBaseline"]
+];
 function runSelfTests(){
+  console.log("BUILD: "+BUILD);
+  console.table(FUNCIONALIDADES.map(([n,f])=>({funcionalidade:n,presente:typeof window[f]==='function'?"sim":"NAO"})));
   const res=FIXTURES.map(t=>{let ok=false,err=null;try{ok=!!t.f()}catch(e){err=e.message}return {nome:t.nome,ok,err}});
   const bad=res.filter(r=>!r.ok);
   console.table(res.map(r=>({teste:r.nome,resultado:r.ok?"OK":"FALHOU",erro:r.err||""})));
   const el=document.getElementById('selfTestFooter');
-  if(el) el.innerHTML=" · <b style='color:"+(bad.length?"var(--err)":"var(--teal)")+"'>Autotestes: "+
-    (res.length-bad.length)+"/"+res.length+(bad.length?" — falhou: "+bad.map(b=>b.nome).join("; "):" OK")+"</b>";
+  const semFunc=FUNCIONALIDADES.filter(([n,f])=>typeof window[f]!=='function');
+  if(el) el.innerHTML=" · <b style='color:"+(bad.length||semFunc.length?"var(--err)":"var(--teal)")+"'>Autotestes: "+
+    (res.length-bad.length)+"/"+res.length+(bad.length?" — falhou: "+bad.map(b=>b.nome).join("; "):" OK")+
+    " · "+(FUNCIONALIDADES.length-semFunc.length)+"/"+FUNCIONALIDADES.length+" funcionalidades"+
+    (semFunc.length?" — em falta: "+semFunc.map(x=>x[0]).join(", "):"")+"</b>";
   return bad.length===0;
 }
 
