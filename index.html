@@ -772,6 +772,17 @@ tr.resolved td textarea{text-decoration:line-through}
     <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
   </div>
 
+  <div class="card hidden" id="autoOpt" style="background:#fafbfd">
+    <div class="grid g6" style="align-items:end">
+      <div style="grid-column:span 3"><label>Valor a considerar no auto de medição</label>
+        <select id="autoBase" onchange="AUTO_BASE=this.value;if(FO_WB&&FO_SHEET)processFecho(FO_SHEET)">
+          <option value="con">Total contratado, com aditamentos (recomendado)</option>
+          <option value="exec">Executado/certificado à data do auto</option>
+        </select></div>
+      <div style="grid-column:span 3"><div class="hint" style="margin:0">O total contratado é o custo da obra. O executado só interessa se a obra ainda estiver a decorrer e quiseres a posição àquela data.</div></div>
+    </div>
+  </div>
+
   <div class="card hidden" id="tadCard" style="border-left:3px solid var(--warn)">
     <h2>Trabalhos adicionais por classificar <span class="tag" id="tadTag"></span>
       <button class="btn ghost" style="float:right;padding:6px 14px" onclick="tadAlocarRestantes()">Alocar restantes a DIVERSOS</button>
@@ -784,6 +795,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 
   <div class="card hidden" id="foPreviewCard">
+    <div id="foAviso" class="hidden" style="background:#FBE5E8;border:1px solid var(--err);border-radius:8px;padding:11px 14px;margin-bottom:13px;font-size:12.5px;color:#7a1f28"></div>
     <div class="step"><div class="n">3</div><h2>Conferir e gravar <span class="tag" id="foFich"></span></h2></div>
     <div class="hint">Confere o mapeamento e os totais antes de gravar. Podes corrigir qualquer valor diretamente na tabela.</div>
     <div style="overflow-x:auto">
@@ -1329,6 +1341,51 @@ function detectHeader(rows){
   return null;
 }
 
+const ALIAS_CAP={
+  "REVESTIMENTOS DE PAVIMENTOS":"PAVIMENTOS DIVERSOS",
+  "REVESTIMENTOS DE PAREDES":"CERÂMICOS",
+  "REVESTIMENTOS DE TECTOS":"CERÂMICOS",
+  "REVESTIMENTOS DE TETOS":"CERÂMICOS",
+  "TECTOS FALSOS":"GESSO CARTONADO",
+  "TETO FALSO":"GESSO CARTONADO",
+  "TETOS FALSOS":"GESSO CARTONADO",
+  "PAREDES":"ALVENARIAS",
+  "TELAS":"VÃOS",
+  "VEDAÇÃO":"SERRALHARIAS",
+  "ESCADAS":"CANTARIAS",
+  "BANCADAS":"CANTARIAS",
+  "RODAPÉS":"PAVIMENTOS DIVERSOS",
+  "FACHADAS":"ETICS",
+  "FUNDAÇÕES":"ESTABILIDADE",
+  "ESTRUTURAS":"ESTABILIDADE",
+  "PAVIMENTO TERREO":"ESTABILIDADE",
+  "TRABALHOS PREPARATÓRIOS":"ESTALEIRO",
+  "ISOLAMENTOS":"IMPERMEABILIZAÇÕES E ISOLAMENTOS",
+  "IMPERMEABILIZAÇÕES E DRENAGENS":"IMPERMEABILIZAÇÕES E ISOLAMENTOS",
+  "ESGOTOS DOMÉSTICOS":"REDE DE ESGOTOS",
+  "ESGOTOS PLUVIAIS":"REDE DE ÁGUAS PLUVIAIS",
+  "ABASTECIMENTO DE ÁGUA":"REDE DE ÁGUAS",
+  "REDE DE ÁGUAS DE INCÊNDIO":"SCIE",
+  "EQUIPAMENTO SANITÁRIO":"EQUIPAMENTOS SANITÁRIOS",
+  "EQUIPAMENTO COZINHA/ COPAS / BARES":"COZINHAS",
+  "PÉRGULA E BARBECUE":"PAISAGISMO",
+  "INFRAESTRUTURAS VIÁRIAS":"DIVERSOS",
+  "INFRAESTRUTURAS ELÉTRICAS":"ELETRICIDADE E ILUMINAÇÃO",
+  "TRÂNSITO":"DIVERSOS","TRABALHOS DIVERSOS":"DIVERSOS",
+  "SEGURANÇA CONTRA INCÊNDIOS EM EDIFÍCIOS":"SCIE",
+  "INFRAESTRUTURAS DE TELECOMUNICAÇÕES EM EDIFÍCIOS":"ITED"
+};
+/* garante que o capítulo devolvido existe mesmo na lista ativa */
+function normalizaCap(c){
+  if(!c) return null;
+  const pre=ALIAS_CAP[c]; if(pre&&CAPS.includes(pre)) return pre;   // equivalência tem prioridade
+  if(CAPS.includes(c)) return c;
+  const a=ALIAS_CAP[c]; if(a&&CAPS.includes(a)) return a;
+  const n=norm(c); const hit=CAPS.find(x=>norm(x)===n); if(hit) return hit;
+  const al=Object.keys(ALIAS_CAP).find(k=>norm(k)===n);
+  if(al&&CAPS.includes(ALIAS_CAP[al])) return ALIAS_CAP[al];
+  return null;
+}
 function mapCapitulo(txt){
   const t=norm(txt);
   for(const [re,cap] of CAP_MAP){ if(re.test(t)) return cap; }
@@ -2004,7 +2061,7 @@ foDrop.ondragleave=()=>foDrop.classList.remove('over');
 foDrop.ondrop=e=>{e.preventDefault();foDrop.classList.remove('over');if(e.dataTransfer.files[0])loadFecho(e.dataTransfer.files[0])};
 foFi.onchange=()=>{if(foFi.files[0])loadFecho(foFi.files[0])};
 
-let FO_WB=null;
+let FO_SHEET=null; let FO_WB=null;
 function refreshFecho(){
   const off=document.getElementById('foOffline');
   const dl=document.getElementById('foProjList');
@@ -2079,14 +2136,30 @@ function loadFecho(f){
   r.readAsArrayBuffer(f);
 }
 function processFecho(sheet){
+  FO_SHEET=sheet;
   const rows=XLSX.utils.sheet_to_json(FO_WB.Sheets[sheet],{header:1,raw:true,defval:null});
+  /* auto de medição: formato próprio, com valor executado e aditamentos */
+  if(detectaAuto(rows)){
+    const A=parseAutoMedicao(rows);
+    if(A&&Object.keys(A.caps).length){
+      const inf=autoParaFO(A);
+      document.getElementById('foPreviewCard').classList.remove('hidden');
+      document.getElementById('autoOpt').classList.remove('hidden');
+      renderFoPreview();
+      const g=A.totGlobal!=null?" · Valor Global Geral "+fmt(A.totGlobal,0)+" €":"";
+      alertx("Auto de medição lido: "+Object.keys(A.caps).length+" capítulos executados, "+
+        inf.nAdit+" trabalhos adicionais ("+fmt(inf.somaAdit,0)+" €)"+g+". "+
+        (inf.porClassificar?inf.porClassificar+" adicionais por classificar — painel amarelo abaixo.":"Todos classificados automaticamente."),true);
+      return;
+    }
+  }
   FO_ROWS=[]; FO_METRICAS=null; TAD_ITENS=[];
   if(isAutoSheet(rows)){
     // auto de medição: agregação automática por capítulo (Totais Finais) + quantidades físicas reais
     const out=extractAuto(rows)||{};
     FO_METRICAS=out.__metricas||null; delete out.__metricas;
     Object.entries(out).forEach(([cap,total])=>{
-      const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
+      const std=normalizaCap(CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||cap);
       FO_ROWS.push({raw:cap,std:std||(CAPS.includes(cap)?cap:null),total,adic:0,com:""});
     });
     // trabalhos adicionais: guardados EM SEPARADO do valor contratual.
@@ -2124,7 +2197,7 @@ function processFecho(sheet){
       const caps=Object.entries(custos).filter(([c,v])=>c!=="(sem capítulo)"&&v>0);
       if(caps.length){
         caps.forEach(([cap,total])=>{
-          const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
+          const std=normalizaCap(CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||cap);
           FO_ROWS.push({raw:cap,std:std||(CAPS.includes(cap)?cap:null),total,com:""});
         });
         document.getElementById('foFich').innerHTML='<span class="tag">mapa com preços · custos por capítulo</span>';
@@ -2137,7 +2210,7 @@ function processFecho(sheet){
         const raw=r2[cCap]!=null?String(r2[cCap]).trim():"";
         if(!raw||/^TOTAL/i.test(raw)) continue;
         const tot=typeof r2[cTot]==='number'?r2[cTot]:null;
-        const std=CAPS.find(c=>norm(c)===norm(raw))||mapCapitulo(raw);
+        const std=normalizaCap(CAPS.find(c=>norm(c)===norm(raw))||mapCapitulo(raw)||raw);
         FO_ROWS.push({raw,std,total:tot,com:cCom>-1&&r2[cCom]!=null?String(r2[cCom]):""});
       }
     }
@@ -2168,6 +2241,15 @@ function renderFoPreview(){
   updFoTotal();
 }
 function updFoTotal(){
+  const perdidas=FO_ROWS.filter(r=>!r.std&&(r.total||r.adic));
+  const av=document.getElementById('foAviso');
+  if(av){
+    const somaP=perdidas.reduce((s,r)=>s+(r.total||0)+(r.adic||0),0);
+    av.classList.toggle('hidden',!perdidas.length);
+    if(perdidas.length) av.innerHTML='<b>'+perdidas.length+' capítulo(s) por classificar — '+fmt(somaP,0)+' € que NÃO serão gravados.</b><br>'+
+      perdidas.map(r=>esc(r.raw)+' ('+fmt((r.total||0)+(r.adic||0),0)+' €)').join(' · ')+
+      '<br>Escolhe o capítulo standard em cada linha antes de gravar.';
+  }
   const v=FO_ROWS.filter(r=>r.std&&r.total!=null);
   const base=v.reduce((s,r)=>s+(r.total||0),0);
   const ad=v.reduce((s,r)=>s+(r.adic||0),0);
@@ -2546,7 +2628,7 @@ function processOrcProp(sheet,fname){
   // mapear cada capítulo da proposta ao standard e atualizar o board
   const cobertos=[]; let totalProp=0;
   caps.forEach(([cap,v])=>{
-    const std=CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||(CAPS.includes(cap)?cap:null);
+    const std=normalizaCap(CAPS.find(c=>norm(c)===norm(cap))||mapCapitulo(cap)||cap);
     if(!std)return;
     const row=ORC_ROWS.find(r=>r.cap===std);
     if(row){
@@ -4654,6 +4736,141 @@ showView=function(v){ _showView(v); ctxRender(); };
   if(c&&c.nome){ CTX=Object.assign(CTX,c); ctxAplicar(); }
   else ctxRender();
 })();
+
+/* ==========================================================================
+   LEITOR DE AUTOS DE MEDIÇÃO
+   Formato Legendre/empreiteiro: contrato base em secções CAP., seguido de
+   Aditamentos. Duas diferenças críticas face a um mapa de quantidades:
+     · o valor a ler é o EXECUTADO (coluna sob "TOTAL ACUMULADO"), não o
+       contratual ("Totais Finais") — senão lê-se o contrato outra vez;
+     · os Aditamentos são trabalhos adicionais e têm de ficar separados.
+   ========================================================================== */
+function detectaAuto(rows){
+  for(let i=0;i<Math.min(rows.length,12);i++){
+    const t=(rows[i]||[]).map(x=>norm(x)).join(' ');
+    if(/AUTO DE MEDI[ÇC][ÃA]O/.test(t)) return true;
+  }
+  return false;
+}
+function colunasAuto(rows){
+  /* procura a linha de cabeçalho com Designação/Un./Totais Finais e localiza,
+     à direita de "Totais Finais", a coluna de valor acumulado */
+  for(let i=0;i<Math.min(rows.length,25);i++){
+    const r=(rows[i]||[]).map(x=>norm(x));
+    const iDes=r.findIndex(x=>/DESIGNA/.test(x));
+    const iUn =r.findIndex(x=>/^UN\.?$/.test(x));
+    const iCon=r.findIndex(x=>/TOTAIS? FINA/.test(x));
+    if(iDes>=0&&iUn>=0&&iCon>=0){
+      let iExec=-1;
+      for(let c=iCon+1;c<r.length;c++){ if(/^VALOR$/.test(r[c])){ iExec=c; break; } }
+      if(iExec<0) iExec=iCon+2;
+      return {hdr:i,art:0,des:iDes,un:iUn,con:iCon,exec:iExec};
+    }
+  }
+  return null;
+}
+/* Que valor do auto conta como custo da obra?
+   'con'  = Totais Finais — o valor total contratado, incluindo aditamentos.
+            É o custo da obra, independentemente de quanto estava medido à data.
+   'exec' = Total acumulado — quanto estava certificado naquele auto.
+            Só faz sentido para obra ainda a decorrer. */
+let AUTO_BASE='con';
+const RE_ADIT=/^A\s?\d+$/i, RE_TOTADIT=/^TOTAL DO ADITAMENTO/i,
+      RE_TOTCONTR=/^TOTAL DO CONTRATO/i, RE_GLOBAL=/^VALOR GLOBAL/i;
+function parseAutoMedicao(rows){
+  const C=colunasAuto(rows);
+  if(!C) return null;
+  const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
+  let secao=null, cap=null, adit=null;
+  const caps={}, aditItens=[], aditTot={};
+  let totContrato=null, totGlobal=null, totContratoExec=null, totGlobalExec=null;
+  for(let i=C.hdr+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const a=String(r[C.art]==null?'':r[C.art]).trim();
+    const d=String(r[C.des]==null?'':r[C.des]).trim();
+    const un=String(r[C.un]==null?'':r[C.un]).trim();
+    const vExec=num(r[C.exec]), vCon=num(r[C.con]);
+    const V = AUTO_BASE==='exec' ? vExec : vCon;   // por omissão: valor total contratado
+    if(RE_TOTCONTR.test(norm(d))){ totContrato=V; totContratoExec=vExec; adit=null; continue; }
+    if(RE_GLOBAL.test(norm(d))){ totGlobal=V; totGlobalExec=vExec; break; }   // fim do auto
+    if(/CONTROLO DE ADIANTAMENTO/i.test(norm(a)+' '+norm(d))) break;  // anexo, não é medição
+    if(RE_TOTADIT.test(norm(d))){ if(adit) aditTot[adit]=V; adit=null; continue; }
+    if(RE_ADIT.test(a)&&d){ adit=d; continue; }
+    if(!adit){
+      if(/^(I|V|X|L)+$/i.test(a)&&d&&!un){ secao=d; continue; }
+      if(/^CAP\.?\s*\d+/i.test(a)&&d){ cap=d; if(!(cap in caps)) caps[cap]=0; continue; }
+      if(un&&V!=null&&V!==0&&cap) caps[cap]+=V;   // soma artigos, não subtotais
+    } else {
+      if(un&&V!=null&&V!==0&&d)
+        aditItens.push({adit,desc:d,total:V,executado:vExec,cap:classificaTrabalho(d)});
+    }
+  }
+  return {caps,aditItens,aditTot,totContrato,totGlobal,totContratoExec,totGlobalExec};
+}
+/* classificação de um trabalho adicional pela sua descrição.
+   ~95% de acerto no auto nº29 do Parque Atlântico; o resto vai para
+   alocação manual, que é o comportamento correto — não inventar. */
+const REGRAS_TRAB=[
+ [/estaleiro|mobiliza|desmobiliza|seguran[çc]a.*higiene|montagem de gr[uú]a/i,"ESTALEIRO"],
+ [/\bviga\b|\bpilar|laje|funda[çc]|sapata|estrutur|value engineering estabilidade|carote/i,"ESTABILIDADE"],
+ [/escava|aterro|movimento de terra|conten[çc][ãa]o|talude|demoli[çc][ãa]o do muro|muro sul|murete|reabilita[çc][ãa]o de muros/i,"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA"],
+ [/cobertura|pala sobre/i,"COBERTURAS"],
+ [/impermeabiliza|isolamento|terra[çc]o/i,"IMPERMEABILIZAÇÕES E ISOLAMENTOS"],
+ [/alvenaria|tijolo/i,"ALVENARIAS"],
+ [/krion|solid.?e? surface|pedra sinterizada|painel comp[óo]sito/i,"PEDRA"],
+ [/etics|capoto|fachada/i,"ETICS"],
+ [/reboco|estuque|argamassa/i,"ARGAMASSAS"],
+ [/cer[âa]mic|mosaico|gr[ée]s|porcelan/i,"CERÂMICOS"],
+ [/te[ct]?to falso|gesso cartonado|pladur|apainelado|arm[áa]rio t[ée]cnico|alheta/i,"GESSO CARTONADO"],
+ [/betonilha/i,"BETONILHAS"],
+ [/soalho|flutuante|v[íi]nil|madeira.*pavimento|rodap|revestimento de pavimento|revestimento de hall/i,"PAVIMENTOS DIVERSOS"],
+ [/pintura|revpasta/i,"PINTURAS"],
+ [/cantaria|soleira|peitoril|bancada|escada/i,"CANTARIAS"],
+ [/serralharia|guarda|corrim[ãa]o|gradeamento|chapa quinada|capeamento|mola a[ée]rea|chamin/i,"SERRALHARIAS"],
+ [/caixilhar|janela|\bv[ãa]o|vidro|envidra|estore|persiana|resguardo de duche|perfil de transi/i,"VÃOS"],
+ [/carpintaria|porta|roupeiro|divis[óo]ria/i,"CARPINTARIAS"],
+ [/sanit|lavat[óo]rio|banheira|duche|torneira|misturadora|sif[ãa]o/i,"EQUIPAMENTOS SANITÁRIOS"],
+ [/cozinha|placa de ind/i,"COZINHAS"],
+ [/piscina|jacuzz|sauna/i,"PISCINA"],
+ [/elevador/i,"ELEVADORES"],
+ [/esgoto|tubagem silent|courette/i,"REDE DE ESGOTOS"],
+ [/[áa]gua|hidropressora|eletrobomba|contador|v[áa]lvula de reten|multicamada/i,"REDE DE ÁGUAS"],
+ [/pluvia|caleira/i,"REDE DE ÁGUAS PLUVIAIS"],
+ [/\bg[áa]s\b/i,"REDE DE GÁS"],
+ [/el[ée]tric|ilumina|quadro|tomada|\bcabo\b|posto de transforma|m[ée]dia tens[ãa]o/i,"ELETRICIDADE E ILUMINAÇÃO"],
+ [/v[íi]deo|cctv|intrus|controlo de acess/i,"SEGURANÇA INTEGRADA"],
+ [/ited|telecomunica|\bzap\b|\bati\b/i,"ITED"],
+ [/corta.?fogo|inc[êe]ndio|scie|dete[çc]|sprinkler/i,"SCIE"],
+ [/avac|climatiza|ventila|difus[ãa]o|conduta|termoacum|unidade[s]? interior|grelha/i,"AVAC"],
+ [/paisagis|planta|relva|rega|canteiro|betuminoso|ilha rodovi|arranjo exterior/i,"PAISAGISMO"]
+];
+function classificaTrabalho(d){
+  const s=String(d||"");
+  for(const [re,cap] of REGRAS_TRAB) if(re.test(s)) return normalizaCap(cap);
+  return null;
+}
+/* transforma o resultado do parser nas linhas do quadro de importação */
+function autoParaFO(A){
+  FO_ROWS=[]; TAD_ITENS=[];
+  Object.entries(A.caps).forEach(([raw,val])=>{
+    if(!val) return;
+    const std=normalizaCap(CAPS.find(c=>norm(c)===norm(raw))||mapCapitulo(raw)||raw);
+    const ex=FO_ROWS.find(r=>r.std&&r.std===std);
+    if(ex){ ex.total+=val; ex.raw+=" + "+raw; }
+    else FO_ROWS.push({raw,std,total:val,adic:0,com:""});
+  });
+  A.aditItens.forEach((it,i)=>{
+    if(it.cap){
+      const row=FO_ROWS.find(r=>r.std===it.cap);
+      if(row) row.adic=(row.adic||0)+it.total;
+      else FO_ROWS.push({raw:it.cap+" (só adicionais)",std:it.cap,total:0,adic:it.total,com:"trabalhos adicionais"});
+    }
+    TAD_ITENS.push({i,desc:it.adit+" · "+it.desc,total:it.total,cap:it.cap||null,code:""});
+  });
+  return {nAdit:A.aditItens.length,
+          somaAdit:A.aditItens.reduce((s,x)=>s+x.total,0),
+          porClassificar:A.aditItens.filter(x=>!x.cap).length};
+}
 
 
 initSupa();
