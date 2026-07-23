@@ -1004,7 +1004,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <div class="card">
     <div class="hint" id="libHint"></div>
     <div class="filters">
-      <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="renderLibProj()"></select></div>
+      <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="libProjetoMudou(this.value)"></select></div>
       <div style="margin-left:auto;display:flex;align-items:end;gap:8px"><button class="btn navy" onclick="exportWrapUp()">Wrap-up por capítulo</button><button class="btn teal" onclick="exportWrapUpLegendre()">Wrap-up Legendre</button></div>
     </div>
     <div class="legend hidden" id="libLegend">
@@ -1032,7 +1032,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · abf9f3f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 27c4c6f</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -3253,6 +3253,13 @@ async function refreshLib(){
   selP.innerHTML=opts.join("");
   renderLibProj();
 }
+/* O seletor da Biblioteca e a barra de topo têm de ser a mesma coisa. Ter dois
+   controlos a apontar para projetos diferentes era a última herança do desenho
+   antigo, e dava exatamente o conflito que se via no ecrã. */
+async function libProjetoMudou(v){
+  if(v&&norm(v)!==norm(CTX.nome)) await ctxDefinir(v);   // arrasta a barra de topo
+  else await renderLibProj();
+}
 async function renderLibProj(){
   const v=document.getElementById('libProjeto').value;
   const tb=document.getElementById('tbLib'); tb.innerHTML="";
@@ -4491,7 +4498,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · abf9f3f";
+const BUILD="2026-07-23 · 27c4c6f";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4714,7 +4721,16 @@ async function refrescarVistaAtual(){
     .find(x=>{const e=document.getElementById('view-'+x);return e&&!e.classList.contains('hidden')});
   if(!v) return;
   try{
-    if(v==='biblioteca'){ await refreshLib(); ['libProjeto','verProj','dprProj'].forEach(preencherProjSelect); }
+    if(v==='biblioteca'){
+      await refreshLib();
+      ['libProjeto','verProj','dprProj'].forEach(preencherProjSelect);
+      const sel=document.getElementById('libProjeto');
+      if(sel&&CTX.nome){
+        const o=[...sel.options].find(x=>norm(x.value)===norm(CTX.nome)||norm(x.text)===norm(CTX.nome));
+        if(o){ sel.value=o.value; await renderLibProj(); }   // redesenhar, não só mudar o valor
+      }
+      renderVersoes();
+    }
     if(v==='fecho')      { refreshFecho(); }
     if(v==='consultas')  { await refreshConsultas(); }
     if(v==='comparar')   { renderComparar(); }
