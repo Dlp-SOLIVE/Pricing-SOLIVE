@@ -1036,7 +1036,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 398b737</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 9ac7dcd</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -1697,22 +1697,25 @@ function renderCustos(){
 let PHYS={};
 // Grandezas físicas: [rótulo, unidade alvo, regex na descrição (ou null), capítulos (ou null)]
 const PHYS_DEFS=[
-  ["Escavação","m³",/escava/i,null],
-  ["Aterro","m³",/aterro/i,null],
-  ["Transporte a vazadouro","m³",/vazadouro|transporte a dep|transporte de terras/i,null],
-  ["Betão e estruturas","m³",/bet[ãa]o|maci[çc]o|sapata|\blaje|pilar|\bviga|estaca|parede moldada|muro de|fund[aã]/i,["ESTABILIDADE"]],
+  /* Cada grandeza casa por descrição (regex) OU por capítulo. Os capítulos têm de
+     ser os nomes ATUAIS dos 33 standard: depois da normalização, "REVESTIMENTO
+     PAVIMENTOS" passa a "PAVIMENTOS DIVERSOS", e as definições antigas deixavam
+     de casar — era por isso que faltavam quantidades no Comparar. */
+  ["Escavação","m³",/escava|abertura de caixa|desaterro/i,["MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA"]],
+  ["Aterro","m³",/aterro|enchimento/i,null],
+  ["Transporte a vazadouro","m³",/vazadouro|transporte a dep|carga.*transporte/i,null],
+  ["Betão e estruturas","m³",/bet[ãa]o|maci[çc]o|sapata|\blaje|\bviga\b|\bpilar|muro de bet/i,["ESTABILIDADE"]],
   ["Cofragem","m²",/cofrag/i,null],
   ["Aço em varão","kg",/var[ãa]o|armadura|a[çc]o a500/i,null],
-  ["Fachada / ETICS","m²",/fachada|etics|capoto|revestimento exterior/i,["ETICS"]],
-  // acabamentos (sobretudo pisos tipo acima do solo)
-  ["Cerâmicos","m²",null,["CERÂMICOS"]],
-  ["Revestimentos de pavimentos","m²",null,["REVESTIMENTOS DE PAVIMENTOS","PAVIMENTOS DIVERSOS"]],
-  ["Revestimentos de paredes","m²",null,["REVESTIMENTOS DE PAREDES"]],
-  ["Revestimentos de tectos","m²",null,["REVESTIMENTOS DE TECTOS"]],
-  ["Pinturas","m²",null,["PINTURAS"]],
-  ["Gesso cartonado","m²",null,["GESSO CARTONADO"]],
-  ["Carpintarias","un",null,["CARPINTARIAS"]],
-  ["Vãos / caixilharia","un",null,["VÃOS"]]
+  ["Fachada / ETICS","m²",/fachada|etics|capoto/i,["ETICS"]],
+  ["Cerâmicos","m²",/cer[âa]mic|mosaico|gr[ée]s|porcelan/i,["CERÂMICOS"]],
+  ["Revestimentos de pavimentos","m²",/pavimento|soalho|flutuante|v[íi]nil|linóleo/i,["PAVIMENTOS DIVERSOS"]],
+  ["Pinturas","m²",/pintura|esmalte|tinta/i,["PINTURAS"]],
+  ["Gesso cartonado","m²",/gesso cartonado|pladur|te[ct]?to falso/i,["GESSO CARTONADO"]],
+  ["Alvenarias","m²",/alvenaria|tijolo|bloco de bet/i,["ALVENARIAS"]],
+  ["Impermeabilizações","m²",/impermeabiliza|tela asf[áa]lt|membrana/i,["IMPERMEABILIZAÇÕES E ISOLAMENTOS"]],
+  ["Carpintarias","un",/porta interior|roupeiro|arm[áa]rio/i,["CARPINTARIAS"]],
+  ["Vãos / caixilharia","un",/caixilhar|janela|porta exterior/i,["VÃOS"]]
 ];
 function uEq(u,alvo){
   u=norm(u).replace("2","²").replace("3","³").toLowerCase();
@@ -3308,7 +3311,7 @@ async function renderLibProj(){
   const {data:fases}=await sb.from('fases').select('*').eq('projeto_id',proj.id);
   const maisRecente=tipo=>{const m=(fases||[]).filter(f=>f.fase===tipo);return m.length?m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]:null;};
   const fOrc=maisRecente('Orçamento')||maisRecente('Contrato'), fReal=maisRecente('Real');
-  LIB_TEM_REAL=!!fReal;
+  LIB_TEM_FASE=!!(fReal||fOrc);   // quantidades podem vir do orçamento, não só do real
   const capsDe=async f=>{ if(!f)return {}; const {data}=await sb.from('capitulos').select('*').eq('fase_id',f.id); const o={}; (data||[]).forEach(c=>{o[c.cap]=(o[c.cap]||0)+ +c.total}); return o; };   // somar: pode haver mais do que uma linha por capítulo
   const orcCaps=await capsDe(fOrc), realCaps=await capsDe(fReal);
   const todos=[...new Set([...Object.keys(orcCaps),...Object.keys(realCaps)])];
@@ -3344,7 +3347,7 @@ async function renderLibProj(){
   LIB_SHOWN=proj?{nome:proj.nome,local:proj.local||"",fase:Object.keys(realCaps).length?"Real":"Orçamento",gfa:proj.gfa,gca:proj.gca,fogos:proj.fogos,caps:Object.entries(refCaps).map(([cap,total])=>({cap,total}))}:null;
   renderLibQty(proj);
 }
-let LIB_SHOWN=null, LIB_TEM_REAL=false;
+let LIB_SHOWN=null, LIB_TEM_FASE=false;
 /* Mapa 33 capítulos -> categorias Legendre (frações derivadas das fórmulas do Wrap up L'Urbain) */
 const LEGENDRE_DIRECT=['Enabling Works','Foundations inc. underpinning','Groundworks & Substructure','RC Frame','Roofing','Metalworks','Facades','Windows','Internal Walls','Drylining','Internal doors','Wall Finishes','Floor Finishes','Joinery','Kitchens','Sanitaryware and fittings','MEP','Lifts','Landscape inc. ancillary building','Utilities / Misc.'];
 const LEGENDRE_MAP={
@@ -3439,18 +3442,18 @@ async function limparQuantidades(){
 function renderLibQty(proj){
   const tq=document.getElementById('tbLibQty'); if(!tq)return; tq.innerHTML="";
   const titulo=document.getElementById('libQtyTitulo');
-  // fonte das quantidades: métricas reais do projeto (do auto) ou, na falta, a referência de arquitetura
+  // fonte das quantidades: apenas as métricas gravadas do próprio projeto
   /* Antes, um projeto sem quantidades mostrava as do L'Urbain embutido rotuladas
      como "referência de arquitetura" — parecia que o projeto tinha valores que não
      tem. E métricas gravadas por uma fase entretanto apagada ficavam órfãs no
      registo do projeto. Passa a mostrar só quantidades do próprio projeto e só
      enquanto existir a fase que as originou. */
   let fonte=null, nome="", gfa=REF.gfa, fogos=REF.fogos;
-  if(proj && !LIB_TEM_REAL){
+  if(proj && !LIB_TEM_FASE){
     if(titulo) titulo.textContent="Rácios de quantidades físicas";
     tq.innerHTML='<tr><td colspan="6" style="color:#8794a8;padding:14px">'+
       (proj.metricas&&Object.keys(proj.metricas).length
-        ? 'Este projeto tem quantidades gravadas mas já não tem fase Real — provavelmente de uma importação entretanto substituída. Reimporta o auto para as actualizar, ou usa "Limpar quantidades".'
+        ? 'Este projeto tem quantidades gravadas mas já não tem nenhuma fase na biblioteca — são de uma importação entretanto apagada. Usa "Limpar quantidades" ou reimporta.'
         : 'Sem quantidades para este projeto. Importa o auto de medição no Fecho de Obra — as quantidades por artigo são extraídas automaticamente.')+
       '</td></tr>';
     const btn=document.getElementById('btnLimparQty');
@@ -3464,7 +3467,7 @@ function renderLibQty(proj){
       const un=v.un||"", q=v.q; const cap=k.replace(/\s*\([^)]*\)\s*$/,"").trim();
       fonte[cap]=fonte[cap]||{}; fonte[cap][un]=q;
     });
-    nome=proj.nome+" (real, do auto)"; gfa=proj.gfa||REF.gfa; fogos=proj.fogos||REF.fogos;
+    nome=proj.nome+" — quantidades do ficheiro importado"; gfa=proj.gfa||REF.gfa; fogos=proj.fogos||REF.fogos;
   } else {
     if(titulo) titulo.textContent="Rácios de quantidades físicas";
     tq.innerHTML='<tr><td colspan="6" style="color:#8794a8;padding:14px">Sem quantidades para este projeto.</td></tr>';
@@ -4588,7 +4591,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · 398b737";
+const BUILD="2026-07-23 · 9ac7dcd";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
