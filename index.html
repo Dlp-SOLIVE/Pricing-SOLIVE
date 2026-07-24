@@ -1038,7 +1038,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 08fb151</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 5906d49</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -4662,7 +4662,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-24 · 08fb151";
+const BUILD="2026-07-24 · 5906d49";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -5414,8 +5414,20 @@ async function analisarPricingCompleto(){
   renderPhys();
   const nq=Object.keys(PHYS).length;
   const tot=Object.values(porCap).reduce((a,b)=>a+b,0);
+  document.getElementById('results').classList.remove('hidden');      // o contentor
   document.getElementById('btnGravarAnalise').classList.remove('hidden');
   document.getElementById('physCard').classList.remove('hidden');
+  /* Nesta leitura não há alertas de mapa de quantidades: o pricing sheet não é
+     um MQ do projetista. Esconder o que não se aplica e explicar porquê. */
+  const cardAl=document.getElementById('tbFindings')?document.getElementById('tbFindings').closest('.card'):null;
+  if(cardAl){
+    const t=document.getElementById('tbFindings');
+    t.innerHTML='<tr><td colspan="9" style="color:#8794a8;padding:14px">'+
+      'Leitura de pricing sheet — não são gerados alertas de revisão. '+
+      'Os alertas aplicam-se a mapas de quantidades entregues pelo projetista.</td></tr>';
+    const ne=document.getElementById('noFindings'); if(ne) ne.classList.add('hidden');
+  }
+  document.getElementById('btnGravarAnalise').scrollIntoView({behavior:'smooth',block:'center'});
   alertx("Pricing sheet completo: "+nq+" grandezas físicas extraídas de "+todos.length+
     " artigos em "+Object.keys(porCap).length+" capítulos. As quantidades é que contam — "+
     "os valores destas folhas são custo da construtora e não entram nos rácios da biblioteca."+
