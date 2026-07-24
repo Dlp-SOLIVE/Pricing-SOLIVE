@@ -1037,7 +1037,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 2e02b22</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 7eec632</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -3240,7 +3240,8 @@ async function renderComparar(){
     [null,"€/m² abaixo do solo",c=>c._total&&c.ac_abaixo?c._total/c.ac_abaixo:null,0],
     [null,"€/m² implantação",c=>c._total&&c.area_implantacao?c._total/c.area_implantacao:null,0],
     [null,"€/fogo",c=>c._total&&c.fogos?c._total/c.fogos:null,0],
-    ["QUANTIDADES FÍSICAS","Escavação (m³)",c=>mq(c,"Escava","m³"),0],
+    ["QUANTIDADES FÍSICAS","Grandezas captadas",c=>c.metricas?Object.keys(c.metricas).length:null,0],
+    [null,"Escavação (m³)",c=>mq(c,"Escava","m³"),0],
     [null,"Betão e estruturas (m³)",c=>mq(c,"Betão","m³"),0],
     [null,"Fachada / ETICS (m²)",c=>mq(c,"Fachada","m²")||mq(c,"ETICS","m²"),0],
     [null,"Cerâmicos (m²)",c=>mq(c,"Cerâmic","m²"),0],
@@ -4636,7 +4637,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · 2e02b22";
+const BUILD="2026-07-24 · 7eec632";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
