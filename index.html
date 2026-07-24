@@ -888,6 +888,7 @@ tr.resolved td textarea{text-decoration:line-through}
       <div class="hint">Colhida automaticamente de todos os mapas de quantidades com preços e de todos os autos importados. Cada artigo é classificado numa <b>família</b> (betão, ETICS, betonilha, porta interior…) e o preço unitário guardado com o projeto e o ano. É esta tabela — e não o rácio por m² de ABC — que dá a estimativa mais precisa quando já existe medição.</div>
       <div class="filters">
         <div style="min-width:220px"><label>Filtrar família</label><input type="text" id="puFiltro" placeholder="ex.: betão" oninput="renderPU()"></div>
+        <div style="min-width:210px"><label>Base do preço</label><select id="puBase" onchange="renderPU()"><option value="">Todas</option><option value="Custo construtora">Custo da construtora</option><option value="contrato">Contrato de empreitada</option></select></div>
         <div style="min-width:160px"><label>Mínimo de observações</label><select id="puMinN" onchange="renderPU()"><option value="1">Todas</option><option value="2">≥ 2</option><option value="3">≥ 3</option></select></div>
       </div>
       <div style="overflow-x:auto">
@@ -1036,7 +1037,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 9ac7dcd</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-23 · 2e02b22</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -1383,6 +1384,13 @@ const ALIAS_CAP={
   "ESTRUTURAS":"ESTABILIDADE",
   "PAVIMENTO TERREO":"ESTABILIDADE",
   "TRABALHOS PREPARATÓRIOS":"ESTALEIRO",
+  "MOV. TERRAS E CP":"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",
+  "IMPERM. E ISOLAM.":"IMPERMEABILIZAÇÕES E ISOLAMENTOS",
+  "PAV. DIVERSOS":"PAVIMENTOS DIVERSOS",
+  "EQ. SANITÁRIOS":"EQUIPAMENTOS SANITÁRIOS",
+  "ÁGUAS":"REDE DE ÁGUAS","ESGOTOS":"REDE DE ESGOTOS",
+  "PLUVIAIS":"REDE DE ÁGUAS PLUVIAIS","GÁS":"REDE DE GÁS",
+  "ELETRICIDADE":"ELETRICIDADE E ILUMINAÇÃO","SEGURANÇA":"SEGURANÇA INTEGRADA",
   "DEMOLIÇÕES":"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",
   "DEMOLICOES":"MOVIMENTO DE TERRAS E CONTENÇÃO PERIFÉRICA",
   "ISOLAMENTOS":"IMPERMEABILIZAÇÕES E ISOLAMENTOS",
@@ -1724,18 +1732,25 @@ function uEq(u,alvo){
 }
 function extractPhys(arts){
   const out={};
-  PHYS_DEFS.forEach(([rot,un,rx,caps])=>{
+  /* Cada artigo conta UMA só vez, na grandeza mais específica que o descreve.
+     Antes, "regex OU capítulo" fazia com que qualquer m³ do capítulo MOVIMENTO
+     DE TERRAS entrasse na escavação — aterros incluídos, o que inflacionava
+     o número e estragava o rácio escavação/implantação. */
+  const usado=new Set();
+  const passa=(pass)=>PHYS_DEFS.forEach(([rot,un,rx,caps],idx)=>{
     let soma=0,houve=false;
-    arts.forEach(a=>{
+    arts.forEach((a,ai)=>{
+      if(usado.has(ai))return;
       if(a.qt==null||!a.un||!uEq(a.un,un))return;
-      const okDesc=rx?rx.test(a.desc||""):true;
-      const okCap=caps?caps.includes(a.cap):true;
-      // se há regex E capítulos, basta um deles; se só um critério, usa esse
-      const match = rx&&caps ? (okDesc||okCap) : (rx?okDesc:okCap);
-      if(match){soma+=a.qt;houve=true;}
+      const okDesc=rx?rx.test(a.desc||""):false;
+      const okCap=caps?caps.includes(a.cap):false;
+      const match = pass===1 ? okDesc : okCap;    // 1ª volta: descrição (específica)
+      if(match){soma+=a.qt;houve=true;usado.add(ai);}
     });
-    if(houve)out[rot]={un,q:soma};
+    if(houve){ out[rot]=out[rot]||{un,q:0}; out[rot].q+=soma; }
   });
+  passa(1);   // primeiro por descrição
+  passa(2);   // depois o que sobrar, por capítulo
   return out;
 }
 function renderPhys(){
@@ -3159,7 +3174,9 @@ function exportEstimativa(){
 }
 
 /* ================= COMPARAR ================= */
+let CMP_SEQ=0;
 async function renderComparar(){
+  const _s=++CMP_SEQ, _vivo=()=>_s===CMP_SEQ;
   const off=document.getElementById('cmpOffline');
   // referência embutida (só usada isolada offline, ou como preenchimento do L'Urbain gravado)
   const lurbTotal=REF.capitulos.reduce((s,c)=>s+c.total,0);
@@ -3175,6 +3192,7 @@ async function renderComparar(){
     for(const p of PROJETOS){
       // custo: preferir a fase Real (auto), depois Contrato, depois Orçamento
       const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id);
+      if(!_vivo())return;
       let total=null, fonte=null;
       if(fs&&fs.length){
         for(const tipo of ['Real','Contrato','Orçamento']){
@@ -3279,7 +3297,16 @@ async function libProjetoMudou(v){
   if(nome&&norm(nome)!==norm(CTX.nome)) await ctxDefinir(nome);   // arrasta a barra de topo
   else await renderLibProj();
 }
+let LIB_RENDER_SEQ=0;
 async function renderLibProj(){
+  /* Só o desenho mais recente pode escrever. Sem isto, duas chamadas quase
+     simultâneas limpavam a tabela cada uma e escreviam ambas a seguir ao await,
+     empilhando os dois projetos no mesmo quadro. */
+  const meu=++LIB_RENDER_SEQ;
+  const vivo=()=>meu===LIB_RENDER_SEQ;
+  return _renderLibProjImpl(meu,vivo);
+}
+async function _renderLibProjImpl(meu,vivo){
   const v=document.getElementById('libProjeto').value;
   const tb=document.getElementById('tbLib'); tb.innerHTML="";
   const hint=document.getElementById('libHint');
@@ -3314,6 +3341,7 @@ async function renderLibProj(){
   LIB_TEM_FASE=!!(fReal||fOrc);   // quantidades podem vir do orçamento, não só do real
   const capsDe=async f=>{ if(!f)return {}; const {data}=await sb.from('capitulos').select('*').eq('fase_id',f.id); const o={}; (data||[]).forEach(c=>{o[c.cap]=(o[c.cap]||0)+ +c.total}); return o; };   // somar: pode haver mais do que uma linha por capítulo
   const orcCaps=await capsDe(fOrc), realCaps=await capsDe(fReal);
+  if(!vivo())return;   // já foi pedido outro projeto entretanto
   const todos=[...new Set([...Object.keys(orcCaps),...Object.keys(realCaps)])];
   todos.sort((a,b)=>a.localeCompare(b,'pt'));
   if(!todos.length){ tb.innerHTML='<tr><td colspan="6" style="color:#8794a8">Sem valores gravados. Importa o auto no Fecho de Obra para preencher a fase Real.</td></tr>'; LIB_SHOWN=null; renderLibQty(proj); return; }
@@ -3766,9 +3794,13 @@ async function loadPU(){
   PU_ROWS=data;
   buildPUStats();
 }
-function buildPUStats(){
+function buildPUStats(base){
   const g={};
-  PU_ROWS.forEach(r=>{
+  PU_ROWS.filter(r=>{
+    if(!base) return true;
+    const f=norm(r.fase||"");
+    return base==='Custo construtora' ? f.includes('CUSTO') : !f.includes('CUSTO');
+  }).forEach(r=>{
     const k=r.familia+"|"+normUn(r.un);
     (g[k]=g[k]||{v:[],projs:new Set()});
     g[k].v.push(+r.pu); g[k].projs.add(r.projeto);
@@ -4158,10 +4190,13 @@ async function gravarVersao(nome,comentario){
   return error?null:v;
 }
 let VERSOES=[];
+let VER_SEQ=0;
 async function renderVersoes(){
+  const _s=++VER_SEQ, _vivo=()=>_s===VER_SEQ;
   const sel=document.getElementById('verProj'); const box=document.getElementById('verLista');
   if(!sel||!box)return;
   await renderFasesProjeto(sel.value);
+  if(!_vivo())return;
   const nome=sel.value; box.innerHTML="";
   document.getElementById('verDiffBox').classList.add('hidden');
   if(!SESSION||!nome){document.getElementById('verEmpty').classList.remove('hidden');return}
@@ -4185,14 +4220,18 @@ async function renderVersoes(){
 /* As importações do Fecho de Obra criam fases, não versões. Ambas são histórico
    do projeto e ambas têm de ser visíveis — era isto que dava a impressão de que
    nada tinha sido gravado. */
+let FAS_SEQ=0;
 async function renderFasesProjeto(nome){
+  const _s=++FAS_SEQ, _vivo=()=>_s===FAS_SEQ;
   const box=document.getElementById('verFases'); if(!box)return;
   box.innerHTML="";
   const p=PROJETOS.find(x=>norm(x.nome)===norm(nome||""));
   if(!SESSION||!p){ box.innerHTML='<div class="empty">Sem fases gravadas.</div>'; return; }
   const {data:fases}=await sbq(sb.from('fases').select('*').eq('projeto_id',p.id).order('data',{ascending:false}),"Ler fases");
+  if(!_vivo())return;
   if(!fases||!fases.length){ box.innerHTML='<div class="empty">Sem fases gravadas para este projeto.</div>'; return; }
   const {data:caps}=await sbq(sb.from('capitulos').select('fase_id,total,adicionais'),"Ler capítulos");
+  if(!_vivo())return;
   const porFase={}; (caps||[]).forEach(c=>{const o=porFase[c.fase_id]=porFase[c.fase_id]||{n:0,t:0,a:0};
     o.n++; o.t+=+c.total; o.a+=(+c.adicionais||0)});
   const cor={'Orçamento':'var(--navy)','Contrato':'var(--warn)','Real':'var(--teal)'};
@@ -4465,6 +4504,8 @@ function preencherProjSelect(id){
   if(atual&&nomes.includes(atual))s.value=atual;
 }
 function renderPU(){
+  const baseSel=(document.getElementById('puBase')||{}).value||"";
+  buildPUStats(baseSel);   // as duas bases não se misturam na mesma mediana
   const tb=document.getElementById('tbPU'); if(!tb)return;
   tb.innerHTML="";
   const filtro=norm((document.getElementById('puFiltro')||{}).value||"");
@@ -4555,6 +4596,10 @@ const FIXTURES=[
    f:()=>{return runChecks(MQ_LIMPO()).F.every(x=>x.tipo!=="Erro aritmético")}},
   {nome:"E2E · quantidade fracionada em unidade contável",
    f:()=>{const it=MQ_LIMPO();it[3].qt=12.4;return runChecks(it).F.some(x=>x.tipo==="Quantidade fracionada")}},
+  {nome:"Desenhos concorrentes não empilham tabelas",
+   f:()=>{const a=++LIB_RENDER_SEQ, b=++LIB_RENDER_SEQ;
+     const vivoA=()=>a===LIB_RENDER_SEQ, vivoB=()=>b===LIB_RENDER_SEQ;
+     return vivoA()===false && vivoB()===true}},
   {nome:"Referência embutida sai quando o projeto entra na base",
    f:()=>{const s0=SESSION, orig=PROJETOS.slice();
      SESSION={teste:true}; PROJETOS.length=0;
@@ -4591,7 +4636,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-23 · 9ac7dcd";
+const BUILD="2026-07-23 · 2e02b22";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4605,6 +4650,7 @@ const FUNCIONALIDADES=[
  ["Ponte com o DPR","exportDprBaseline"],
  ["Leitor de pricing sheet","parsePricingSheet"],
  ["Acumular vários ficheiros","fundirFO"],
+ ["Pricing sheet completo","analisarPricingCompleto"],
  ["Troca de projeto propaga","refrescarVistaAtual"]
 ];
 function runSelfTests(){
@@ -5281,6 +5327,89 @@ function toggleAcumular(cb){
   const av=document.getElementById('accAviso');
   if(av) av.classList.toggle('hidden',!cb.checked);
 }
+
+/* ==========================================================================
+   PRICING SHEET COMPLETO — todas as folhas de capítulo
+   A folha BOQ-Arq só tem arquitetura. As quantidades de estabilidade,
+   movimento de terras, MEP e restantes especialidades estão em ~33 folhas
+   próprias, todas com a mesma estrutura: bloco RESUMO, depois
+   "MAPA DE QUANTIDADES" e o cabeçalho CAP./DESCRIÇÃO/UN/QT./PREÇO UNIT./TOTAIS.
+   Analisar só o BOQ-Arq deixava de fora a maior parte das grandezas.
+   ========================================================================== */
+const FOLHAS_IGNORAR=/^(WRAP UP|SELLING SHEET|SUMMARY|NECTARI|RESUMO|CAPA|INDICE|ÍNDICE)/i;
+function ehFolhaCapitulo(rows){
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const r=(rows[i]||[]).map(x=>norm(x));
+    if(r.some(x=>/^CAP\.?$/.test(x))&&r.some(x=>/DESCRI[ÇC][ÃA]O/.test(x))&&r.some(x=>/^QT\.?$/.test(x))) return i;
+  }
+  return -1;
+}
+function lerFolhaCapitulo(rows,nomeFolha){
+  const hr=ehFolhaCapitulo(rows); if(hr<0) return null;
+  const cab=(rows[hr]||[]).map(x=>norm(x));
+  const iDes=cab.findIndex(x=>/DESCRI[ÇC][ÃA]O/.test(x));
+  const iUn =cab.findIndex(x=>/^UN\.?$/.test(x));
+  const iQt =cab.findIndex(x=>/^QT\.?$/.test(x));
+  const iPu =cab.findIndex(x=>/PRE[ÇC]O/.test(x));
+  const iTot=cab.findIndex(x=>/^TOTA/.test(x));
+  const cap=normalizaCap(mapCapitulo(nomeFolha)||nomeFolha);
+  const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
+  const arts=[]; let total=0;
+  for(let i=hr+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const d=String(r[iDes]==null?'':r[iDes]).trim();
+    const un=String(r[iUn]==null?'':r[iUn]).trim();
+    const qt=num(r[iQt]), pu=num(r[iPu]), pt=num(r[iTot]);
+    if(!d) continue;
+    if(/^TOTAL/i.test(norm(d))) continue;          // linha de somatório do capítulo
+    if(!un||qt==null||qt<=0) continue;             // cabeçalho de secção, não artigo
+    arts.push({desc:d,un,qt,pu,pt,cap});
+    if(pt) total+=pt;
+  }
+  return arts.length?{cap,nomeFolha,arts,total}:null;
+}
+async function analisarPricingCompleto(){
+  if(!workbook) return alertx("Carrega primeiro o ficheiro.");
+  const folhas=workbook.SheetNames.filter(n=>!FOLHAS_IGNORAR.test(norm(n)));
+  const todos=[]; const porCap={}; const semCap=[];
+  folhas.forEach(n=>{
+    const rows=XLSX.utils.sheet_to_json(workbook.Sheets[n],{header:1,raw:true,defval:null});
+    const r=lerFolhaCapitulo(rows,n);
+    if(!r){ return; }
+    if(!r.cap){ semCap.push(n); return; }
+    todos.push(...r.arts);
+    porCap[r.cap]=(porCap[r.cap]||0)+r.total;
+  });
+  if(!todos.length) return alertx("Não reconheci folhas de capítulo neste ficheiro. Confirma que é um pricing sheet.");
+  PHYS=extractPhys(todos);
+  PRICING_ARTS=todos;
+  renderPhys();
+  const nq=Object.keys(PHYS).length;
+  const tot=Object.values(porCap).reduce((a,b)=>a+b,0);
+  document.getElementById('btnGravarAnalise').classList.remove('hidden');
+  document.getElementById('physCard').classList.remove('hidden');
+  alertx("Pricing sheet completo: "+nq+" grandezas físicas extraídas de "+todos.length+
+    " artigos em "+Object.keys(porCap).length+" capítulos. As quantidades é que contam — "+
+    "os valores destas folhas são custo da construtora e não entram nos rácios da biblioteca."+
+    (semCap.length?" Folhas não reconhecidas: "+semCap.join(", "):""),true);
+}
+let PRICING_ARTS=[];
+/* ao gravar a análise, colher também os preços unitários das folhas de capítulo */
+const _saveAnalysis_pricing=saveAnalysis;
+saveAnalysis=async function(){
+  const r=await _saveAnalysis_pricing.apply(this,arguments);
+  try{
+    if(SESSION&&PRICING_ARTS.length){
+      const nome=document.getElementById('pNome').value.trim();
+      /* Estes preços são custo da construtora (dry costs), não contrato de
+         empreitada. Ficam marcados como tal para não se misturarem com os
+         preços colhidos de autos, que são a preços de contrato. */
+      const n=await colherPU(PRICING_ARTS,nome,new Date().getFullYear(),'Custo construtora');
+      if(n) alertx(n+" preços unitários colhidos (marcados como custo da construtora).",true);
+    }
+  }catch(e){ console.warn('PU pricing',e); }
+  return r;
+};
 
 
 initSupa();
