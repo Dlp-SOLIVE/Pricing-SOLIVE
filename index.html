@@ -1037,7 +1037,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 7eec632</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · a3c2174</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -4637,7 +4637,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-24 · 7eec632";
+const BUILD="2026-07-24 · a3c2174";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4652,6 +4652,7 @@ const FUNCIONALIDADES=[
  ["Leitor de pricing sheet","parsePricingSheet"],
  ["Acumular vários ficheiros","fundirFO"],
  ["Pricing sheet completo","analisarPricingCompleto"],
+ ["Guarda de projeto errado","confereProjeto"],
  ["Troca de projeto propaga","refrescarVistaAtual"]
 ];
 function runSelfTests(){
@@ -4692,6 +4693,7 @@ saveOrcBoard=async function(){
    e nada disso chegava à biblioteca de preços — só o Analisador colhia. */
 const _saveReal_pu=saveReal;
 saveReal=async function(){
+  if(FO_WB&&!confereProjeto(FO_WB,document.getElementById('foProjeto').value.trim())) return;
   const r=await _saveReal_pu.apply(this,arguments);
   try{
     if(SESSION&&FO_ARTIGOS&&FO_ARTIGOS.length){
@@ -5398,6 +5400,8 @@ let PRICING_ARTS=[];
 /* ao gravar a análise, colher também os preços unitários das folhas de capítulo */
 const _saveAnalysis_pricing=saveAnalysis;
 saveAnalysis=async function(){
+  if(typeof workbook!=='undefined'&&workbook&&
+     !confereProjeto(workbook,document.getElementById('pNome').value.trim())) return;
   const r=await _saveAnalysis_pricing.apply(this,arguments);
   try{
     if(SESSION&&PRICING_ARTS.length){
@@ -5411,6 +5415,37 @@ saveAnalysis=async function(){
   }catch(e){ console.warn('PU pricing',e); }
   return r;
 };
+
+/* ==========================================================================
+   GUARDA CONTRA IMPORTAR PARA O PROJETO ERRADO
+   Os ficheiros identificam a obra ("OBRA: L´URBAIN"). Se não bater com o
+   projeto ativo, avisa antes de gravar — é um erro fácil de cometer e caro
+   de desfazer, porque sobrepõe as quantidades e os preços do outro projeto.
+   ========================================================================== */
+function obraDoFicheiro(wbk){
+  if(!wbk) return null;
+  for(const n of wbk.SheetNames.slice(0,8)){
+    const rows=XLSX.utils.sheet_to_json(wbk.Sheets[n],{header:1,raw:true,defval:null});
+    for(let i=0;i<Math.min(rows.length,40);i++){
+      const r=rows[i]||[];
+      for(let c=0;c<Math.min(r.length,4);c++){
+        if(/^OBRA:?$/i.test(norm(r[c]))){
+          for(let d=c+1;d<Math.min(r.length,c+4);d++)
+            if(r[d]&&String(r[d]).trim()) return String(r[d]).trim();
+        }
+      }
+    }
+  }
+  return null;
+}
+function confereProjeto(wbk,nomeAtivo){
+  const obra=obraDoFicheiro(wbk);
+  if(!obra||!nomeAtivo) return true;
+  if(chaveCap(obra)===chaveCap(nomeAtivo)) return true;
+  return confirmar('ATENÇÃO — o ficheiro identifica a obra como:\n\n    "'+obra+'"\n\n'+
+    'mas o projeto ativo é:\n\n    "'+nomeAtivo+'"\n\n'+
+    'Continuar grava os dados no projeto ativo e substitui o que lá estiver.\n\nTens a certeza?');
+}
 
 
 initSupa();
