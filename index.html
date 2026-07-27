@@ -270,6 +270,11 @@ tr.resolved td textarea{text-decoration:line-through}
   <div class="modal" style="max-width:720px">
     <h3>Descritores do projeto</h3>
     <div class="hint">Introduzem-se <b>uma única vez</b>, aqui. Todos os separadores usam estes valores — não voltas a escrevê-los no estimador, no orçamento nem no fecho de obra. Vêm do programa e do licenciamento, não do mapa de quantidades.</div>
+    <div style="margin-bottom:14px">
+      <label>Segmento / natureza da obra</label>
+      <select id="dSeg" style="width:100%"></select>
+      <div class="hint" style="margin-top:4px">Define contra que obras semelhantes os preços unitários são comparados. Duas obras do mesmo segmento têm padrões de acabamento comparáveis.</div>
+    </div>
     <div class="dgrid">
       <div><label>ABC total (m²)</label><input type="number" id="dAbc" placeholder="4552"></div>
       <div><label>Ac. acima solo (m²)</label><input type="number" id="dAcima" placeholder="2883"></div>
@@ -889,11 +894,13 @@ tr.resolved td textarea{text-decoration:line-through}
       <div class="hint">Colhida automaticamente de todos os mapas de quantidades com preços e de todos os autos importados. Cada artigo é classificado numa <b>família</b> (betão, ETICS, betonilha, porta interior…) e o preço unitário guardado com o projeto e o ano. É esta tabela — e não o rácio por m² de ABC — que dá a estimativa mais precisa quando já existe medição.</div>
       <div class="filters">
         <div style="min-width:220px"><label>Filtrar família</label><input type="text" id="puFiltro" placeholder="ex.: betão" oninput="renderPU()"></div>
+        <div style="min-width:230px"><label>Comparar com obras</label><select id="puSeg" onchange="renderPU()"><option value="">Todas as obras</option><option value="ativo">Só do segmento do projeto ativo</option></select></div>
         <div style="min-width:210px"><label>Base do preço</label><select id="puBase" onchange="renderPU()"><option value="">Todas</option><option value="Custo construtora">Custo da construtora</option><option value="contrato">Contrato de empreitada</option></select></div>
         <div style="min-width:160px"><label>Mínimo de observações</label><select id="puMinN" onchange="renderPU()"><option value="1">Todas</option><option value="2">≥ 2</option><option value="3">≥ 3</option></select></div>
       </div>
       <div style="overflow-x:auto">
-      <table>
+      <div class="hint hidden" id="puSegAviso" style="margin-bottom:10px;color:var(--navy)"></div>
+        <table>
         <thead><tr><th>Família de artigo</th><th style="width:60px">Un</th><th style="text-align:right;width:60px">Nº</th><th style="text-align:right">Mediana (€)</th><th style="text-align:right">P10 (€)</th><th style="text-align:right">P90 (€)</th><th style="text-align:right">Dispersão</th><th>Projetos</th></tr></thead>
         <tbody id="tbPU"></tbody>
       </table>
@@ -1027,6 +1034,7 @@ tr.resolved td textarea{text-decoration:line-through}
   <div class="card">
     <h2 id="libQtyTitulo">Rácios de quantidades físicas
       <button class="btn ghost hidden" id="btnLimparQty" style="float:right;padding:5px 12px;font-size:12px" onclick="limparQuantidades()">Limpar quantidades</button></h2>
+      <div class="hint" id="libQtyDica" style="margin:2px 0 10px"></div>
     <div class="hint">Quantidades agregadas por capítulo e unidade, normalizadas por m² de ABC e por fogo. Quando o projeto tem auto importado, mostra as quantidades reais executadas; senão, a referência de arquitetura.</div>
     <div style="overflow-x:auto">
     <table>
@@ -1038,7 +1046,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 117ac88</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 555cdd5</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -1883,7 +1891,8 @@ function envelopeInputs(){
   const n=id=>+document.getElementById(id).value||null;
   return {gfa:n('pGFA'),gca:n('pGCA'),ac_abaixo:n('pAbaixo'),fogos:n('pFogos'),
     pisos_acima:n('pPisosAcima'),pisos_enterrados:n('pPisosAbaixo'),
-    area_implantacao:n('pImplantacao'),area_lote:n('pLote'),estacionamento:n('pEstacionamento')};
+    area_implantacao:n('pImplantacao'),area_lote:n('pLote'),estacionamento:n('pEstacionamento'),
+    segmento:(CTX.D&&CTX.D.segmento)||null};
 }
 function analysisPayload(){
   return {
@@ -3528,7 +3537,9 @@ function renderLibQty(proj){
     return;
   }
   if(titulo) titulo.textContent="Rácios de quantidades físicas — "+nome;
-  const caps=Object.keys(fonte).sort((a,b)=>{const ia=CAPS.findIndex(c=>norm(c)===norm(a)),ib=CAPS.findIndex(c=>norm(c)===norm(b));return (ia<0?99:ia)-(ib<0?99:ib);});
+  const dica=document.getElementById('libQtyDica');
+  if(dica) dica.textContent="Quantidades e rácios do projeto ativo ("+(proj.nome||"")+"). Para ver os projetos lado a lado, usa o separador Comparar.";
+  const caps=Object.keys(fonte).sort((a,b)=>a.localeCompare(b,'pt'));
   caps.forEach(cap=>{
     const uns=Object.keys(fonte[cap]);
     uns.forEach((u,i)=>{
@@ -3678,11 +3689,12 @@ function fatorInflacao(taxa,modo,idx,anos){
 /* ---------- 3. Descritores e cálculo de drivers ---------- */
 const PE_DIREITO_CAVE=2.9;   /* pé-direito médio assumido para converter pisos enterrados em volume */
 function descritoresDe(p){
+  /* segmento incluído para agrupar preços por semelhança */
   const abc=+p.gfa||null, abaixo=+p.ac_abaixo||null;
   return {abc, acima:+p.gca||(abc&&abaixo?abc-abaixo:null), abaixo,
           implantacao:+p.area_implantacao||null, lote:+p.area_lote||null,
           fogos:+p.fogos||null, pisosA:+p.pisos_acima||null, pisosB:+p.pisos_enterrados||null,
-          park:+p.estacionamento||null};
+          park:+p.estacionamento||null, segmento:p.segmento||null};
 }
 function descritoresRef(){
   return {abc:REF.gfa, acima:REF.gca, abaixo:REF.gfa-REF.gca, implantacao:null, lote:null,
@@ -3820,12 +3832,17 @@ async function loadPU(){
   PU_ROWS=data;
   buildPUStats();
 }
-function buildPUStats(base){
+function segDoProjeto(nome){ const p=PROJETOS.find(x=>norm(x.nome)===norm(nome||"")); return p?p.segmento:null; }
+function buildPUStats(base,segFiltro){
   const g={};
+  /* segFiltro: quando ligado, só entram preços de obras do mesmo segmento que o
+     projeto ativo. É o que permite basear-se em obras de natureza semelhante em
+     vez da mediana transversal de tudo. */
+  const segAtivo = segFiltro==='ativo' ? (CTX.D&&CTX.D.segmento) : null;
   PU_ROWS.filter(r=>{
-    if(!base) return true;
-    const f=norm(r.fase||"");
-    return base==='Custo construtora' ? f.includes('CUSTO') : !f.includes('CUSTO');
+    if(base){ const f=norm(r.fase||""); if(base==='Custo construtora' ? !f.includes('CUSTO') : f.includes('CUSTO')) return false; }
+    if(segFiltro==='ativo'){ if(!segAtivo) return false; if(segDoProjeto(r.projeto)!==segAtivo) return false; }
+    return true;
   }).forEach(r=>{
     const k=r.familia+"|"+normUn(r.un);
     (g[k]=g[k]||{v:[],projs:new Set()});
@@ -4531,7 +4548,17 @@ function preencherProjSelect(id){
 }
 function renderPU(){
   const baseSel=(document.getElementById('puBase')||{}).value||"";
-  buildPUStats(baseSel);   // as duas bases não se misturam na mesma mediana
+  const segSel=(document.getElementById('puSeg')||{}).value||"";
+  buildPUStats(baseSel,segSel);   // base e segmento filtram a mediana
+  const av=document.getElementById('puSegAviso');
+  if(av){
+    const segA=CTX.D&&CTX.D.segmento;
+    if(segSel==='ativo'&&!segA){ av.classList.remove('hidden');
+      av.textContent="O projeto ativo não tem segmento definido. Define-o em Editar descritores para comparar com obras semelhantes."; }
+    else if(segSel==='ativo'){ av.classList.remove('hidden');
+      av.textContent="A mostrar apenas preços de obras do segmento "+segLabel(segA)+"."; }
+    else av.classList.add('hidden');
+  }
   const tb=document.getElementById('tbPU'); if(!tb)return;
   tb.innerHTML="";
   const filtro=norm((document.getElementById('puFiltro')||{}).value||"");
@@ -4671,7 +4698,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-24 · 117ac88";
+const BUILD="2026-07-24 · 555cdd5";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4921,15 +4948,23 @@ function abrirDescritores(){
   g('dAbc',CTX.D.abc); g('dAcima',CTX.D.acima); g('dAbaixo',CTX.D.abaixo); g('dFogos',CTX.D.fogos);
   g('dPisosA',CTX.D.pisosA); g('dPisosB',CTX.D.pisosB); g('dImpl',CTX.D.implantacao);
   g('dLote',CTX.D.lote); g('dPark',CTX.D.park);
+  const seg=document.getElementById('dSeg'); if(seg) seg.innerHTML=segOptions(CTX.D.segmento||"");
   document.getElementById('descOverlay').classList.remove('hidden');
 }
 function fecharDescritores(){ document.getElementById('descOverlay').classList.add('hidden') }
 function guardarDescritores(){
   const n=id=>{const v=parseFloat((document.getElementById(id)||{}).value); return isFinite(v)&&v>0?v:null};
   CTX.D={abc:n('dAbc'),acima:n('dAcima'),abaixo:n('dAbaixo'),fogos:n('dFogos'),
-         pisosA:n('dPisosA'),pisosB:n('dPisosB'),implantacao:n('dImpl'),lote:n('dLote'),park:n('dPark')};
+         pisosA:n('dPisosA'),pisosB:n('dPisosB'),implantacao:n('dImpl'),lote:n('dLote'),park:n('dPark'),
+         segmento:(document.getElementById('dSeg')||{}).value||null};
   if(CTX.D.abc&&CTX.D.abaixo&&!CTX.D.acima) CTX.D.acima=CTX.D.abc-CTX.D.abaixo;
   ctxAplicar(); fecharDescritores();
+  /* persistir o segmento no projeto, se existir na base */
+  if(SESSION&&CTX.nome){
+    const p=PROJETOS.find(x=>norm(x.nome)===norm(CTX.nome));
+    if(p) sbq(sb.from('projetos').update({segmento:CTX.D.segmento||null}).eq('id',p.id),"Gravar segmento")
+            .then(()=>loadProjetos());
+  }
   alertx("Descritores aplicados a todos os separadores.",true);
 }
 
@@ -4937,6 +4972,17 @@ function guardarDescritores(){
    gatherProjectData, calibracaoDesvios, loadBenchmarks e renderComparar faziam,
    cada uma, uma consulta por projeto e outra por fase. Com dez projetos eram mais
    de vinte idas ao servidor, em série, com o ecrã parado. Agora: duas consultas. */
+const SEGMENTOS=[
+  {v:"res-high",  g:"Residencial", l:"High-end"},
+  {v:"res-std",   g:"Residencial", l:"Standard"},
+  {v:"res-btr",   g:"Residencial", l:"Build-to-rent"},
+  {v:"res-student",g:"Residencial",l:"Student accommodation"},
+  {v:"retail",    g:"Retail",      l:"Retail"},
+  {v:"office",    g:"Escritórios", l:"Escritórios"}
+];
+function segLabel(v){ const s=SEGMENTOS.find(x=>x.v===v); return s? (s.g===s.l?s.l:s.g+" · "+s.l) : "—"; }
+function segOptions(sel){ return '<option value="">— não definido —</option>'+
+  SEGMENTOS.map(s=>`<option value="${s.v}"${s.v===sel?' selected':''}>${esc(s.g===s.l?s.l:s.g+" — "+s.l)}</option>`).join(""); }
 function lurbainNaBase(){ return !!(SESSION && PROJETOS.some(p=>norm(p.nome).includes("URBAIN"))) }
 let SNAP=null, SNAP_T=0;
 async function snapshot(force){
