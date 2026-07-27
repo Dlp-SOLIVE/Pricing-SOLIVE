@@ -1046,7 +1046,7 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · 555cdd5</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · c9b7c2d</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -4698,7 +4698,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-07-24 · 555cdd5";
+const BUILD="2026-07-24 · c9b7c2d";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
@@ -4868,7 +4868,10 @@ function ctxResumoHTML(){
   if(!CTX.nome) return '<span class="miss">Sem projeto ativo — escolhe ou escreve um nome na barra de topo.</span>';
   const partes=CTX_CAMPOS.filter(([k])=>CTX.D[k]!=null)
     .map(([k,l,u])=>`${l} <b>${fmt(CTX.D[k],0)}${u?" "+u:""}</b>`);
-  return partes.length?partes.join(" · "):'<span class="miss">Sem descritores preenchidos</span>';
+  const seg = CTX.D.segmento
+    ? `<b style="color:var(--teal)">${esc(segLabel(CTX.D.segmento))}</b>`
+    : '<span class="miss" style="font-style:italic">segmento por definir</span>';
+  return seg + (partes.length?' · '+partes.join(" · "):'');
 }
 function toggleCtxLista(ev){
   if(ev){ev.preventDefault();ev.stopPropagation()}
@@ -4882,7 +4885,7 @@ function toggleCtxLista(ev){
       const d=document.createElement('div');
       d.style.cssText="padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-radius:6px";
       d.onmouseover=()=>d.style.background='#F0F3F8'; d.onmouseout=()=>d.style.background='';
-      d.innerHTML=esc(p.nome)+(p.gfa?'<span style="color:#8794a8;font-size:11.5px"> · '+fmt(p.gfa,0)+' m²</span>':'');
+      d.innerHTML=esc(p.nome)+(p.segmento?'<span style="color:var(--teal);font-size:11px"> · '+esc(segLabel(p.segmento))+'</span>':'')+(p.gfa?'<span style="color:#8794a8;font-size:11.5px"> · '+fmt(p.gfa,0)+' m²</span>':'');
       d.onclick=()=>{ box.classList.add('hidden'); document.getElementById('ctxNome').value=p.nome; ctxDefinir(p.nome); };
       box.appendChild(d);
     });
