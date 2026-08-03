@@ -884,6 +884,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
+    <button id="lib-tab-aplicar" onclick="libTab('aplicar')">Aplicar a um MQ</button>
   </div>
 
   <div id="lib-pane-pu" class="hidden">
@@ -906,6 +907,23 @@ tr.resolved td textarea{text-decoration:line-through}
       </table>
       </div>
       <div class="empty" id="puEmpty">Ainda sem preços unitários. Analisa um mapa de quantidades com preços, ou importa um auto ao nível do artigo, e grava-o na biblioteca.</div>
+    </div>
+  </div>
+
+  <div id="lib-pane-aplicar" class="hidden">
+    <div class="card">
+      <h2>Aplicar custo real a um mapa de quantidades novo</h2>
+      <div class="hint">Carrega o mapa de quantidades de um projeto novo (formato Legendre). A plataforma procura na biblioteca de <b>custo real da construtora</b> o preço mais recente para cada artigo — igual (por código) ou parecido (por família) — e mostra o <b>grau de aproximação</b> de cada linha. Onde só existe metade do preço (só material ou só aplicação), assinala como parcial.</div>
+      <div id="aplDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('aplFile').click()">Clica para carregar o MQ (.xlsx)</div>
+      <input type="file" id="aplFile" accept=".xlsx" class="hidden" onchange="if(this.files[0])aplicarBibliotecaFile(this.files[0])">
+      <div id="aplResumo" class="hint hidden" style="margin:12px 0;color:var(--navy)"></div>
+      <div style="overflow-x:auto">
+        <table class="hidden" id="aplTabela">
+          <thead><tr><th>Capítulo</th><th>Artigo</th><th style="width:46px">Un</th><th style="text-align:right;width:80px">Qtd</th><th style="text-align:right;width:96px">Custo unit.</th><th style="text-align:right;width:104px">Total</th><th>Fonte</th><th style="width:78px">Data</th><th style="width:150px">Aproximação</th></tr></thead>
+          <tbody id="aplBody"></tbody>
+        </table>
+      </div>
+      <div id="aplLegenda" class="hint hidden" style="margin-top:10px"></div>
     </div>
   </div>
 
@@ -1205,6 +1223,7 @@ async function afterLogin(){
   document.getElementById('btnLogout').classList.remove('hidden');
   document.getElementById('btnGravarAnalise').classList.remove('hidden');
   await loadProjetos(); await loadMappings();
+  await loadPR();
 }
 async function loadProjetos(){
   const {data,error}=await sb.from('projetos').select('*').order('nome');
@@ -4527,7 +4546,7 @@ async function dprGravarParcial(){
 
 /* ---------- 13. VISTAS DA BIBLIOTECA ---------- */
 function libTab(t){
-  ['caps','pu','ver','tax','dpr'].forEach(x=>{
+  ['caps','pu','ver','tax','dpr','aplicar'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -4546,6 +4565,109 @@ function preencherProjSelect(id){
   s.innerHTML=nomes.map(n=>`<option>${esc(n)}</option>`).join("")||'<option value="">—</option>';
   if(atual&&nomes.includes(atual))s.value=atual;
 }
+/* ===== APLICAR CUSTO REAL A UM MQ NOVO (biblioteca precos_reais) ===== */
+let PR_ROWS=[], COMP_ROWS=[];
+async function loadPR(){
+  PR_ROWS=[]; COMP_ROWS=[];
+  if(!SESSION) return;
+  try{ const {data:pr}=await sb.from('precos_reais').select('*').eq('ativo',true); if(pr) PR_ROWS=pr; }
+  catch(e){ console.warn('loadPR precos_reais',e); }
+  try{ const {data:cp}=await sb.from('v_precos_compostos_calc').select('*'); if(cp) COMP_ROWS=cp; }
+  catch(e){ console.warn('loadPR compostos',e); }
+}
+function famX(desc,un){
+  const f=familiaArtigo(desc,un); if(f) return f;
+  const d=norm(desc);
+  if(/BLOCO|ALVENARIA|PAREDE.*(BLOCO|TIJOLO)|ASSENTAMENTO.*(BLOCO|TIJOLO|PAREDE)/.test(d)) return "Alvenaria de tijolo/bloco";
+  if(/BET[AÃ]O/.test(d) && /(LAJE|PILAR|VIGA|PAREDE|SAPATA|MURO|FUNDA|ESTRUTUR|COLOCA|ENSOLEIRA)/.test(d)) return "Betão armado em estrutura";
+  if(/A[CÇ]O|ARMADURA|VAR[AÃ]O|A500/.test(d)) return "Aço em armaduras";
+  return null;
+}
+function extrairCodigos(txt){
+  const m=String(txt||"").toUpperCase().match(/[A-Z]{2,4}\.[A-Z0-9]{1,4}(?:\.[A-Z0-9]{1,4})?/g);
+  return m?[...new Set(m)]:[];
+}
+function dimOf(txt){ const m=norm(txt).match(/\d{1,3}\s*X\s*\d{1,3}(?:\s*X\s*\d{1,3})?/); return m?m[0].replace(/\s/g,""):null; }
+function maisRecentePR(rows){ return rows.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")))[0]; }
+function preferDim(rows,dim,pick){ if(dim){ const d=rows.filter(r=>dimOf(pick(r))===dim); if(d.length) return d; } return rows; }
+function matchLibrary(art){
+  const un=normUn(art.un), dim=dimOf(art.desc), cods=extrairCodigos(art.desc);
+  const nomeFonte=r=>((r.fornecedor||"")+" · "+(r.fonte_ref||""));
+  if(cods.length){
+    const cc=COMP_ROWS.filter(c=>cods.includes(String(c.artigo_cod||"").toUpperCase()));
+    if(cc.length){ const c=cc[0]; return {preco:c.custo_unit,un:c.un,fonte:"Composto: "+c.descricao,data:null,grau:c.incompleto?"Composto (incompleto)":"Composto",conf:c.incompleto?"media":"alta"}; }
+    const inst=PR_ROWS.filter(r=>cods.includes(String(r.artigo_cod||"").toUpperCase())&&r.ambito==="F&A");
+    if(inst.length){ const r=maisRecentePR(inst); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Exato (código)",conf:"alta"}; }
+    const parc=PR_ROWS.filter(r=>cods.includes(String(r.artigo_cod||"").toUpperCase()));
+    if(parc.length){ const r=maisRecentePR(parc); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Parcial ("+r.ambito+")",conf:"baixa"}; }
+  }
+  const fam=famX(art.desc,art.un);
+  if(fam){
+    let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un);
+    cc=preferDim(cc,dim,c=>c.descricao);
+    if(cc.length){ const c=cc[0]; return {preco:c.custo_unit,un:c.un,fonte:"Composto: "+c.descricao,data:null,grau:c.incompleto?"Composto (incompleto)":"Composto",conf:c.incompleto?"media":"alta"}; }
+    let inst=PR_ROWS.filter(r=>r.familia===fam && normUn(r.un)===un && r.ambito==="F&A");
+    inst=preferDim(inst,dim,r=>r.descricao);
+    if(inst.length){ const r=maisRecentePR(inst); const n=inst.length; return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r)+(n>1?" (+"+(n-1)+")":""),data:r.data,grau:"Semelhante (família)",conf:"media"}; }
+    let parc=PR_ROWS.filter(r=>r.familia===fam && normUn(r.un)===un);
+    parc=preferDim(parc,dim,r=>r.descricao);
+    if(parc.length){ const r=maisRecentePR(parc); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Parcial ("+r.ambito+")",conf:"baixa"}; }
+  }
+  return {preco:null,grau:"Sem dados",conf:null};
+}
+function aplicarBibliotecaFile(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}); }
+    catch(err){ alertx("Não consegui ler o ficheiro. Confirma que é um .xlsx no formato Legendre."); return; }
+    const arts=[];
+    wb.SheetNames.forEach(n=>{
+      if(FOLHAS_IGNORAR.test(norm(n))) return;
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});
+      const res=lerFolhaCapitulo(rows,n);
+      if(res) arts.push(...res.arts);
+    });
+    if(!arts.length){ alertx("Não reconheci artigos. Confirma que é um mapa de quantidades no formato Legendre."); return; }
+    if(!PR_ROWS.length&&!COMP_ROWS.length){ loadPR().then(()=>renderAplicacao(arts)); } else renderAplicacao(arts);
+  };
+  r.readAsArrayBuffer(f);
+}
+function renderAplicacao(arts){
+  const body=document.getElementById("aplBody"); body.innerHTML="";
+  const eur=v=>v==null?"—":(+v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const badge=g=>{ let bg="#f3f3f3",fg="#888";
+    if(/Exato/.test(g)){bg="#e6f4ea";fg="#1a7a3a";}
+    else if(/^Composto$/.test(g)){bg="#e6f4ea";fg="#1a7a3a";}
+    else if(/incompleto/.test(g)){bg="#fff4e5";fg="#a15c00";}
+    else if(/Semelhante/.test(g)){bg="#e8eefc";fg="#143A67";}
+    else if(/Parcial/.test(g)){bg="#fff4e5";fg="#a15c00";}
+    return "<span style=\"background:"+bg+";color:"+fg+";padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600\">"+esc(g)+"</span>";
+  };
+  let full=0,total=0,parcial=0;
+  arts.forEach(a=>{
+    const m=matchLibrary(a);
+    const isFull=m.preco!=null && /Exato|^Composto$|Semelhante/.test(m.grau);
+    if(isFull){ full++; total+=(m.preco*(a.qt||0)); }
+    else if(m.preco!=null && /Parcial|incompleto/.test(m.grau)) parcial++;
+    body.insertAdjacentHTML("beforeend",
+      "<tr><td style=\"font-size:11px;color:#8794a8\">"+esc(a.cap||"")+"</td>"+
+      "<td>"+esc(String(a.desc).slice(0,120))+"</td>"+
+      "<td>"+esc(a.un||"")+"</td>"+
+      "<td style=\"text-align:right\">"+eur(a.qt)+"</td>"+
+      "<td style=\"text-align:right\">"+(m.preco!=null?eur(m.preco):"—")+"</td>"+
+      "<td style=\"text-align:right\">"+(isFull?eur(m.preco*(a.qt||0)):"—")+"</td>"+
+      "<td style=\"font-size:11px\">"+esc(m.fonte||"")+"</td>"+
+      "<td style=\"font-size:11px\">"+esc(m.data||"—")+"</td>"+
+      "<td>"+badge(m.grau)+"</td></tr>");
+  });
+  const cob=arts.length?Math.round(100*full/arts.length):0;
+  const res=document.getElementById("aplResumo"); res.classList.remove("hidden");
+  res.innerHTML="<b>"+arts.length+"</b> artigos · <b>"+cob+"%</b> com preço completo"+(parcial?" · <b>"+parcial+"</b> parciais (falta metade)":"")+" · total estimado (linhas completas): <b>"+eur(total)+" €</b>";
+  document.getElementById("aplTabela").classList.remove("hidden");
+  const lg=document.getElementById("aplLegenda"); lg.classList.remove("hidden");
+  lg.innerHTML="<b>Graus de aproximação:</b> Exato = mesmo código de artigo · Composto = custo instalado (aplicação + material) · Semelhante = mesma família, preço real mais recente · Parcial/Incompleto = só metade do preço (falta material ou aplicação) — combinar com estimativa · Sem dados = ainda não existe na biblioteca.";
+}
+
 function renderPU(){
   const baseSel=(document.getElementById('puBase')||{}).value||"";
   const segSel=(document.getElementById('puSeg')||{}).value||"";
