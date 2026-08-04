@@ -948,7 +948,7 @@ tr.resolved td textarea{text-decoration:line-through}
       <div class="empty" id="puEmpty">Ainda sem preços unitários. Analisa um mapa de quantidades com preços, ou importa um auto ao nível do artigo, e grava-o na biblioteca.</div>
       <div id="puRealWrap" class="hidden" style="overflow-x:auto">
         <table>
-        <thead><tr><th>Descrição (custo real)</th><th style="width:56px">Un</th><th style="text-align:right;width:90px">Custo (€)</th><th style="width:96px">Âmbito</th><th>Fornecedor</th><th>Fonte</th></tr></thead>
+        <thead><tr><th>Descrição (custo real)</th><th style="width:56px">Un</th><th style="text-align:right;width:90px">Custo (€)</th><th style="width:96px">Âmbito</th><th>Fornecedor</th><th>Fonte</th><th>Exclusões / notas</th></tr></thead>
         <tbody id="tbPUreal"></tbody>
       </table>
       </div>
@@ -4764,19 +4764,22 @@ function renderPUreal(){
   const tb=document.getElementById('tbPUreal'); if(!tb)return;
   const filtro=norm((document.getElementById('puFiltro')||{}).value||"");
   tb.innerHTML="";
+  const active=norm((document.getElementById('pNome')||{}).value||"");
+  const okProj=(pj)=>!active||norm(pj||"")===active;
   const rows=[];
-  (PR_ROWS||[]).forEach(r=>rows.push({desc:r.descricao,un:r.un,preco:r.preco_unit,amb:r.ambito||'',forn:r.fornecedor||'',fonte:r.fonte_ref||''}));
-  (COMP_ROWS||[]).forEach(c=>{const pv=(c.custo_total!=null?c.custo_total:(c.custo!=null?c.custo:(c.total!=null?c.total:(c.preco_total!=null?c.preco_total:c.preco))));
-    rows.push({desc:(c.descricao||'')+' (composto)',un:c.un||'',preco:pv,amb:'instalado',forn:'',fonte:c.fonte_ref||''});});
+  (PR_ROWS||[]).filter(r=>okProj(r.projeto)).forEach(r=>rows.push({desc:r.descricao,un:r.un,preco:r.preco_unit,amb:r.ambito||'',forn:r.fornecedor||'',fonte:r.fonte_ref||'',excl:r.exclusoes||''}));
+  (COMP_ROWS||[]).filter(c=>okProj(c.projeto)).forEach(c=>{const pv=(c.custo_total!=null?c.custo_total:(c.custo!=null?c.custo:(c.total!=null?c.total:(c.preco_total!=null?c.preco_total:c.preco))));
+    rows.push({desc:(c.descricao||'')+' (composto)',un:c.un||'',preco:pv,amb:'instalado',forn:'',fonte:c.fonte_ref||'',excl:''});});
   const fr=rows.filter(r=>!filtro||norm(r.desc).includes(filtro)||norm(r.forn).includes(filtro));
-  const re=document.getElementById('puRealEmpty'); if(re) re.classList.toggle('hidden',fr.length>0);
+  const re=document.getElementById('puRealEmpty'); if(re){ re.classList.toggle('hidden',fr.length>0); if(active) re.textContent='Sem preços de custo real para o projeto ativo. Importe-os em "Importar custo real" ou carregue os SQL.'; }
   fr.sort((a,b)=>String(a.desc).localeCompare(String(b.desc))).forEach(r=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td style="font-size:12.5px">${esc(r.desc)}</td><td class="mono">${esc(r.un)}</td>`+
       `<td class="num" style="font-weight:700">${r.preco==null?"—":fmt(r.preco,2)}</td>`+
       `<td style="font-size:11.5px">${esc(r.amb)}</td>`+
       `<td style="font-size:11.5px;color:#69788f">${esc(r.forn)}</td>`+
-      `<td style="font-size:11.5px;color:#69788f">${esc(r.fonte)}</td>`;
+      `<td style="font-size:11.5px;color:#69788f">${esc(r.fonte)}</td>`+
+      `<td style="font-size:11px;color:#48566b">${esc(r.excl||'')}</td>`;
     tb.appendChild(tr);
   });
 }
