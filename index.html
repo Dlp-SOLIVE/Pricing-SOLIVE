@@ -550,6 +550,7 @@ tr.resolved td textarea{text-decoration:line-through}
       <h2>Aplicar custo real a um mapa de quantidades novo</h2>
       <div class="hint">Carrega o mapa de quantidades de um projeto novo (formato Legendre). A plataforma procura na biblioteca de <b>custo real da construtora</b> o preço mais recente para cada artigo — igual (por código) ou parecido (por família) — e mostra o <b>grau de aproximação</b> de cada linha. Onde só existe metade do preço (só material ou só aplicação), assinala como parcial.</div>
       <div class="note" style="margin-bottom:10px">Método <b>bottom-up</b>: aplica o custo real do L&rsquo;Urbain a cada linha de um mapa de quantidades. <span class="infodot" data-tip="Para quando já existe um MQ detalhado. Cada artigo é comparado com a biblioteca de custo real.">i</span> &nbsp;Ainda sem MQ? <button class="btn ghost" style="padding:4px 10px" onclick="document.getElementById('view-estimador').scrollIntoView({behavior:'smooth'})">Ir para os descritores (topo) ↑</button></div>
+      <div style="margin-bottom:8px"><label style="font-size:12px;color:#48566b">Preços de referência <span class="infodot" data-tip="De que projeto vêm os preços de custo real aplicados ao MQ. “Todos” usa toda a biblioteca (inclui o L&#39;Urbain).">i</span></label> <select id="aplRef" style="min-width:230px;margin-left:6px"></select></div>
       <div id="aplDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('aplFile').click()">Clica para carregar o MQ (.xlsx)</div>
       <input type="file" id="aplFile" accept=".xlsx" class="hidden" onchange="if(this.files[0])aplicarBibliotecaFile(this.files[0])">
       <div id="aplResumo" class="hint hidden" style="margin:12px 0;color:var(--navy)"></div>
@@ -4867,9 +4868,24 @@ function aplicarBibliotecaFile(f){
       if(res) arts.push(...res.arts);
     });
     if(!arts.length){ alertx("Não reconheci artigos. Confirma que é um mapa de quantidades no formato Legendre."); return; }
-    if(!PR_ROWS.length&&!COMP_ROWS.length){ loadPR().then(()=>renderAplicacao(arts)); } else renderAplicacao(arts);
+    fillAplRef();
+    if(!PR_ROWS.length&&!COMP_ROWS.length){ loadPR().then(()=>renderAplicacaoRef(arts)); } else renderAplicacaoRef(arts);
   };
   r.readAsArrayBuffer(f);
+}
+function fillAplRef(){
+  const s=document.getElementById('aplRef'); if(!s)return;
+  const cur=s.value; s.innerHTML='';
+  const o0=document.createElement('option'); o0.value=''; o0.textContent='Todos os projetos (toda a biblioteca)'; s.appendChild(o0);
+  (PROJETOS||[]).forEach(pr=>{const o=document.createElement('option');o.value=pr.nome;o.textContent=pr.nome;s.appendChild(o);});
+  if(cur) s.value=cur;
+}
+function renderAplicacaoRef(arts){
+  const ref=(document.getElementById('aplRef')||{}).value||'';
+  if(!ref){ renderAplicacao(arts); return; }
+  const op=PR_ROWS, oc=COMP_ROWS;
+  try{ PR_ROWS=PR_ROWS.filter(r=>norm(r.projeto||'')===norm(ref)); COMP_ROWS=COMP_ROWS.filter(c=>norm(c.projeto||'')===norm(ref)); renderAplicacao(arts); }
+  finally{ PR_ROWS=op; COMP_ROWS=oc; }
 }
 function renderAplicacao(arts){
   const body=document.getElementById("aplBody"); body.innerHTML="";
@@ -5326,8 +5342,8 @@ function guardarDescritores(){
   /* persistir o segmento no projeto, se existir na base */
   if(SESSION&&CTX.nome){
     const p=PROJETOS.find(x=>norm(x.nome)===norm(CTX.nome));
-    if(p) sbq(sb.from('projetos').update({segmento:CTX.D.segmento||null}).eq('id',p.id),"Gravar segmento")
-            .then(()=>loadProjetos());
+    if(p){ sbq(sb.from('projetos').update({segmento:CTX.D.segmento||null}).eq('id',p.id),"Gravar segmento").then(()=>loadProjetos()); }
+    else { sb.from('projetos').insert({nome:CTX.nome,gfa:CTX.D.abc||null,ac_abaixo:CTX.D.abaixo||null,fogos:CTX.D.fogos||null,pisos_acima:CTX.D.pisosA||null,pisos_enterrados:CTX.D.pisosB||null,area_implantacao:CTX.D.implantacao||null,area_lote:CTX.D.lote||null,estacionamento:CTX.D.park||null,segmento:CTX.D.segmento||null}).select().single().then(({error})=>{ if(error){alertx("Erro a criar o projeto: "+error.message);} else { loadProjetos(); toast('Projeto "'+CTX.nome+'" criado na base.'); } }); }
   }
   alertx("Descritores aplicados a todos os separadores.",true);
 }
