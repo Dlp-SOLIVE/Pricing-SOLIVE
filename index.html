@@ -1310,6 +1310,7 @@ async function loadProjetos(){
   ['projList','orcProjList','cstProjList','ctxList','foProjList'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.innerHTML=opts;   // nunca rebentar se faltar um
   });
+  try{fillAplRef();}catch(e){}
 }
 async function loadMappings(){
   const {data}=await sb.from('mapeamentos').select('*');
@@ -3916,6 +3917,7 @@ const FAMILIAS=[
 function familiaArtigo(desc,un){
   const d=String(desc||"");
   if(d.length<8)return null;
+  if(/roupeiro|maleiro/i.test(d)) return "Roupeiro / armário";
   for(const [re,fam] of FAMILIAS) if(re.test(d)) return fam;
   return null;
 }
@@ -4830,6 +4832,22 @@ function extrairCodigos(txt){
 function dimOf(txt){ const m=norm(txt).match(/\d{1,3}\s*X\s*\d{1,3}(?:\s*X\s*\d{1,3})?/); return m?m[0].replace(/\s/g,""):null; }
 function maisRecentePR(rows){ return rows.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")))[0]; }
 function preferDim(rows,dim,pick){ if(dim){ const d=rows.filter(r=>dimOf(pick(r))===dim); if(d.length) return d; } return rows; }
+function famDoCapitulo(cap,desc){
+  const c=norm(cap||''), d=norm(desc||'');
+  const F=s=>familiaArtigo(s,'m2');
+  if(/PINTURA/.test(c)) return F(/EXTERIOR|FACHADA/.test(d)?"pintura de fachada exterior":"pintura de paredes interior");
+  if(/CARPINTARIA/.test(c)) return F("roupeiro modular");
+  if(/SERRALHARIA/.test(c)) return F("guarda-corpos em metal");
+  if(/GESSO|PLADUR/.test(c)) return F("gesso cartonado");
+  if(/IMPERMEABILIZA/.test(c)) return F("impermeabilizacao de cobertura");
+  if(/CERAMIC/.test(c)) return F("revestimento ceramico");
+  if(/REBOCO|ARGAMASSA/.test(c)) return F("reboco projetado");
+  if(/BETONILHA/.test(c)) return F("betonilha de regularizacao");
+  if(/ALVENARIA/.test(c)) return F("alvenaria de tijolo furado");
+  if(/CAIXILH|VAO/.test(c)) return F("caixilharia de aluminio janela");
+  return null;
+}
+const STRUCT_FAMS=new Set(["aco a500 nervurado","betao armado pilar viga laje","betao c25","cofragem de pilar","escavacao geral terreno","estaca microestaca ancoragem parede moldada","aterro e enchimento"].map(s=>familiaArtigo(s,'m3')).filter(Boolean));
 function matchLibrary(art){
   const un=normUn(art.un), dim=dimOf(art.desc), cods=extrairCodigos(art.desc);
   const nomeFonte=r=>((r.fornecedor||"")+" · "+(r.fonte_ref||""));
@@ -4841,7 +4859,11 @@ function matchLibrary(art){
     const parc=PR_ROWS.filter(r=>cods.includes(String(r.artigo_cod||"").toUpperCase()));
     if(parc.length){ const r=maisRecentePR(parc); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Parcial ("+r.ambito+")",conf:"baixa"}; }
   }
-  const fam=famX(art.desc,art.un);
+  let fam=famX(art.desc,art.un);
+  const cf=famDoCapitulo(art.cap,art.desc);
+  const capEstrut=/ESTABILIDADE|ESTRUTURA|FUNDA|CONTEN|GEOTEC/.test(norm(art.cap||''));
+  if(!fam && cf) fam=cf;
+  else if(fam && STRUCT_FAMS.has(fam) && !capEstrut) fam=cf;
   if(fam){
     let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un);
     cc=preferDim(cc,dim,c=>c.descricao);
@@ -5814,17 +5836,17 @@ const FOLHAS_IGNORAR=/^(WRAP UP|SELLING SHEET|SUMMARY|NECTARI|RESUMO|CAPA|INDICE
 function ehFolhaCapitulo(rows){
   for(let i=0;i<Math.min(rows.length,30);i++){
     const r=(rows[i]||[]).map(x=>norm(x));
-    if(r.some(x=>/^CAP\.?$/.test(x))&&r.some(x=>/DESCRI[ÇC][ÃA]O/.test(x))&&r.some(x=>/^QT\.?$/.test(x))) return i;
+    if(r.some(x=>/DESCRI[ÇC][ÃA]O|DESIGNA/.test(x))&&r.some(x=>/^QT\.?$|^QUANT/.test(x))&&r.some(x=>/^UN\.?$/.test(x))) return i;
   }
   return -1;
 }
 function lerFolhaCapitulo(rows,nomeFolha){
   const hr=ehFolhaCapitulo(rows); if(hr<0) return null;
   const cab=(rows[hr]||[]).map(x=>norm(x));
-  const iDes=cab.findIndex(x=>/DESCRI[ÇC][ÃA]O/.test(x));
+  const iDes=cab.findIndex(x=>/DESCRI[ÇC][ÃA]O|DESIGNA/.test(x));
   const iUn =cab.findIndex(x=>/^UN\.?$/.test(x));
-  const iQt =cab.findIndex(x=>/^QT\.?$/.test(x));
-  const iPu =cab.findIndex(x=>/PRE[ÇC]O/.test(x));
+  const iQt =cab.findIndex(x=>/^QT\.?$|^QUANT/.test(x));
+  const iPu =cab.findIndex(x=>/PRE[ÇC]O|CUSTO/.test(x));
   const iTot=cab.findIndex(x=>/^TOTA/.test(x));
   const cap=normalizaCap(mapCapitulo(nomeFolha)||nomeFolha);
   const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
