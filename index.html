@@ -182,6 +182,14 @@ tr.resolved td textarea{text-decoration:line-through}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.g6{grid-template-columns:repeat(2,1fr)}.kpis{grid-template-columns:repeat(2,1fr)}main{padding:16px}header .sub{display:none}nav{gap:2px}nav button{padding:7px 9px;font-size:12.5px}}
 @media(max-width:640px){.g6{grid-template-columns:1fr}.kpis{grid-template-columns:1fr}header{padding:0 14px;gap:10px;height:auto;flex-wrap:wrap;padding-bottom:8px}nav{margin-left:0;width:100%;overflow-x:auto}.card{padding:15px 14px}.stickyhead th{position:static}table{font-size:12px}td,th{padding:6px 7px}}
+.infodot{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--navy,#143A67);color:#fff;font-size:10px;font-weight:700;font-style:normal;cursor:help;margin-left:5px;position:relative;vertical-align:middle}
+.infodot::after{content:attr(data-tip);position:absolute;left:50%;top:135%;transform:translateX(-50%);background:#143A67;color:#fff;padding:8px 11px;border-radius:6px;font-size:11.5px;font-weight:400;line-height:1.45;width:260px;z-index:60;opacity:0;pointer-events:none;transition:opacity .12s;box-shadow:0 4px 14px rgba(0,0,0,.28);text-align:left}
+.infodot:hover::after{opacity:1}
+.glossbox{background:#f5f7fa;border:1px solid #d8e0ea;border-radius:8px;padding:12px 16px;margin:6px 0 2px;font-size:12.5px;line-height:1.55;color:#2a3a52}
+.glossbox h4{margin:0 0 6px;color:var(--navy,#143A67);font-size:13px}
+.glossbox dt{font-weight:700;color:var(--navy,#143A67);margin-top:8px}
+.glossbox dd{margin:0 0 3px}
+.glossbox b{color:var(--navy,#143A67)}
 </style>
 </head>
 <body>
@@ -878,13 +886,25 @@ tr.resolved td textarea{text-decoration:line-through}
     <div class="io"><span class="in">Entra: Analisador + Fecho de Obra</span><span class="out">Serve: orçamentação e Comparação</span></div>
   </div>
 
+  <button class="btn ghost" style="margin:2px 0 8px" onclick="toggleGloss()">? O que significam estes termos?</button>
+  <div id="glossBox" class="glossbox hidden">
+    <h4>Guia rapido &mdash; grandezas e referencias</h4>
+    <dl>
+      <dt>Precos unitarios (orcamento)</dt><dd>Mediana historica do preco por familia de artigo, reunida de varios projetos e autos. Serve para <b>estimar</b> quando ainda nao ha custo real.</dd>
+      <dt>Custo real (L&rsquo;Urbain)</dt><dd>O custo <b>efetivamente pago</b> pela construtora neste projeto &mdash; de subempreitadas e fornecimentos. E <b>custo</b>, nao preco de venda.</dd>
+      <dt>Aplicar a MQ</dt><dd>Pegar num mapa de quantidades novo e atribuir-lhe precos (orcamento ou custo real) para obter uma estimativa.</dd>
+      <dt>Ambito: F&amp;A / mao de obra / fornecimento</dt><dd><b>F&amp;A</b> = fornecimento e aplicacao (custo instalado completo). <b>Mao de obra</b> = so aplicacao (material comprado a parte). <b>Fornecimento</b> = so material.</dd>
+      <dt>Composto</dt><dd>Custo instalado montado a partir de componentes: <b>mao de obra + material</b> (ex.: assentamento + ceramica).</dd>
+      <dt>Mediana &middot; P10&ndash;P90 &middot; dispersao</dt><dd>Estatistica dos precos: a <b>mediana</b> e o valor central; <b>P10&ndash;P90</b> a banda habitual; a <b>dispersao</b> indica quao variavel e o preco.</dd>
+    </dl>
+  </div>
   <div class="subtabs">
     <button id="lib-tab-caps" class="on" onclick="libTab('caps')">Rácios por capítulo</button>
-    <button id="lib-tab-pu" onclick="libTab('pu')">Preços unitários (orçamento)</button>
+    <button id="lib-tab-pu" onclick="libTab('pu')" title="Mediana histórica dos preços por família — referência para estimar.">Preços unitários (orçamento)</button>
     <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
-    <button id="lib-tab-aplicar" onclick="libTab('aplicar')">Custo real → aplicar a MQ</button>
+    <button id="lib-tab-aplicar" onclick="libTab('aplicar')" title="Aplica o custo real do L'Urbain a um mapa de quantidades novo.">Custo real → aplicar a MQ</button>
   </div>
 
   <div id="lib-pane-pu" class="hidden">
@@ -894,7 +914,7 @@ tr.resolved td textarea{text-decoration:line-through}
       </h2>
       <div class="hint">Colhida automaticamente de todos os mapas de quantidades com preços e de todos os autos importados. Cada artigo é classificado numa <b>família</b> (betão, ETICS, betonilha, porta interior…) e o preço unitário guardado com o projeto e o ano. É esta tabela — e não o rácio por m² de ABC — que dá a estimativa mais precisa quando já existe medição.</div>
       <div class="filters">
-        <div style="min-width:210px"><label>Fonte de preço</label><select id="puFonte" onchange="puFonteChange()"><option value="orc">Orçamento (mediana histórica)</option><option value="real">Custo real (L'Urbain)</option></select></div>
+        <div style="min-width:210px"><label>Fonte de preço <span class="infodot" data-tip="Orçamento = mediana histórica dos preços de vários projetos (para estimar). Custo real = custo efetivo pago no L&#39;Urbain (subempreitadas e fornecimentos).">i</span></label><select id="puFonte" onchange="puFonteChange()"><option value="orc">Orçamento (mediana histórica)</option><option value="real">Custo real (L'Urbain)</option></select></div>
         <div style="min-width:220px"><label>Filtrar família</label><input type="text" id="puFiltro" placeholder="ex.: betão" oninput="puReRender()"></div>
         <div style="min-width:230px"><label>Comparar com obras</label><select id="puSeg" onchange="renderPU()"><option value="">Todas as obras</option><option value="ativo">Só do segmento do projeto ativo</option></select></div>
         <div style="min-width:210px"><label>Base do preço</label><select id="puBase" onchange="renderPU()"><option value="">Todas</option><option value="Custo construtora">Custo da construtora</option><option value="contrato">Contrato de empreitada</option></select></div>
@@ -4553,6 +4573,7 @@ async function dprGravarParcial(){
 }
 
 /* ---------- 13. VISTAS DA BIBLIOTECA ---------- */
+function toggleGloss(){ const g=document.getElementById('glossBox'); if(g) g.classList.toggle('hidden'); }
 async function puFonteChange(){
   const f=(document.getElementById('puFonte')||{}).value||'orc';
   const isReal=f==='real';
