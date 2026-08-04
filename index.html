@@ -455,7 +455,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <h1>Estimativa rápida para o Business Plan</h1>
     <p>Na fase inicial só tens os descritores do projeto e o budget do BP. O estimador aplica os rácios de custo da biblioteca aos teus descritores e devolve uma estimativa por capítulo, com o intervalo do que os projetos históricos implicam — e confronta o total com o teu budget. Idealmente alimentado por custos reais de obra; quanto mais projetos fechados, mais fiável.</p>
     <div class="io"><span class="in">Usa: rácios da Biblioteca</span><span class="in">Entra: descritores + budget do BP</span><span class="out">Produz: estimativa por capítulo com intervalo</span></div>
-    <div class="note" style="margin-top:10px">Método <b>top-down</b>: estima a partir dos descritores (ABC, fogos), sem precisar de um mapa de quantidades. <span class="infodot" data-tip="Usa rácios históricos EUR/m2 e EUR/fogo por capítulo, com inflação e calibração. Ideal na fase de Business Plan.">i</span> &nbsp;Já tens um mapa de quantidades detalhado? <button class="btn ghost" style="padding:4px 10px" onclick="showView('biblioteca');libTab('aplicar')">Custo real por MQ →</button></div>
+    <div class="note" style="margin-top:10px">Método <b>top-down</b>: estima a partir dos descritores (ABC, fogos), sem precisar de um mapa de quantidades. <span class="infodot" data-tip="Usa rácios históricos EUR/m2 e EUR/fogo por capítulo, com inflação e calibração. Ideal na fase de Business Plan.">i</span> &nbsp;Já tens um mapa de quantidades detalhado? <button class="btn ghost" style="padding:4px 10px" onclick="document.getElementById('est-aplicar-card').scrollIntoView({behavior:'smooth'})">Ver método por MQ (em baixo) →</button></div>
   </div>
 
   <div class="card">
@@ -543,6 +543,23 @@ tr.resolved td textarea{text-decoration:line-through}
         <tbody id="tbSoft"></tbody>
       </table>
       </div>
+    </div>
+  </div>
+  <div id="est-aplicar-card" style="margin-top:18px">
+    <div class="card">
+      <h2>Aplicar custo real a um mapa de quantidades novo</h2>
+      <div class="hint">Carrega o mapa de quantidades de um projeto novo (formato Legendre). A plataforma procura na biblioteca de <b>custo real da construtora</b> o preço mais recente para cada artigo — igual (por código) ou parecido (por família) — e mostra o <b>grau de aproximação</b> de cada linha. Onde só existe metade do preço (só material ou só aplicação), assinala como parcial.</div>
+      <div class="note" style="margin-bottom:10px">Método <b>bottom-up</b>: aplica o custo real do L&rsquo;Urbain a cada linha de um mapa de quantidades. <span class="infodot" data-tip="Para quando já existe um MQ detalhado. Cada artigo é comparado com a biblioteca de custo real.">i</span> &nbsp;Ainda sem MQ? <button class="btn ghost" style="padding:4px 10px" onclick="document.getElementById('view-estimador').scrollIntoView({behavior:'smooth'})">Ir para os descritores (topo) ↑</button></div>
+      <div id="aplDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('aplFile').click()">Clica para carregar o MQ (.xlsx)</div>
+      <input type="file" id="aplFile" accept=".xlsx" class="hidden" onchange="if(this.files[0])aplicarBibliotecaFile(this.files[0])">
+      <div id="aplResumo" class="hint hidden" style="margin:12px 0;color:var(--navy)"></div>
+      <div style="overflow-x:auto">
+        <table class="hidden" id="aplTabela">
+          <thead><tr><th>Capítulo</th><th>Artigo</th><th style="width:46px">Un</th><th style="text-align:right;width:80px">Qtd</th><th style="text-align:right;width:96px">Custo unit.</th><th style="text-align:right;width:104px">Total</th><th>Fonte</th><th style="width:78px">Data</th><th style="width:150px">Aproximação</th></tr></thead>
+          <tbody id="aplBody"></tbody>
+        </table>
+      </div>
+      <div id="aplLegenda" class="hint hidden" style="margin-top:10px"></div>
     </div>
   </div>
 </div>
@@ -905,7 +922,6 @@ tr.resolved td textarea{text-decoration:line-through}
     <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
-    <button id="lib-tab-aplicar" onclick="libTab('aplicar')" title="Aplica o custo real do L'Urbain a um mapa de quantidades novo.">Custo real → aplicar a MQ</button>
   </div>
 
   <div id="lib-pane-pu" class="hidden">
@@ -936,24 +952,6 @@ tr.resolved td textarea{text-decoration:line-through}
       </table>
       </div>
       <div class="empty hidden" id="puRealEmpty">Sem custo real carregado. Corre os SQL da biblioteca de custo real no Supabase.</div>
-    </div>
-  </div>
-
-  <div id="lib-pane-aplicar" class="hidden">
-    <div class="card">
-      <h2>Aplicar custo real a um mapa de quantidades novo</h2>
-      <div class="hint">Carrega o mapa de quantidades de um projeto novo (formato Legendre). A plataforma procura na biblioteca de <b>custo real da construtora</b> o preço mais recente para cada artigo — igual (por código) ou parecido (por família) — e mostra o <b>grau de aproximação</b> de cada linha. Onde só existe metade do preço (só material ou só aplicação), assinala como parcial.</div>
-      <div class="note" style="margin-bottom:10px">Método <b>bottom-up</b>: aplica o custo real do L&rsquo;Urbain a cada linha de um mapa de quantidades. <span class="infodot" data-tip="Para quando já existe um MQ detalhado. Cada artigo é comparado com a biblioteca de custo real.">i</span> &nbsp;Ainda sem MQ? <button class="btn ghost" style="padding:4px 10px" onclick="showView('estimador')">Usar o Estimador (descritores) →</button></div>
-      <div id="aplDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('aplFile').click()">Clica para carregar o MQ (.xlsx)</div>
-      <input type="file" id="aplFile" accept=".xlsx" class="hidden" onchange="if(this.files[0])aplicarBibliotecaFile(this.files[0])">
-      <div id="aplResumo" class="hint hidden" style="margin:12px 0;color:var(--navy)"></div>
-      <div style="overflow-x:auto">
-        <table class="hidden" id="aplTabela">
-          <thead><tr><th>Capítulo</th><th>Artigo</th><th style="width:46px">Un</th><th style="text-align:right;width:80px">Qtd</th><th style="text-align:right;width:96px">Custo unit.</th><th style="text-align:right;width:104px">Total</th><th>Fonte</th><th style="width:78px">Data</th><th style="width:150px">Aproximação</th></tr></thead>
-          <tbody id="aplBody"></tbody>
-        </table>
-      </div>
-      <div id="aplLegenda" class="hint hidden" style="margin-top:10px"></div>
     </div>
   </div>
 
@@ -4608,7 +4606,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['caps','pu','ver','tax','dpr','aplicar'].forEach(x=>{
+  ['caps','pu','ver','tax','dpr'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
