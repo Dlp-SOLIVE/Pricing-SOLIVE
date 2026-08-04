@@ -922,6 +922,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
+    <button id="lib-tab-import" onclick="libTab('import')">Importar custo real</button>
   </div>
 
   <div id="lib-pane-pu" class="hidden">
@@ -1055,6 +1056,53 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
+  <div id="lib-pane-import" class="hidden">
+    <div class="card">
+      <h2>Importar custo real &mdash; contratos e fornecimentos <span class="infodot" data-tip="Escreve na biblioteca de custo real (precos_reais). Preenche a fonte, cola as linhas do Excel e revê antes de importar.">i</span></h2>
+      <div class="hint">Preenche os dados da fonte, cola as linhas do Excel (uma por linha: <b>descrição</b> [tab] <b>unidade</b> [tab] <b>preço</b>), ajusta o âmbito e as exclusões de cada linha, e revê antes de importar.</div>
+      <div class="filters" style="margin:10px 0 6px">
+        <div style="min-width:170px"><label>Projeto</label><input type="text" id="impProj" value="L'Urbain"></div>
+        <div style="min-width:180px"><label>Fonte / referência</label><input type="text" id="impFonte" placeholder="UR.2026021 ou ADJ UR...."></div>
+        <div style="min-width:170px"><label>Fornecedor</label><input type="text" id="impForn"></div>
+        <div style="min-width:140px"><label>Data</label><input type="date" id="impData"></div>
+        <div style="min-width:180px"><label>Tipo de fonte</label><select id="impTipo"><option value="empreitada">empreitada (subcontrato)</option><option value="fornecimento">fornecimento (material)</option><option value="mao_obra">mão de obra</option></select></div>
+        <div style="min-width:150px"><label>Âmbito por defeito <span class="infodot" data-tip="F&amp;A = fornecimento e aplicação (custo instalado). Mão de obra = só aplicação. Fornecimento = só material.">i</span></label><select id="impAmb"><option value="F&A">F&amp;A</option><option value="fornecimento">fornecimento</option><option value="mao_obra">mão de obra</option></select></div>
+        <div style="min-width:170px"><label>Família</label><input type="text" id="impFam" placeholder="ex.: Impermeabilização"></div>
+        <div style="min-width:120px"><label>Confiança</label><select id="impConf"><option value="alta">alta</option><option value="media">média</option><option value="baixa">baixa</option></select></div>
+      </div>
+      <div style="font-size:12px;color:#48566b;font-weight:600;margin:6px 0 2px">Opção A — arrastar o Excel do ADJ</div>
+      <div id="impDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('impXlsx').click()" ondragover="event.preventDefault()" ondrop="impDropHandler(event)">Arrasta aqui o ficheiro Excel (.xlsx), ou clica para escolher</div>
+      <input type="file" id="impXlsx" accept=".xlsx,.xls,.csv" class="hidden" onchange="if(this.files[0])impReadXlsx(this.files[0])">
+      <div id="impMapWrap" class="hidden" style="margin:6px 0 12px;padding:10px;background:#f5f7fa;border:1px solid #d8e0ea;border-radius:8px">
+        <div style="font-size:12px;color:#48566b;margin-bottom:6px">Confirma que colunas usar (a auto-deteção é um palpite — revê a amostra em baixo):</div>
+        <div class="filters">
+          <div style="min-width:150px"><label>Folha</label><select id="impSheet" onchange="impSheetChange()"></select></div>
+          <div style="min-width:160px"><label>Coluna Descrição</label><select id="impColDesc"></select></div>
+          <div style="min-width:130px"><label>Coluna Unidade</label><select id="impColUn"></select></div>
+          <div style="min-width:130px"><label>Coluna Preço</label><select id="impColPreco"></select></div>
+          <div style="min-width:110px"><label>Linha inicial</label><input type="number" id="impLinIni" value="1" min="1" style="width:70px"></div>
+          <div style="display:flex;align-items:end"><button class="btn navy" onclick="impFillFromSheet()">Preencher grelha</button></div>
+        </div>
+        <div style="overflow-x:auto;margin-top:8px"><table style="font-size:11px;border-collapse:collapse"><tbody id="impPreview"></tbody></table></div>
+      </div>
+      <div style="font-size:12px;color:#48566b;font-weight:600;margin:4px 0 2px">Opção B — colar linhas</div>
+      <label style="font-size:12px;color:#48566b">Colar linhas do Excel</label>
+      <textarea id="impPaste" rows="4" style="width:100%;font-family:monospace;font-size:12px" placeholder="Reboco REDUR IRP exterior projetado&#9;saco&#9;2,01"></textarea>
+      <div style="display:flex;gap:8px;margin:8px 0">
+        <button class="btn navy" onclick="impParse()">Processar colado</button>
+        <button class="btn ghost" onclick="impAddRow()">+ Linha</button>
+        <button class="btn ghost" onclick="impClear()">Limpar</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Descrição</th><th style="width:56px">Un</th><th style="width:84px;text-align:right">Preço</th><th style="width:130px">Âmbito</th><th>Exclusões</th><th style="width:34px"></th></tr></thead>
+          <tbody id="impBody"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="impResumo" style="margin-top:8px"></div>
+      <button class="btn red" style="margin-top:8px" onclick="impImport()">Importar para a biblioteca</button>
+    </div>
+  </div>
   <div id="lib-pane-caps">
   <div class="card" style="padding:14px 20px">
     <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler:</b> cada projeto é uma entrada única. A biblioteca mostra, por capítulo, o <b>Orçamento</b> (estimativa inicial), o <b>Real</b> (conta final da obra, com trabalhos adicionais) e o <b>Desvio</b> entre os dois. O Real é a referência para orçamentar projetos novos; o desvio diz-te onde as tuas estimativas historicamente falham.</div>
@@ -4573,6 +4621,133 @@ async function dprGravarParcial(){
 }
 
 /* ---------- 13. VISTAS DA BIBLIOTECA ---------- */
+let IMP_ROWS=[];
+function impParse(){
+  const raw=(document.getElementById('impPaste')||{}).value||"";
+  const amb=(document.getElementById('impAmb')||{}).value||'F&A';
+  raw.split(/\r?\n/).forEach(line=>{
+    if(!line.trim())return;
+    let cells=line.split('\t'); if(cells.length<2) cells=line.split(/\s{2,}|;/);
+    cells=cells.map(c=>c.trim()).filter(c=>c!=='');
+    if(!cells.length)return;
+    let preco=null,un='',desc='';
+    const lastc=cells[cells.length-1];
+    const num=parseFloat(String(lastc).replace(/[^0-9.,-]/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));
+    if(!isNaN(num)&&/[0-9]/.test(lastc)){
+      preco=num;
+      if(cells.length>=3){un=cells[cells.length-2];desc=cells.slice(0,cells.length-2).join(' ');}
+      else if(cells.length===2){un='';desc=cells[0];}
+      else{desc='';}
+    } else { desc=cells.join(' '); }
+    IMP_ROWS.push({descricao:desc,un:un,preco:preco,ambito:amb,exclusoes:''});
+  });
+  const pa=document.getElementById('impPaste'); if(pa)pa.value="";
+  renderImpGrid();
+}
+function impAddRow(){const amb=(document.getElementById('impAmb')||{}).value||'F&A';IMP_ROWS.push({descricao:'',un:'',preco:null,ambito:amb,exclusoes:''});renderImpGrid();}
+function impClear(){IMP_ROWS=[];renderImpGrid();}
+function impDel(i){IMP_ROWS.splice(i,1);renderImpGrid();}
+function impSet(i,k,v){if(IMP_ROWS[i]){IMP_ROWS[i][k]=(k==='preco'?(v===''?null:parseFloat(String(v).replace(',','.'))):v);}}
+function renderImpGrid(){
+  const tb=document.getElementById('impBody'); if(!tb)return; tb.innerHTML="";
+  IMP_ROWS.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    function cell(k,w,ph){const td=document.createElement('td');const inp=document.createElement('input');inp.value=(r[k]==null?'':r[k]);inp.style.width=w;if(ph)inp.placeholder=ph;inp.addEventListener('input',()=>impSet(i,k,inp.value));td.appendChild(inp);return td;}
+    tr.appendChild(cell('descricao','100%'));
+    tr.appendChild(cell('un','48px'));
+    const tdp=document.createElement('td');const pin=document.createElement('input');pin.value=(r.preco==null?'':r.preco);pin.style.width='78px';pin.style.textAlign='right';pin.addEventListener('input',()=>impSet(i,'preco',pin.value));tdp.appendChild(pin);tr.appendChild(tdp);
+    const tda=document.createElement('td');const sel=document.createElement('select');['F&A','fornecimento','mao_obra'].forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;if(a===r.ambito)o.selected=true;sel.appendChild(o);});sel.addEventListener('change',()=>impSet(i,'ambito',sel.value));tda.appendChild(sel);tr.appendChild(tda);
+    tr.appendChild(cell('exclusoes','100%','o que exclui'));
+    const tdx=document.createElement('td');const b=document.createElement('button');b.className='btn ghost';b.style.padding='2px 8px';b.textContent='x';b.addEventListener('click',()=>impDel(i));tdx.appendChild(b);tr.appendChild(tdx);
+    tb.appendChild(tr);
+  });
+  const ok=IMP_ROWS.filter(r=>r.descricao&&r.un&&r.preco!=null).length;
+  const el=document.getElementById('impResumo'); if(el) el.textContent=IMP_ROWS.length+' linha(s), '+ok+' válida(s) (com descrição, unidade e preço).';
+}
+async function impImport(){
+  const valid=IMP_ROWS.filter(r=>r.descricao&&r.un&&r.preco!=null);
+  const proj=(document.getElementById('impProj')||{}).value||'';
+  const fonte=(document.getElementById('impFonte')||{}).value||'';
+  if(!proj||!fonte){ alertx("Preenche o Projeto e a Fonte/referência antes de importar."); return; }
+  if(!valid.length){ alertx("Não há linhas válidas (cada uma precisa de descrição, unidade e preço)."); return; }
+  const forn=(document.getElementById('impForn')||{}).value||null;
+  const data=(document.getElementById('impData')||{}).value||null;
+  const tipo=(document.getElementById('impTipo')||{}).value||'empreitada';
+  const fam=(document.getElementById('impFam')||{}).value||null;
+  const conf=(document.getElementById('impConf')||{}).value||'media';
+  if(!window.confirm('Vais importar '+valid.length+' linha(s) para a biblioteca de custo real (fonte '+fonte+').\nLinhas repetidas (mesma fonte + descrição + unidade) são ignoradas.\nContinuar?')) return;
+  const rows=valid.map(r=>({projeto:proj,fonte_tipo:tipo,fonte_ref:fonte,fornecedor:forn,data:data,artigo_cod:null,descricao:r.descricao,un:r.un,preco_unit:r.preco,ambito:r.ambito||'F&A',familia:fam,exclusoes:(r.exclusoes||null),confianca:conf,ativo:true}));
+  try{
+    const {error}=await sb.from('precos_reais').upsert(rows,{onConflict:'fonte_ref,descricao,un',ignoreDuplicates:true});
+    if(error){ alertx('Erro ao importar: '+error.message); return; }
+    try{ await loadPR(); }catch(e){}
+    alertx(valid.length+' linha(s) enviadas para a biblioteca de custo real. As repetidas foram ignoradas.\nJá aparecem em "Preços unitários (orçamento)" → Fonte de preço: Custo real.');
+    IMP_ROWS=[]; renderImpGrid();
+  }catch(e){ alertx('Erro ao importar: '+((e&&e.message)?e.message:e)); }
+}
+let IMP_WB=null, IMP_SHEETROWS=[];
+function impNum(v){ if(v==null)return null; if(typeof v==='number')return v; let s=String(v).replace(/[^0-9.,-]/g,''); s=s.replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'); const n=parseFloat(s); return isNaN(n)?null:n; }
+function impDropHandler(ev){ ev.preventDefault(); const f=ev.dataTransfer&&ev.dataTransfer.files&&ev.dataTransfer.files[0]; if(f)impReadXlsx(f); }
+function impReadXlsx(f){
+  const r=new FileReader();
+  r.onload=e=>{
+    try{ IMP_WB=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){ alertx('Nao consegui ler o ficheiro: '+err.message); return; }
+    const sel=document.getElementById('impSheet'); sel.innerHTML='';
+    IMP_WB.SheetNames.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+    document.getElementById('impMapWrap').classList.remove('hidden');
+    impSheetChange();
+  };
+  r.readAsArrayBuffer(f);
+}
+function impColLetter(i){let s='';i++;while(i>0){i--;s=String.fromCharCode(65+(i%26))+s;i=Math.floor(i/26);}return s;}
+function impSheetChange(){
+  if(!IMP_WB)return;
+  const name=(document.getElementById('impSheet').value)||IMP_WB.SheetNames[0];
+  IMP_SHEETROWS=XLSX.utils.sheet_to_json(IMP_WB.Sheets[name],{header:1,raw:true,defval:null});
+  let nc=0; IMP_SHEETROWS.forEach(r=>{if(r&&r.length>nc)nc=r.length;});
+  function sampleVal(c){ for(let k=0;k<IMP_SHEETROWS.length;k++){const v=IMP_SHEETROWS[k]&&IMP_SHEETROWS[k][c]; if(v!=null&&String(v).trim()!=='')return String(v).slice(0,16);} return ''; }
+  ['impColDesc','impColUn','impColPreco'].forEach(id=>{
+    const s=document.getElementById(id); s.innerHTML='';
+    for(let c=0;c<nc;c++){const o=document.createElement('option');o.value=c;o.textContent=impColLetter(c)+' - '+sampleVal(c);s.appendChild(o);}
+  });
+  const stats=[];
+  for(let c=0;c<nc;c++){let numc=0,tot=0,ul=0,tl=0;
+    for(let k=0;k<IMP_SHEETROWS.length;k++){const v=IMP_SHEETROWS[k]&&IMP_SHEETROWS[k][c]; if(v==null||String(v).trim()==='')continue; tot++;
+      if(impNum(v)!=null&&/[0-9]/.test(String(v)))numc++;
+      const sv=String(v).trim(); if(/^(m2|m3|m|ml|un|kg|vg|h|dia|ton|cm|mm|l|pc|par|cj|fg)$/i.test(sv))ul++; tl+=sv.length;}
+    stats.push({c:c,num:tot?numc/tot:0,unit:tot?ul/tot:0,avglen:tot?tl/tot:0});}
+  if(stats.length){
+    const gp=stats.slice().sort((a,b)=>b.num-a.num)[0];
+    const gu=stats.slice().sort((a,b)=>b.unit-a.unit)[0];
+    const gd=stats.slice().filter(s=>s!==gp).sort((a,b)=>b.avglen-a.avglen)[0];
+    if(gd)document.getElementById('impColDesc').value=gd.c;
+    if(gu&&gu.unit>0)document.getElementById('impColUn').value=gu.c;
+    if(gp)document.getElementById('impColPreco').value=gp.c;
+  }
+  const tb=document.getElementById('impPreview'); tb.innerHTML='';
+  const hdr=document.createElement('tr');
+  for(let c=0;c<nc;c++){const th=document.createElement('td');th.textContent=impColLetter(c);th.style.cssText='background:#e8edf3;font-weight:700;padding:2px 5px;border:1px solid #d8e0ea';hdr.appendChild(th);}
+  tb.appendChild(hdr);
+  IMP_SHEETROWS.slice(0,12).forEach(row=>{const tr=document.createElement('tr');
+    for(let c=0;c<nc;c++){const td=document.createElement('td');td.textContent=(row&&row[c]!=null)?String(row[c]).slice(0,22):'';td.style.cssText='padding:2px 5px;border:1px solid #eef1f5';tr.appendChild(td);}
+    tb.appendChild(tr);});
+}
+function impFillFromSheet(){
+  if(!IMP_SHEETROWS.length){alertx('Arrasta primeiro um ficheiro Excel.');return;}
+  const cd=+document.getElementById('impColDesc').value, cu=+document.getElementById('impColUn').value, cp=+document.getElementById('impColPreco').value;
+  const ini=Math.max(1,parseInt(document.getElementById('impLinIni').value)||1);
+  const amb=(document.getElementById('impAmb')||{}).value||'F&A';
+  let n=0;
+  for(let k=ini-1;k<IMP_SHEETROWS.length;k++){
+    const row=IMP_SHEETROWS[k]||[];
+    const desc=(row[cd]!=null?String(row[cd]).trim():''); const preco=impNum(row[cp]); const un=(row[cu]!=null?String(row[cu]).trim():'');
+    if(!desc&&preco==null)continue;
+    IMP_ROWS.push({descricao:desc,un:un,preco:preco,ambito:amb,exclusoes:''}); n++;
+  }
+  renderImpGrid();
+  alertx(n+' linha(s) adicionadas a grelha a partir do Excel. Revê e ajusta o ambito/exclusoes antes de importar.');
+}
 function toggleGloss(){ const g=document.getElementById('glossBox'); if(g) g.classList.toggle('hidden'); }
 async function puFonteChange(){
   const f=(document.getElementById('puFonte')||{}).value||'orc';
@@ -4606,7 +4781,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['caps','pu','ver','tax','dpr'].forEach(x=>{
+  ['caps','pu','ver','tax','dpr','import'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -4617,6 +4792,7 @@ function libTab(t){
     renderVersoes(); }
   if(t==='tax') renderTaxonomia();
   if(t==='dpr') preencherProjSelect('dprProj');
+  if(t==='import') renderImpGrid();
 }
 function preencherProjSelect(id){
   const s=document.getElementById(id); if(!s)return;
