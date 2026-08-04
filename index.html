@@ -3917,7 +3917,10 @@ const FAMILIAS=[
 function familiaArtigo(desc,un){
   const d=String(desc||"");
   if(d.length<8)return null;
-  if(/roupeiro|maleiro/i.test(d)) return "Roupeiro / armário";
+  const _D=d.toUpperCase();
+  if(/COZINHA/.test(_D)&&/ARM[ÁA]RIO|M[ÓO]VEL|BANCADA/.test(_D)) return "Móvel de cozinha";
+  if(/BOCA DE INC[ÊE]NDIO|EXTINTOR|CARRETEL|SPRINKLER/.test(_D)) return "Segurança contra incêndio";
+  if(/ROUPEIRO|MALEIRO/.test(_D)) return "Roupeiro / armário";
   for(const [re,fam] of FAMILIAS) if(re.test(d)) return fam;
   return null;
 }
@@ -4836,7 +4839,6 @@ function famDoCapitulo(cap,desc){
   const c=norm(cap||''), d=norm(desc||'');
   const F=s=>familiaArtigo(s,'m2');
   if(/PINTURA/.test(c)) return F(/EXTERIOR|FACHADA/.test(d)?"pintura de fachada exterior":"pintura de paredes interior");
-  if(/CARPINTARIA/.test(c)) return F("roupeiro modular");
   if(/SERRALHARIA/.test(c)) return F("guarda-corpos em metal");
   if(/GESSO|PLADUR/.test(c)) return F("gesso cartonado");
   if(/IMPERMEABILIZA/.test(c)) return F("impermeabilizacao de cobertura");
@@ -4845,6 +4847,9 @@ function famDoCapitulo(cap,desc){
   if(/BETONILHA/.test(c)) return F("betonilha de regularizacao");
   if(/ALVENARIA/.test(c)) return F("alvenaria de tijolo furado");
   if(/CAIXILH|VAO/.test(c)) return F("caixilharia de aluminio janela");
+  if(/AVAC|CLIMATIZ|VENTIL/.test(c)) return /CONDUTA|GRELHA|VENTILADOR|EXTRA|INSUFL/.test(d)?F("conduta de ventilacao grelha"):F("unidade interior exterior bomba de calor");
+  if(/AGUA|ABASTEC/.test(c)) return F("tubagem multicamada de agua");
+  if(/ESGOTO|DRENAGEM|PLUVIA|RESIDUA/.test(c)) return /RALO|CALEIRA|CAIXA|SIFAO|TAMPA/.test(d)?F("ralo sifao caixa de visita"):F("tubo pvc de esgoto");
   return null;
 }
 const STRUCT_FAMS=new Set(["aco a500 nervurado","betao armado pilar viga laje","betao c25","cofragem de pilar","escavacao geral terreno","estaca microestaca ancoragem parede moldada","aterro e enchimento"].map(s=>familiaArtigo(s,'m3')).filter(Boolean));
@@ -4868,10 +4873,10 @@ function matchLibrary(art){
     let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un);
     cc=preferDim(cc,dim,c=>c.descricao);
     if(cc.length){ const c=cc[0]; return {preco:c.custo_unit,un:c.un,fonte:"Composto: "+c.descricao,data:null,grau:c.incompleto?"Composto (incompleto)":"Composto",conf:c.incompleto?"media":"alta"}; }
-    let inst=PR_ROWS.filter(r=>r.familia===fam && normUn(r.un)===un && r.ambito==="F&A");
+    let inst=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un && r.ambito==="F&A");
     inst=preferDim(inst,dim,r=>r.descricao);
     if(inst.length){ const r=maisRecentePR(inst); const n=inst.length; return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r)+(n>1?" (+"+(n-1)+")":""),data:r.data,grau:"Semelhante (família)",conf:"media"}; }
-    let parc=PR_ROWS.filter(r=>r.familia===fam && normUn(r.un)===un);
+    let parc=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un);
     parc=preferDim(parc,dim,r=>r.descricao);
     if(parc.length){ const r=maisRecentePR(parc); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Parcial ("+r.ambito+")",conf:"baixa"}; }
   }
