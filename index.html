@@ -3920,7 +3920,9 @@ function familiaArtigo(desc,un){
   const _D=d.toUpperCase();
   if(/COZINHA/.test(_D)&&/ARM[ÁA]RIO|M[ÓO]VEL|BANCADA/.test(_D)) return "Móvel de cozinha";
   if(/BOCA DE INC[ÊE]NDIO|EXTINTOR|CARRETEL|SPRINKLER/.test(_D)) return "Segurança contra incêndio";
-  if(/ROUPEIRO|MALEIRO/.test(_D)) return "Roupeiro / armário";
+  if(/ESPELHO/.test(_D)) return "Espelho";
+  if(/RESGUARDO/.test(_D)) return "Resguardo de duche";
+  if(/ROUPEIRO|MALEIRO|M[ÓO]DULO\s+ARM[ÁA]RIO|ARM[ÁA]RIO\s+(ALTO|BAIXO|SUPERIOR)/.test(_D)) return "Roupeiro / armário";
   for(const [re,fam] of FAMILIAS) if(re.test(d)) return fam;
   return null;
 }
@@ -4832,7 +4834,7 @@ function extrairCodigos(txt){
   const m=String(txt||"").toUpperCase().match(/[A-Z]{2,4}\.[A-Z0-9]{1,4}(?:\.[A-Z0-9]{1,4})?/g);
   return m?[...new Set(m)]:[];
 }
-function dimOf(txt){ const m=norm(txt).match(/\d{1,3}\s*X\s*\d{1,3}(?:\s*X\s*\d{1,3})?/); return m?m[0].replace(/\s/g,""):null; }
+function dimOf(txt){ const t=norm(txt); const m=t.match(/\d{1,3}\s*X\s*\d{1,3}(?:\s*X\s*\d{1,3})?/); if(m) return m[0].replace(/\s/g,""); const c=t.match(/(?:\bDN|Ø)\s*0*(\d{2,3})/); return c?("CAL"+c[1]):null; }
 function maisRecentePR(rows){ return rows.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")))[0]; }
 function preferDim(rows,dim,pick){ if(dim){ const d=rows.filter(r=>dimOf(pick(r))===dim); if(d.length) return d; } return rows; }
 function famDoCapitulo(cap,desc){
