@@ -3926,6 +3926,7 @@ function familiaArtigo(desc,un){
   if(/BOCA DE INC[ÊE]NDIO|EXTINTOR|CARRETEL|SPRINKLER/.test(_D)) return "Segurança contra incêndio";
   if(/ESPELHO/.test(_D)) return "Espelho";
   if(/RESGUARDO/.test(_D)) return "Resguardo de duche";
+  if(/ASCENSOR|MONTAGEM DE (UM )?ELEVADOR|ELEVADOR.*(PARAGEN|EMBARQUE|SMART)/.test(_D)) return "Elevador";
   if(/ROUPEIRO|MALEIRO|M[ÓO]DULO\s+ARM[ÁA]RIO|ARM[ÁA]RIO\s+(ALTO|BAIXO|SUPERIOR)/.test(_D)) return "Roupeiro / armário";
   for(const [re,fam] of FAMILIAS) if(re.test(d)) return fam;
   return null;
