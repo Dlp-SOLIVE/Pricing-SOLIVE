@@ -4889,10 +4889,39 @@ function precoM2Familia(fam){
   let somaC=0,somaA=0,n=0,ultima=null;
   const add=(desc,un,preco,data)=>{ const a=areaPropria(desc,un); if(!a||!(preco>0)) return; somaC+=preco; somaA+=a; n++; if(data&&(!ultima||String(data)>String(ultima))) ultima=data; };
   COMP_ROWS.forEach(cc=>{ if(famX(cc.descricao,cc.un)===fam) add(cc.descricao,cc.un,cc.custo_unit,null); });
-  PR_ROWS.forEach(r=>{ if(famX(r.descricao,r.un)===fam && r.ambito==='F&A') add(r.descricao,r.un,r.preco_unit,r.data); });
+  PR_ROWS.forEach(r=>{ if(famX(r.descricao,r.un)===fam && r.ambito==='F&A' && libTradeOk(r,fam)) add(r.descricao,r.un,r.preco_unit,r.data); });
   const res=(n>=3 && somaA>0)?{eurM2:somaC/somaA,n:n,data:ultima}:null;
   _M2CACHE[fam]=res; return res;
 }
+/* ---- Veto por ofício: usa a familia curada da biblioteca para impedir que uma
+   linha de um ofício case com outro (ex.: caixilharia O Setenta em carpintarias,
+   gesso Placofix em isolamento, serralharia WSP em louça). Nunca gera preço; só remove. */
+function tradeOf(s){ s=norm(s||''); if(!s) return null;
+ if(/PORTA INTERIOR|ROUPEIRO|MALEIRO|CARPINTARIA|MOVEL DE COZINHA|MODULO ARMARIO|ARMARIO (ALTO|BAIXO|SUPERIOR)|\bMOVEL\b/.test(s)) return 'carpintaria';
+ if(/CAIXILH|ALUMINIO|CORTIZO|OSCILOBAT|VAO METAL|PORTA DE VIDRO|PORTA DE ENTRADA|VAO \/ PORTA/.test(s)) return 'caixilharia_vao';
+ if(/SERRALHAR|GUARDA.?CORPO|GUARDA METALICA|CORRIMAO|ESTRUTURA METALICA|PORTAO/.test(s)) return 'serralharia';
+ if(/BANCADA|TAMPO|CANTARIA|\bPEDRA\b/.test(s)) return 'bancada_pedra';
+ if(/GESSO|PLADUR|TETO FALSO/.test(s)) return 'gesso';
+ if(/IMPERMEABILIZ|\bTELA\b|BETUMINOS/.test(s)) return 'impermeabilizacao';
+ if(/ISOLAMENTO TERMIC|\bETICS\b|DANOPREN|ISOLAMENTO DE FACHADA/.test(s)) return 'isolamento';
+ if(/CERAMIC|MOSAICO|PORCELANAT|\bGRES\b/.test(s)) return 'ceramico';
+ if(/LOUCA|SANITA|TORNEIRA|MISTURAD|LAVATORIO|CHUVEIRO|\bDUCHE\b|BANHEIRA|RESGUARD|\bBIDE\b|URINOL/.test(s)) return 'louca_sanitaria';
+ if(/\bAVAC\b|CONDUTA|VENTILAD|CLIMATIZ|TUBO COBRE|RECUPERADOR/.test(s)) return 'avac';
+ if(/ELETRIC|EL\u00c9TRIC|\bCABO\b|QUADRO|LUMINARIA|APARELHAGEM|CAMINHO DE CABOS|TUBAGEM ELETRICA/.test(s)) return 'eletrica';
+ if(/\bITED\b|TELECOM|VIDEOPORTEIRO/.test(s)) return 'ited';
+ if(/INCENDIO|\bSCIE\b|EXTINTOR/.test(s)) return 'scie';
+ if(/\bAGUA|ESGOTO|PLUVIA|DRENAGEM|\bTUBAGEM\b|BOMBAGEM|ISOLAMENTO TUBAGEM/.test(s)) return 'hidraulica';
+ if(/BETAO|ACO EM ARMADURA|COFRAGEM|FUNDAC|GEOTEC|CONTENCAO|MOVIMENTO DE TERRA|INERTE|ALVENARIA/.test(s)) return 'estrutura';
+ if(/PINTURA/.test(s)) return 'pintura';
+ if(/REBOCO|ARGAMASSA/.test(s)) return 'reboco';
+ if(/BETONILHA|PAVIMENTO INDUSTRIAL|PAVIMENTO VINILIC/.test(s)) return 'pavimento';
+ if(/RODAPE/.test(s)) return 'rodape';
+ if(/VIDRO|ESPELHO/.test(s)) return 'vidro';
+ if(/ELEVADOR/.test(s)) return 'elevador';
+ if(/ELETRODOMESTIC/.test(s)) return 'eletrodomestico';
+ return null;
+}
+function libTradeOk(r,fam){ const tr = r.familia ? tradeOf(r.familia) : tradeOf(famX(r.descricao,r.un)); const tf=tradeOf(fam); return !(tr&&tf&&tr!==tf); }
 function matchLibrary(art){
   const un=normUn(art.un), dim=dimOf(art.desc), cods=extrairCodigos(art.desc);
   const nomeFonte=r=>((r.fornecedor||"")+" · "+(r.fonte_ref||""));
@@ -4909,19 +4938,19 @@ function matchLibrary(art){
   const capEstrut=/ESTABILIDADE|ESTRUTURA|FUNDA|CONTEN|GEOTEC/.test(norm(art.cap||''));
   if(!fam && cf) fam=cf;
   else if(fam && STRUCT_FAMS.has(fam) && !capEstrut) fam=cf;
-  if(fam && FAMS_AREA.has(fam)){
+  if(fam && FAMS_AREA.has(fam) && fam!=="Porta interior"){
     const ap=areaPropria(art.desc,art.un);
     const rt=ap?precoM2Familia(fam):null;
     if(ap && rt) return {preco:ap*rt.eurM2,un:art.un,fonte:"Área L'Urbain: "+rt.eurM2.toLocaleString('pt-PT',{maximumFractionDigits:0})+" €/m² (n="+rt.n+")",data:rt.data,grau:"Semelhante (área)",conf:"media"};
   }
   if(fam){
-    let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un);
+    let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un && libTradeOk(c,fam));
     cc=preferDim(cc,dim,c=>c.descricao);
     if(cc.length){ const c=cc[0]; return {preco:c.custo_unit,un:c.un,fonte:"Composto: "+c.descricao,data:null,grau:c.incompleto?"Composto (incompleto)":"Composto",conf:c.incompleto?"media":"alta"}; }
-    let inst=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un && r.ambito==="F&A");
+    let inst=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un && r.ambito==="F&A" && libTradeOk(r,fam));
     inst=preferDim(inst,dim,r=>r.descricao);
     if(inst.length){ const r=maisRecentePR(inst); const n=inst.length; return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r)+(n>1?" (+"+(n-1)+")":""),data:r.data,grau:"Semelhante (família)",conf:"media"}; }
-    let parc=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un);
+    let parc=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un && libTradeOk(r,fam));
     parc=preferDim(parc,dim,r=>r.descricao);
     if(parc.length){ const r=maisRecentePR(parc); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Parcial ("+r.ambito+")",conf:"baixa"}; }
   }
