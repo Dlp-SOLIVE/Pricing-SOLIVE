@@ -554,6 +554,7 @@ tr.resolved td textarea{text-decoration:line-through}
       <div id="aplDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('aplFile').click()">Clica para carregar o MQ (.xlsx)</div>
       <input type="file" id="aplFile" accept=".xlsx" class="hidden" onchange="if(this.files[0])aplicarBibliotecaFile(this.files[0])">
       <div id="aplResumo" class="hint hidden" style="margin:12px 0;color:var(--navy)"></div>
+      <button id="aplExportBtn" class="btn navy hidden" style="margin-bottom:10px" onclick="exportAplicacao()">Exportar (.xlsx) com custo real — preserva os separadores</button>
       <div style="overflow-x:auto">
         <table class="hidden" id="aplTabela">
           <thead><tr><th>Capítulo</th><th>Artigo</th><th style="width:46px">Un</th><th style="text-align:right;width:80px">Qtd</th><th style="text-align:right;width:96px">Custo unit.</th><th style="text-align:right;width:104px">Total</th><th>Fonte</th><th style="width:78px">Data</th><th style="width:150px">Aproximação</th></tr></thead>
@@ -4818,7 +4819,7 @@ function preencherProjSelect(id){
   if(atual&&nomes.includes(atual))s.value=atual;
 }
 /* ===== APLICAR CUSTO REAL A UM MQ NOVO (biblioteca precos_reais) ===== */
-let PR_ROWS=[], COMP_ROWS=[];
+let PR_ROWS=[], COMP_ROWS=[], APL_WB=null;
 async function loadPR(){
   PR_ROWS=[]; COMP_ROWS=[];
   if(!SESSION) return;
@@ -4894,6 +4895,7 @@ function aplicarBibliotecaFile(f){
   r.onload=e=>{
     let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"}); }
     catch(err){ alertx("Não consegui ler o ficheiro. Confirma que é um .xlsx no formato Legendre."); return; }
+    APL_WB=wb;
     const arts=[];
     wb.SheetNames.forEach(n=>{
       if(FOLHAS_IGNORAR.test(norm(n))) return;
@@ -4953,8 +4955,67 @@ function renderAplicacao(arts){
   const res=document.getElementById("aplResumo"); res.classList.remove("hidden");
   res.innerHTML="<b>"+arts.length+"</b> artigos · <b>"+cob+"%</b> com preço completo"+(parcial?" · <b>"+parcial+"</b> parciais (falta metade)":"")+" · total estimado (linhas completas): <b>"+eur(total)+" €</b>";
   document.getElementById("aplTabela").classList.remove("hidden");
+  { const xb=document.getElementById("aplExportBtn"); if(xb) xb.classList.remove("hidden"); }
   const lg=document.getElementById("aplLegenda"); lg.classList.remove("hidden");
   lg.innerHTML="<b>Graus de aproximação:</b> Exato = mesmo código de artigo · Composto = custo instalado (aplicação + material) · Semelhante = mesma família, preço real mais recente · Parcial/Incompleto = só metade do preço (falta material ou aplicação) — combinar com estimativa · Sem dados = ainda não existe na biblioteca.";
+}
+function aplSetCell(ws,r,c,v){
+  if(c<0||r<0) return;
+  const addr=XLSX.utils.encode_cell({r:r,c:c});
+  if(v==null||v===""){ ws[addr]={t:"s",v:""}; }
+  else if(typeof v==="number"&&isFinite(v)){ ws[addr]={t:"n",v:v}; }
+  else { ws[addr]={t:"s",v:String(v)}; }
+  const rng=XLSX.utils.decode_range(ws["!ref"]||"A1");
+  if(r>rng.e.r) rng.e.r=r; if(c>rng.e.c) rng.e.c=c;
+  if(r<rng.s.r) rng.s.r=r; if(c<rng.s.c) rng.s.c=c;
+  ws["!ref"]=XLSX.utils.encode_range(rng);
+}
+function exportAplicacao(){
+  if(!APL_WB){ toast("Carrega primeiro um mapa de quantidades."); return; }
+  const ref=(document.getElementById('aplRef')||{}).value||'';
+  const op=PR_ROWS, oc=COMP_ROWS;
+  if(ref){ PR_ROWS=PR_ROWS.filter(r=>norm(r.projeto||'')===norm(ref)); COMP_ROWS=COMP_ROWS.filter(c=>norm(c.projeto||'')===norm(ref)); }
+  try{
+    const wb=APL_WB;
+    const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
+    let escritos=0, casados=0;
+    wb.SheetNames.forEach(n=>{
+      if(FOLHAS_IGNORAR.test(norm(n))) return;
+      const ws=wb.Sheets[n];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+      const hr=ehFolhaCapitulo(rows); if(hr<0) return;
+      const cab=(rows[hr]||[]).map(x=>norm(x));
+      const iDes=cab.findIndex(x=>/DESCRI[ÇC][ÃA]O|DESIGNA/.test(x));
+      const iUn =cab.findIndex(x=>/^UN\.?$/.test(x));
+      const iQt =cab.findIndex(x=>/^QT\.?$|^QUANT/.test(x));
+      let iPu =cab.findIndex(x=>/PRE[ÇC]O|CUSTO/.test(x));
+      let iTot=cab.findIndex(x=>/^TOTA/.test(x));
+      let iOri=cab.findIndex(x=>/ORIGEM|FONTE/.test(x));
+      let maxc=cab.length-1;
+      if(iPu<0){ iPu=++maxc; aplSetCell(ws,hr,iPu,"Custo Un. (real)"); }
+      if(iTot<0){ iTot=++maxc; aplSetCell(ws,hr,iTot,"Total"); }
+      if(iOri<0){ iOri=++maxc; aplSetCell(ws,hr,iOri,"Origem"); }
+      const cap=normalizaCap(mapCapitulo(n)||n);
+      for(let i=hr+1;i<rows.length;i++){
+        const r=rows[i]||[];
+        const d=String(r[iDes]==null?'':r[iDes]).trim();
+        const un=String(r[iUn]==null?'':r[iUn]).trim();
+        const qt=num(r[iQt]);
+        if(!d||/^TOTAL/i.test(norm(d))||!un||qt==null||qt<=0) continue;
+        const m=matchLibrary({desc:d,un,qt,cap});
+        if(m.preco!=null){
+          aplSetCell(ws,i,iPu,+(+m.preco).toFixed(2));
+          const isFull=/Exato|^Composto$|Semelhante/.test(m.grau);
+          aplSetCell(ws,i,iTot, isFull? +(m.preco*qt).toFixed(2) : "");
+          if(isFull) casados++;
+        } else { aplSetCell(ws,i,iPu,""); aplSetCell(ws,i,iTot,""); }
+        aplSetCell(ws,i,iOri,(m.grau||"")+(m.fonte?" — "+m.fonte:""));
+        escritos++;
+      }
+    });
+    XLSX.writeFile(wb,"MQ_custo_real_"+new Date().toISOString().slice(0,10)+".xlsx");
+    toast("Exportado: "+escritos+" artigos ("+casados+" com preço completo).");
+  } finally { PR_ROWS=op; COMP_ROWS=oc; }
 }
 
 function renderPU(){
