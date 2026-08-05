@@ -6,7 +6,7 @@
 <title>Solive · Orçamentação</title>
 <!-- Dependências com versão fixa (pinned). Não usar tags flutuantes (@2, /latest/):
      uma atualização a montante pode partir a plataforma sem aviso. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5008,6 +5008,121 @@ function aplSetCell(ws,r,c,v){
   if(r<rng.s.r) rng.s.r=r; if(c<rng.s.c) rng.s.c=c;
   ws["!ref"]=XLSX.utils.encode_range(rng);
 }
+/* ===== Exportação formatada (xlsx-js-style) ===== */
+function _xcell(v,opt){
+  opt=opt||{};
+  const c={};
+  if(opt.f){ c.t='n'; c.f=opt.f; c.v=(typeof v==='number'?v:0); }
+  else if(typeof v==='number'){ c.t='n'; c.v=v; }
+  else { c.t='s'; c.v=String(v==null?'':v); }
+  if(opt.z) c.z=opt.z;
+  const s={font:{name:'Arial',sz:opt.sz||9,bold:!!opt.b,italic:!!opt.i,color:{rgb:opt.color||'000000'}}};
+  if(opt.fill) s.fill={patternType:'solid',fgColor:{rgb:opt.fill}};
+  s.alignment={horizontal:opt.align||'left',vertical:opt.valign||'center',wrapText:!!opt.wrap,indent:opt.indent||0};
+  if(opt.border){ const sd={style:opt.border,color:{rgb:opt.bcolor||'B7C0D0'}}; s.border={}; (opt.borderSides||['top','bottom','left','right']).forEach(k=>{s.border[k]=sd;}); }
+  c.s=s; return c;
+}
+function buildExportWB(src, matchFn){
+  const NAVY='1F3864', NAVYL='2E4C7E', GREYH='D9E1F2', GREYS='EEF1F7', GREY='606060', MUT='9AA0A6';
+  const CUR='#,##0.00" \u20AC"', QTY='#,##0.###';
+  const HEAD=["Item","Cód.","Designação","Un","Qtd","Custo Un. (real)","Total","Grau","Fonte"];
+  const WID=[9,13,58,6,10,16,16,20,40];
+  const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|\u20AC/g,'').replace(',','.'));return isFinite(n)?n:null;};
+  const put=(ws,r,c,cell)=>{ws[XLSX.utils.encode_cell({r:r,c:c})]=cell;};
+  const out=XLSX.utils.book_new();
+  const subInfo=[]; let totIt=0, totFull=0;
+  src.SheetNames.forEach(nm=>{
+    if(FOLHAS_IGNORAR.test(norm(nm))) return;
+    const sws=src.Sheets[nm];
+    const rows=XLSX.utils.sheet_to_json(sws,{header:1,raw:true,defval:null});
+    const hr=ehFolhaCapitulo(rows); if(hr<0) return;
+    const cab=(rows[hr]||[]).map(x=>norm(x));
+    const iDes=cab.findIndex(x=>/DESCRI[ÇC][ÃA]O|DESIGNA/.test(x));
+    const iUn =cab.findIndex(x=>/^UN\.?$/.test(x));
+    const iQt =cab.findIndex(x=>/^QT\.?$|^QUANT/.test(x));
+    const iCod=cab.findIndex(x=>/^C[ÓO]D|ARTIGO|^REF/.test(x));
+    const iItem=cab.findIndex(x=>/^CAP$|^ITEM$|^N\.?[ºO]?$/.test(x));
+    const iPu =cab.findIndex(x=>/PRE[ÇC]O|CUSTO/.test(x));
+    const iOri=cab.findIndex(x=>/ORIGEM|FONTE/.test(x));
+    const cap=normalizaCap(mapCapitulo(nm)||nm);
+    const ws={}; let R=0;
+    put(ws,0,0,_xcell(nm,{sz:12,b:true,color:'FFFFFF',fill:NAVY,indent:1}));
+    for(let c=0;c<9;c++) put(ws,0,c,ws[XLSX.utils.encode_cell({r:0,c:c})]||_xcell('',{fill:NAVY}));
+    (ws['!merges']=ws['!merges']||[]).push({s:{r:0,c:0},e:{r:0,c:8}});
+    HEAD.forEach((h,c)=>put(ws,1,c,_xcell(h,{sz:10,b:true,color:NAVY,fill:GREYH,align:(c===4||c===5||c===6?'right':'left'),wrap:true,border:'thin',borderSides:['bottom'],bcolor:NAVY})));
+    R=2; const firstItem=R; let nit=0, nfull=0;
+    for(let i=hr+1;i<rows.length;i++){
+      const r=rows[i]||[];
+      const des_s=String((iDes>=0?r[iDes]:null)==null?'':(iDes>=0?r[iDes]:'')).trim();
+      const qt=num(iQt>=0?r[iQt]:null);
+      const item=String((iItem>=0?r[iItem]:'')==null?'':(iItem>=0?r[iItem]:'')).trim();
+      if(!des_s && qt==null) continue;
+      if(des_s && qt==null){
+        if(/^TOTAL\b/i.test(des_s)) continue;
+        const isChap=/^\d+$/.test(item) || (des_s.slice(0,4)===des_s.slice(0,4).toUpperCase() && /[A-ZÁÂÃÀÉÊÍÓÔÕÚÇ]/i.test(des_s.slice(0,4)));
+        for(let c=0;c<9;c++) put(ws,R,c,_xcell(c===0?des_s:'',{sz:isChap?10:9,b:true,i:!isChap,color:isChap?'FFFFFF':NAVY,fill:isChap?NAVYL:GREYS,indent:1}));
+        (ws['!merges']=ws['!merges']||[]).push({s:{r:R,c:0},e:{r:R,c:8}});
+        R++; continue;
+      }
+      const un=String((iUn>=0?r[iUn]:'')==null?'':(iUn>=0?r[iUn]:'')).trim();
+      const cod=String((iCod>=0?r[iCod]:'')==null?'':(iCod>=0?r[iCod]:'')).trim();
+      const art={desc:des_s,un:un,qt:qt,cap:cap,_pu:num(iPu>=0?r[iPu]:null),_ori:String((iOri>=0?r[iOri]:'')||'')};
+      const m=matchFn(art)||{};
+      const grau=m.grau||'', fonte=m.fonte||'';
+      const full=(m.preco!=null)&&(grau==='Composto'||/^Exato|^Semelhante/.test(grau));
+      put(ws,R,0,_xcell(item,{sz:9}));
+      put(ws,R,1,_xcell(cod,{sz:9}));
+      put(ws,R,2,_xcell(des_s,{sz:9}));
+      put(ws,R,3,_xcell(un,{sz:9,align:'center'}));
+      put(ws,R,4,_xcell(qt==null?'':qt,{sz:9,align:'right',z:QTY}));
+      put(ws,R,5,(m.preco!=null)?_xcell(+(+m.preco).toFixed(2),{sz:9,align:'right',z:CUR}):_xcell('',{sz:9,align:'right'}));
+      if(full){ put(ws,R,6,_xcell(+(m.preco*qt).toFixed(2),{sz:9,align:'right',z:CUR,f:'F'+(R+1)+'*E'+(R+1)})); nfull++; }
+      else put(ws,R,6,_xcell('',{sz:9,align:'right',z:CUR}));
+      put(ws,R,7,_xcell(grau,{sz:8,color:full?NAVY:MUT,wrap:true}));
+      put(ws,R,8,_xcell(fonte,{sz:8,color:GREY,wrap:true}));
+      nit++; R++;
+    }
+    const last=R;
+    for(let c=0;c<9;c++) put(ws,last,c,_xcell('',{border:'thin',borderSides:['top'],bcolor:NAVY}));
+    put(ws,last,2,_xcell('SUBTOTAL '+nm.toUpperCase(),{sz:10,b:true,color:NAVY,align:'right',border:'thin',borderSides:['top'],bcolor:NAVY}));
+    put(ws,last,6, _xcell(0,{sz:10,b:true,color:NAVY,align:'right',z:CUR,f:(nit?('SUM(G'+(firstItem+1)+':G'+last+')'):'0'),border:'thin',borderSides:['top'],bcolor:NAVY}));
+    ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:last,c:8}});
+    ws['!cols']=WID.map(w=>({wch:w}));
+    const short=nm.slice(0,31);
+    XLSX.utils.book_append_sheet(out,ws,short);
+    subInfo.push({name:short, cell:"'"+short.replace(/'/g,"''")+"'!G"+(last+1), nit:nit, nfull:nfull});
+    totIt+=nit; totFull+=nfull;
+  });
+  const rs={}; const putr=(r,c,cell)=>{rs[XLSX.utils.encode_cell({r:r,c:c})]=cell;};
+  putr(0,0,_xcell("CONDOMÍNIO AVENIDA JORGE V — CUSTO REAL APLICADO (ref. L'Urbain)",{sz:13,b:true,color:'FFFFFF',fill:NAVY,indent:1}));
+  for(let c=0;c<5;c++) putr(0,c,rs[XLSX.utils.encode_cell({r:0,c:c})]||_xcell('',{fill:NAVY}));
+  (rs['!merges']=rs['!merges']||[]).push({s:{r:0,c:0},e:{r:0,c:4}});
+  ["Capítulo","Itens","C/ preço","Total real","% itens"].forEach((h,c)=>putr(2,c,_xcell(h,{sz:10,b:true,color:NAVY,fill:GREYH,align:(c===0?'left':'right'),border:'thin',borderSides:['bottom'],bcolor:NAVY})));
+  let rr=3;
+  subInfo.forEach(s=>{
+    putr(rr,0,_xcell(s.name,{sz:9}));
+    putr(rr,1,_xcell(s.nit,{sz:9,align:'right'}));
+    putr(rr,2,_xcell(s.nfull,{sz:9,align:'right'}));
+    putr(rr,3,_xcell(0,{sz:9,align:'right',z:CUR,f:s.cell}));
+    putr(rr,4,_xcell(s.nit?s.nfull/s.nit:0,{sz:9,align:'right',z:'0%'}));
+    rr++;
+  });
+  for(let c=0;c<5;c++) putr(rr,c,_xcell('',{border:'thin',borderSides:['top'],bcolor:NAVY}));
+  putr(rr,0,_xcell("TOTAL",{sz:10,b:true,color:NAVY,border:'thin',borderSides:['top'],bcolor:NAVY}));
+  putr(rr,1,_xcell(0,{sz:10,b:true,color:NAVY,align:'right',f:'SUM(B4:B'+rr+')',border:'thin',borderSides:['top'],bcolor:NAVY}));
+  putr(rr,2,_xcell(0,{sz:10,b:true,color:NAVY,align:'right',f:'SUM(C4:C'+rr+')',border:'thin',borderSides:['top'],bcolor:NAVY}));
+  putr(rr,3,_xcell(0,{sz:11,b:true,color:NAVY,align:'right',z:CUR,f:'SUM(D4:D'+rr+')',border:'thin',borderSides:['top'],bcolor:NAVY}));
+  putr(rr,4,_xcell(0,{sz:10,b:true,color:NAVY,align:'right',z:'0%',f:'C'+(rr+1)+'/B'+(rr+1),border:'thin',borderSides:['top'],bcolor:NAVY}));
+  putr(rr+2,0,_xcell("Total = soma dos capítulos só com linhas com preço real. Custo vazio = artigo ainda sem preço na biblioteca (não entra no total). Custo unitário = preço instalado (F&A) mais recente do L'Urbain.",{sz:8,i:true,color:GREY,wrap:true,valign:'top'}));
+  (rs['!merges']=rs['!merges']||[]).push({s:{r:rr+2,c:0},e:{r:rr+2,c:4}});
+  rs['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rr+2,c:4}});
+  rs['!cols']=[34,10,12,18,10].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(out,rs,"Resumo");
+  out.SheetNames.unshift(out.SheetNames.pop());
+  out._nit=totIt; out._nfull=totFull;
+  return out;
+}
+
 function exportAplicacao(){
   if(!APL_WB){ toast("Carrega primeiro um mapa de quantidades."); return; }
   const ref=(document.getElementById('aplRef')||{}).value||'';
@@ -5015,45 +5130,9 @@ function exportAplicacao(){
   if(ref){ PR_ROWS=PR_ROWS.filter(r=>norm(r.projeto||'')===norm(ref)); COMP_ROWS=COMP_ROWS.filter(c=>norm(c.projeto||'')===norm(ref)); }
   _M2CACHE={};
   try{
-    const wb=APL_WB;
-    const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
-    let escritos=0, casados=0;
-    wb.SheetNames.forEach(n=>{
-      if(FOLHAS_IGNORAR.test(norm(n))) return;
-      const ws=wb.Sheets[n];
-      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
-      const hr=ehFolhaCapitulo(rows); if(hr<0) return;
-      const cab=(rows[hr]||[]).map(x=>norm(x));
-      const iDes=cab.findIndex(x=>/DESCRI[ÇC][ÃA]O|DESIGNA/.test(x));
-      const iUn =cab.findIndex(x=>/^UN\.?$/.test(x));
-      const iQt =cab.findIndex(x=>/^QT\.?$|^QUANT/.test(x));
-      let iPu =cab.findIndex(x=>/PRE[ÇC]O|CUSTO/.test(x));
-      let iTot=cab.findIndex(x=>/^TOTA/.test(x));
-      let iOri=cab.findIndex(x=>/ORIGEM|FONTE/.test(x));
-      let maxc=cab.length-1;
-      if(iPu<0){ iPu=++maxc; aplSetCell(ws,hr,iPu,"Custo Un. (real)"); }
-      if(iTot<0){ iTot=++maxc; aplSetCell(ws,hr,iTot,"Total"); }
-      if(iOri<0){ iOri=++maxc; aplSetCell(ws,hr,iOri,"Origem"); }
-      const cap=normalizaCap(mapCapitulo(n)||n);
-      for(let i=hr+1;i<rows.length;i++){
-        const r=rows[i]||[];
-        const d=String(r[iDes]==null?'':r[iDes]).trim();
-        const un=String(r[iUn]==null?'':r[iUn]).trim();
-        const qt=num(r[iQt]);
-        if(!d||/^TOTAL/i.test(norm(d))||!un||qt==null||qt<=0) continue;
-        const m=matchLibrary({desc:d,un,qt,cap});
-        if(m.preco!=null){
-          aplSetCell(ws,i,iPu,+(+m.preco).toFixed(2));
-          const isFull=/Exato|^Composto$|Semelhante/.test(m.grau);
-          aplSetCell(ws,i,iTot, isFull? +(m.preco*qt).toFixed(2) : "");
-          if(isFull) casados++;
-        } else { aplSetCell(ws,i,iPu,""); aplSetCell(ws,i,iTot,""); }
-        aplSetCell(ws,i,iOri,(m.grau||"")+(m.fonte?" — "+m.fonte:""));
-        escritos++;
-      }
-    });
+    const wb=buildExportWB(APL_WB, matchLibrary);
     XLSX.writeFile(wb,"MQ_custo_real_"+new Date().toISOString().slice(0,10)+".xlsx");
-    toast("Exportado: "+escritos+" artigos ("+casados+" com preço completo).");
+    toast("Exportado com formatação: "+(wb._nit||0)+" artigos ("+(wb._nfull||0)+" com preço completo).");
   } finally { PR_ROWS=op; COMP_ROWS=oc; }
 }
 
