@@ -3907,8 +3907,12 @@ const FAMILIAS=[
  [/tomada|interruptor|comutador/i,"Aparelhagem elétrica"],
  [/quadro el[ée]tr|qe\b|disjuntor/i,"Quadro elétrico"],
  [/lumin[áa]ria|foco|downlight|fita led/i,"Luminária"],
- [/unidade (interior|exterior)|multi\s?split|bomba de calor|termoac/i,"Equipamento AVAC"],
- [/conduta|grelha de (insu|extra)|ventilador/i,"Ventilação"],
+ [/unidade\s+exterior|\bU\.?E\.?\s?\d|multi\s?split.*exterior/i,"Unidade exterior AVAC"],
+ [/unidade\s+interior|\bU\.?I\.?\s?\d/i,"Unidade interior AVAC"],
+ [/ventilador|exutor|recupera[çc][ãa]o de calor/i,"Ventilador / exutor"],
+ [/registo\s+corta.?fogo|\bRCF\b|registo de desenfumagem/i,"Registo corta-fogo / desenfumagem"],
+ [/unidade (interior|exterior)|multi\s?split|bomba de calor|termoac|dep[óo]sito de aqs|dep[óo]sito de in[ée]rcia/i,"Equipamento AVAC"],
+ [/conduta|grelha de (insu|extra)|difusor|\bpleno\b|grelha de press/i,"Conduta / difusão AVAC"],
  [/detetor|central de dete[çc]|sprinkler|boca de inc[êe]ndio|extintor/i,"Segurança contra incêndio"],
  [/elevador|plataforma elevat/i,"Elevador"],
  [/pavimento exterior|lajeta|deck|calçada/i,"Pavimento exterior"],
@@ -4834,7 +4838,7 @@ function extrairCodigos(txt){
   const m=String(txt||"").toUpperCase().match(/[A-Z]{2,4}\.[A-Z0-9]{1,4}(?:\.[A-Z0-9]{1,4})?/g);
   return m?[...new Set(m)]:[];
 }
-function dimOf(txt){ const t=norm(txt); const m=t.match(/\d{1,3}\s*X\s*\d{1,3}(?:\s*X\s*\d{1,3})?/); if(m) return m[0].replace(/\s/g,""); const c=t.match(/(?:\bDN|Ø)\s*0*(\d{2,3})/); return c?("CAL"+c[1]):null; }
+function dimOf(txt){ const t=norm(txt); const m=t.match(/\d{1,3}\s*X\s*\d{1,3}(?:\s*X\s*\d{1,3})?/); if(m) return m[0].replace(/\s/g,""); const c=t.match(/(?:\bDN|Ø|DIAM\.?)\s*0*(\d{2,3})/); return c?("CAL"+c[1]):null; }
 function maisRecentePR(rows){ return rows.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")))[0]; }
 function preferDim(rows,dim,pick){ if(dim){ const d=rows.filter(r=>dimOf(pick(r))===dim); if(d.length) return d; } return rows; }
 function famDoCapitulo(cap,desc){
