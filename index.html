@@ -3883,7 +3883,7 @@ const FAMILIAS=[
  [/betonilha|camada de regulariza/i,"Betonilha"],
  [/gesso cartonado|pladur|placa de gesso/i,"Gesso cartonado"],
  [/te[ct]?to falso|sanca/i,"Teto falso"],
- [/mosaico|cer[âa]mic|gr[ée]s|porcelan/i,"Revestimento cerâmico"],
+ [/mosaico|cer[âa]mic|gr[ée]s|porcelan(?:ato|[íi]c)/i,"Revestimento cerâmico"],
  [/soalho|flutuante|v[íi]nil|lvt|parquet|madeira.*pavimento/i,"Pavimento em madeira/vinílico"],
  [/rodap[ée]/i,"Rodapé"],
  [/pintura.*(te[ct]|paredes|interior)/i,"Pintura interior"],
@@ -4858,9 +4858,41 @@ function famDoCapitulo(cap,desc){
   if(/AVAC|CLIMATIZ|VENTIL/.test(c)) return /CONDUTA|GRELHA|VENTILADOR|EXTRA|INSUFL/.test(d)?F("conduta de ventilacao grelha"):F("unidade interior exterior bomba de calor");
   if(/AGUA|ABASTEC/.test(c)) return F("tubagem multicamada de agua");
   if(/ESGOTO|DRENAGEM|PLUVIA|RESIDUA/.test(c)) return /RALO|CALEIRA|CAIXA|SIFAO|TAMPA/.test(d)?F("ralo sifao caixa de visita"):F("tubo pvc de esgoto");
+  if(/CARPINTARIA/.test(c)){
+    if(/ROUPEIRO|ARMARIO|MODULO|MALEIRO|GAVET|PRATELEIR|MOVEL|BANCADA/.test(d)) return F("roupeiro armario");
+    if(/PORTA|FOLHA (DE )?(BATENTE|CORRER)|PIVOTANTE|BASCULANTE/.test(d)) return F("porta interior lisa batente");
+    return null;
+  }
   return null;
 }
 const STRUCT_FAMS=new Set(["aco a500 nervurado","betao armado pilar viga laje","betao c25","cofragem de pilar","escavacao geral terreno","estaca microestaca ancoragem parede moldada","aterro e enchimento"].map(s=>familiaArtigo(s,'m3')).filter(Boolean));
+/* ---- Preço por ÁREA do elemento (opt-in por família) ----
+   Janelas/portas/guarda-corpos com um preço/un plano perdem toda a sensibilidade ao tamanho.
+   Lê L×A (ou (L)/(A)) da descrição, deriva um €/m² do L'Urbain e aplica pela área do elemento. */
+const FAMS_AREA=new Set(["Caixilharia","Porta interior","Guarda-corpos / corrimão"]);
+function areaOf(txt){
+  const t=String(txt||"").replace(/×/g,"x");
+  let m=t.match(/(\d{1,2}(?:[.,]\d{1,3})?)\s*x\s*(\d{1,2}(?:[.,]\d{1,3})?)\s*\(?\s*l?\s*x?\s*a?\s*\)?/i);
+  if(m){ const hasDec=/[.,]/.test(m[1])||/[.,]/.test(m[2]); const hasMark=/\(?\s*l\s*x\s*a/i.test(t); if(!hasDec && !hasMark) m=null; }
+  if(!m){ const mL=t.match(/\(\s*L\s*\)\s*(\d{1,2}(?:[.,]\d{1,3})?)/i); const mA=t.match(/\(\s*A\s*\)\s*(\d{1,2}(?:[.,]\d{1,3})?)/i); if(mL&&mA) m=[null,mL[1],mA[1]]; }
+  if(!m) return null;
+  const f=s=>parseFloat(String(s).replace(',','.'));
+  const L=f(m[1]), A=f(m[2]);
+  if(!isFinite(L)||!isFinite(A)||L<=0||A<=0||L>30||A>30) return null;
+  return +(L*A).toFixed(3);
+}
+function alturaOf(txt){ const m=String(txt||"").match(/\(\s*A\s*\)\s*(\d{1,2}(?:[.,]\d{1,3})?)/i); if(!m) return null; const h=parseFloat(m[1].replace(',','.')); return (isFinite(h)&&h>0&&h<10)?+h.toFixed(3):null; }
+function areaPropria(desc,un){ const u=normUn(un); if(u==='un') return areaOf(desc); if(u==='m') return alturaOf(desc); return null; }
+let _M2CACHE={};
+function precoM2Familia(fam){
+  if(fam in _M2CACHE) return _M2CACHE[fam];
+  let somaC=0,somaA=0,n=0,ultima=null;
+  const add=(desc,un,preco,data)=>{ const a=areaPropria(desc,un); if(!a||!(preco>0)) return; somaC+=preco; somaA+=a; n++; if(data&&(!ultima||String(data)>String(ultima))) ultima=data; };
+  COMP_ROWS.forEach(cc=>{ if(famX(cc.descricao,cc.un)===fam) add(cc.descricao,cc.un,cc.custo_unit,null); });
+  PR_ROWS.forEach(r=>{ if(famX(r.descricao,r.un)===fam && r.ambito==='F&A') add(r.descricao,r.un,r.preco_unit,r.data); });
+  const res=(n>=3 && somaA>0)?{eurM2:somaC/somaA,n:n,data:ultima}:null;
+  _M2CACHE[fam]=res; return res;
+}
 function matchLibrary(art){
   const un=normUn(art.un), dim=dimOf(art.desc), cods=extrairCodigos(art.desc);
   const nomeFonte=r=>((r.fornecedor||"")+" · "+(r.fonte_ref||""));
@@ -4877,6 +4909,11 @@ function matchLibrary(art){
   const capEstrut=/ESTABILIDADE|ESTRUTURA|FUNDA|CONTEN|GEOTEC/.test(norm(art.cap||''));
   if(!fam && cf) fam=cf;
   else if(fam && STRUCT_FAMS.has(fam) && !capEstrut) fam=cf;
+  if(fam && FAMS_AREA.has(fam)){
+    const ap=areaPropria(art.desc,art.un);
+    const rt=ap?precoM2Familia(fam):null;
+    if(ap && rt) return {preco:ap*rt.eurM2,un:art.un,fonte:"Área L'Urbain: "+rt.eurM2.toLocaleString('pt-PT',{maximumFractionDigits:0})+" €/m² (n="+rt.n+")",data:rt.data,grau:"Semelhante (área)",conf:"media"};
+  }
   if(fam){
     let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un);
     cc=preferDim(cc,dim,c=>c.descricao);
@@ -4924,6 +4961,7 @@ function renderAplicacaoRef(arts){
   finally{ PR_ROWS=op; COMP_ROWS=oc; }
 }
 function renderAplicacao(arts){
+  _M2CACHE={};
   const body=document.getElementById("aplBody"); body.innerHTML="";
   const eur=v=>v==null?"—":(+v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:2});
   const badge=g=>{ let bg="#f3f3f3",fg="#888";
@@ -4957,7 +4995,7 @@ function renderAplicacao(arts){
   document.getElementById("aplTabela").classList.remove("hidden");
   { const xb=document.getElementById("aplExportBtn"); if(xb) xb.classList.remove("hidden"); }
   const lg=document.getElementById("aplLegenda"); lg.classList.remove("hidden");
-  lg.innerHTML="<b>Graus de aproximação:</b> Exato = mesmo código de artigo · Composto = custo instalado (aplicação + material) · Semelhante = mesma família, preço real mais recente · Parcial/Incompleto = só metade do preço (falta material ou aplicação) — combinar com estimativa · Sem dados = ainda não existe na biblioteca.";
+  lg.innerHTML="<b>Graus de aproximação:</b> Exato = mesmo código de artigo · Composto = custo instalado (aplicação + material) · Semelhante = mesma família, preço real mais recente · Parcial/Incompleto = só metade do preço (falta material ou aplicação) — combinar com estimativa · Área = €/m² do elemento (janelas, portas, guarda-corpos) derivado do L'Urbain · Sem dados = ainda não existe na biblioteca.";
 }
 function aplSetCell(ws,r,c,v){
   if(c<0||r<0) return;
@@ -4975,6 +5013,7 @@ function exportAplicacao(){
   const ref=(document.getElementById('aplRef')||{}).value||'';
   const op=PR_ROWS, oc=COMP_ROWS;
   if(ref){ PR_ROWS=PR_ROWS.filter(r=>norm(r.projeto||'')===norm(ref)); COMP_ROWS=COMP_ROWS.filter(c=>norm(c.projeto||'')===norm(ref)); }
+  _M2CACHE={};
   try{
     const wb=APL_WB;
     const num=v=>{const n=parseFloat(String(v==null?'':v).replace(/\s|€/g,'').replace(',','.'));return isFinite(n)?n:null};
