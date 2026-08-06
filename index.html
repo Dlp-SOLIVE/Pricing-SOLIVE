@@ -4888,9 +4888,9 @@ function precoM2Familia(fam){
   if(fam in _M2CACHE) return _M2CACHE[fam];
   let somaC=0,somaA=0,n=0,ultima=null;
   const add=(desc,un,preco,data)=>{ const a=areaPropria(desc,un); if(!a||!(preco>0)) return; somaC+=preco; somaA+=a; n++; if(data&&(!ultima||String(data)>String(ultima))) ultima=data; };
-  COMP_ROWS.forEach(cc=>{ if(famX(cc.descricao,cc.un)===fam) add(cc.descricao,cc.un,cc.custo_unit,null); });
-  PR_ROWS.forEach(r=>{ if(famX(r.descricao,r.un)===fam && r.ambito==='F&A' && libTradeOk(r,fam)) add(r.descricao,r.un,r.preco_unit,r.data); });
-  const res=(n>=3 && somaA>0)?{eurM2:somaC/somaA,n:n,data:ultima}:null;
+  COMP_ROWS.forEach(cc=>{ if(famLib(cc)===fam && libTradeOk(cc,fam)) add(cc.descricao,cc.un,cc.custo_unit,null); });
+  PR_ROWS.forEach(r=>{ if(famLib(r)===fam && r.ambito==='F&A' && libTradeOk(r,fam)) add(r.descricao,r.un,r.preco_unit,r.data); });
+  const res=(n>=2 && somaA>0)?{eurM2:somaC/somaA,n:n,data:ultima}:null;
   _M2CACHE[fam]=res; return res;
 }
 const MATCHER_FAMS=new Set(FAMILIAS.map(p=>p[1]));
@@ -4957,7 +4957,7 @@ function matchLibrary(art){
   const capEstrut=/ESTABILIDADE|ESTRUTURA|FUNDA|CONTEN|GEOTEC/.test(norm(art.cap||''));
   if(!fam && cf) fam=cf;
   else if(fam && STRUCT_FAMS.has(fam) && !capEstrut) fam=cf;
-  if(fam && FAMS_AREA.has(fam) && fam!=="Porta interior"){
+  if(fam && FAMS_AREA.has(fam)){
     const ap=areaPropria(art.desc,art.un);
     const rt=ap?precoM2Familia(fam):null;
     if(ap && rt) return {preco:ap*rt.eurM2,un:art.un,fonte:"Área L'Urbain: "+rt.eurM2.toLocaleString('pt-PT',{maximumFractionDigits:0})+" €/m² (n="+rt.n+")",data:rt.data,grau:"Semelhante (área)",conf:"media"};
