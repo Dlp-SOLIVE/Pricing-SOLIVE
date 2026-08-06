@@ -4926,6 +4926,21 @@ function tradeOf(s){ s=norm(s||''); if(!s) return null;
  return null;
 }
 function libTradeOk(r,fam){ const tr = r.familia ? tradeOf(r.familia) : tradeOf(famX(r.descricao,r.un)); const tf=tradeOf(fam); return !(tr&&tf&&tr!==tf); }
+/* ---- Preço por ESCALA (folha/módulo): famílias onde o custo cresce com o nº de módulos/folhas
+   (roupeiros/armários). O MQ diz "N portas de batente / N módulos"; deriva-se €/módulo da biblioteca
+   (mediana) e multiplica-se por N. Backtest: erro ~23% vs ~46% do valor plano. */
+const FAMS_FOLHA=new Set(["Roupeiro / armário"]);
+function folhasDe(desc){ const d=String(desc||'').toLowerCase();
+  let m=d.match(/(\d+)\s*(?:portas?\s+de\s+batente|folhas?\s+de\s+abrir|folhas?)/); if(m) return parseInt(m[1]);
+  m=d.match(/(?:em|com)\s+(\d+)\s*m[óo]dulos?/); if(m) return parseInt(m[1]);
+  m=d.match(/(\d+)\s*m[óo]dulos?/); if(m) return parseInt(m[1]);
+  return null; }
+function medianOf(a){ a=a.slice().sort((x,y)=>x-y); const n=a.length; return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):null; }
+let _FOLHACACHE={};
+function precoFolhaFamilia(fam){ if(fam in _FOLHACACHE) return _FOLHACACHE[fam];
+  const rates=[]; let ultima=null;
+  PR_ROWS.forEach(r=>{ if(famLib(r)===fam && r.ambito==='F&A' && libTradeOk(r,fam)){ const nf=folhasDe(r.descricao); if(nf&&r.preco_unit>0){ rates.push(r.preco_unit/nf); if(r.data&&(!ultima||String(r.data)>String(ultima))) ultima=r.data; } } });
+  const res=(rates.length>=3)?{eur:medianOf(rates),n:rates.length,data:ultima}:null; _FOLHACACHE[fam]=res; return res; }
 function matchLibrary(art){
   const un=normUn(art.un), dim=dimOf(art.desc), cods=extrairCodigos(art.desc);
   const nomeFonte=r=>((r.fornecedor||"")+" · "+(r.fonte_ref||""));
@@ -4946,6 +4961,10 @@ function matchLibrary(art){
     const ap=areaPropria(art.desc,art.un);
     const rt=ap?precoM2Familia(fam):null;
     if(ap && rt) return {preco:ap*rt.eurM2,un:art.un,fonte:"Área L'Urbain: "+rt.eurM2.toLocaleString('pt-PT',{maximumFractionDigits:0})+" €/m² (n="+rt.n+")",data:rt.data,grau:"Semelhante (área)",conf:"media"};
+  }
+  if(fam && FAMS_FOLHA.has(fam)){
+    const nf=folhasDe(art.desc); const rt=nf?precoFolhaFamilia(fam):null;
+    if(nf && rt) return {preco:nf*rt.eur,un:art.un,fonte:"Escala L'Urbain: "+Math.round(rt.eur)+" \u20AC/módulo (n="+rt.n+")",data:rt.data,grau:"Semelhante (escala)",conf:"media"};
   }
   if(fam){
     let cc=COMP_ROWS.filter(c=>famLib(c)===fam && normUn(c.un)===un && libTradeOk(c,fam));
@@ -4994,7 +5013,7 @@ function renderAplicacaoRef(arts){
   finally{ PR_ROWS=op; COMP_ROWS=oc; }
 }
 function renderAplicacao(arts){
-  _M2CACHE={};
+  _M2CACHE={}; _FOLHACACHE={};
   const body=document.getElementById("aplBody"); body.innerHTML="";
   const eur=v=>v==null?"—":(+v).toLocaleString("pt-PT",{minimumFractionDigits:2,maximumFractionDigits:2});
   const badge=g=>{ let bg="#f3f3f3",fg="#888";
@@ -5028,7 +5047,7 @@ function renderAplicacao(arts){
   document.getElementById("aplTabela").classList.remove("hidden");
   { const xb=document.getElementById("aplExportBtn"); if(xb) xb.classList.remove("hidden"); }
   const lg=document.getElementById("aplLegenda"); lg.classList.remove("hidden");
-  lg.innerHTML="<b>Graus de aproximação:</b> Exato = mesmo código de artigo · Composto = custo instalado (aplicação + material) · Semelhante = mesma família, preço real mais recente · Parcial/Incompleto = só metade do preço (falta material ou aplicação) — combinar com estimativa · Área = €/m² do elemento (janelas, portas, guarda-corpos) derivado do L'Urbain · Sem dados = ainda não existe na biblioteca.";
+  lg.innerHTML="<b>Graus de aproximação:</b> Exato = mesmo código de artigo · Composto = custo instalado (aplicação + material) · Semelhante = mesma família, preço real mais recente · Parcial/Incompleto = só metade do preço (falta material ou aplicação) — combinar com estimativa · Área = €/m² do elemento (janelas, portas, guarda-corpos) · Escala = preço por módulo/folha do L'Urbain (roupeiros) · Sem dados = ainda não existe na biblioteca.";
 }
 function aplSetCell(ws,r,c,v){
   if(c<0||r<0) return;
@@ -5161,7 +5180,7 @@ function exportAplicacao(){
   const ref=(document.getElementById('aplRef')||{}).value||'';
   const op=PR_ROWS, oc=COMP_ROWS;
   if(ref){ PR_ROWS=PR_ROWS.filter(r=>norm(r.projeto||'')===norm(ref)); COMP_ROWS=COMP_ROWS.filter(c=>norm(c.projeto||'')===norm(ref)); }
-  _M2CACHE={};
+  _M2CACHE={}; _FOLHACACHE={};
   try{
     const wb=buildExportWB(APL_WB, matchLibrary);
     XLSX.writeFile(wb,"MQ_custo_real_"+new Date().toISOString().slice(0,10)+".xlsx");
