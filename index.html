@@ -4931,9 +4931,12 @@ function libTradeOk(r,fam){ const tr = r.familia ? tradeOf(r.familia) : tradeOf(
    (mediana) e multiplica-se por N. Backtest: erro ~23% vs ~46% do valor plano. */
 const FAMS_FOLHA=new Set(["Roupeiro / armário"]);
 function folhasDe(desc){ const d=String(desc||'').toLowerCase();
-  let m=d.match(/(\d+)\s*(?:portas?\s+de\s+batente|folhas?\s+de\s+abrir|folhas?)/); if(m) return parseInt(m[1]);
+  let m=d.match(/(\d+)\s*(?:portas?\s+de\s+batente|portas?\s+de\s+correr|folhas?\s+de\s+abrir|folhas?)/); if(m) return parseInt(m[1]);
   m=d.match(/(?:em|com)\s+(\d+)\s*m[óo]dulos?/); if(m) return parseInt(m[1]);
   m=d.match(/(\d+)\s*m[óo]dulos?/); if(m) return parseInt(m[1]);
+  m=d.match(/(\d+)\s*pain[eé]is?/); if(m) return parseInt(m[1]);          /* painel fixo ~ folha */
+  m=d.match(/(\d+)\s*gavet[õo]es?/); if(m) return parseInt(m[1]);         /* gavetão contado como elemento de face */
+  m=d.match(/(\d+)\s*gavetas?/); if(m) return parseInt(m[1]);            /* idem gaveta (aprox.: dados não suportam taxa própria) */
   return null; }
 function medianOf(a){ a=a.slice().sort((x,y)=>x-y); const n=a.length; return n?(n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2):null; }
 let _FOLHACACHE={};
