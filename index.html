@@ -4893,6 +4893,10 @@ function precoM2Familia(fam){
   const res=(n>=3 && somaA>0)?{eurM2:somaC/somaA,n:n,data:ultima}:null;
   _M2CACHE[fam]=res; return res;
 }
+const MATCHER_FAMS=new Set(FAMILIAS.map(p=>p[1]));
+/* famLib: usa a familia curada da biblioteca quando o famX (texto) falha —
+   liga subempreitadas cujas descrições vêm em código (VI.MD.01, VD32...). Aditivo: nunca altera o que o famX já classifica. */
+function famLib(r){ const fx=famX(r.descricao,r.un); if(fx) return fx; return (r.familia && MATCHER_FAMS.has(r.familia)) ? r.familia : null; }
 /* ---- Veto por ofício: usa a familia curada da biblioteca para impedir que uma
    linha de um ofício case com outro (ex.: caixilharia O Setenta em carpintarias,
    gesso Placofix em isolamento, serralharia WSP em louça). Nunca gera preço; só remove. */
@@ -4944,13 +4948,13 @@ function matchLibrary(art){
     if(ap && rt) return {preco:ap*rt.eurM2,un:art.un,fonte:"Área L'Urbain: "+rt.eurM2.toLocaleString('pt-PT',{maximumFractionDigits:0})+" €/m² (n="+rt.n+")",data:rt.data,grau:"Semelhante (área)",conf:"media"};
   }
   if(fam){
-    let cc=COMP_ROWS.filter(c=>famX(c.descricao,c.un)===fam && normUn(c.un)===un && libTradeOk(c,fam));
+    let cc=COMP_ROWS.filter(c=>famLib(c)===fam && normUn(c.un)===un && libTradeOk(c,fam));
     cc=preferDim(cc,dim,c=>c.descricao);
     if(cc.length){ const c=cc[0]; return {preco:c.custo_unit,un:c.un,fonte:"Composto: "+c.descricao,data:null,grau:c.incompleto?"Composto (incompleto)":"Composto",conf:c.incompleto?"media":"alta"}; }
-    let inst=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un && r.ambito==="F&A" && libTradeOk(r,fam));
+    let inst=PR_ROWS.filter(r=>famLib(r)===fam && normUn(r.un)===un && r.ambito==="F&A" && libTradeOk(r,fam));
     inst=preferDim(inst,dim,r=>r.descricao);
     if(inst.length){ const r=maisRecentePR(inst); const n=inst.length; return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r)+(n>1?" (+"+(n-1)+")":""),data:r.data,grau:"Semelhante (família)",conf:"media"}; }
-    let parc=PR_ROWS.filter(r=>famX(r.descricao,r.un)===fam && normUn(r.un)===un && libTradeOk(r,fam));
+    let parc=PR_ROWS.filter(r=>famLib(r)===fam && normUn(r.un)===un && libTradeOk(r,fam));
     parc=preferDim(parc,dim,r=>r.descricao);
     if(parc.length){ const r=maisRecentePR(parc); return {preco:r.preco_unit,un:r.un,fonte:nomeFonte(r),data:r.data,grau:"Parcial ("+r.ambito+")",conf:"baixa"}; }
   }
