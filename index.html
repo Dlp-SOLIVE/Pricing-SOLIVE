@@ -925,6 +925,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
     <button id="lib-tab-import" onclick="libTab('import')">Importar custo real</button>
+    <button id="lib-tab-gerir" onclick="libTab('gerir')">Gerir projetos</button>
   </div>
 
   <div id="lib-pane-pu" class="hidden">
@@ -1105,6 +1106,25 @@ tr.resolved td textarea{text-decoration:line-through}
       <button class="btn red" style="margin-top:8px" onclick="impImport()">Importar para a biblioteca</button>
     </div>
   </div>
+  <div id="lib-pane-gerir" class="hidden">
+    <div class="card">
+      <h2>Gerir / eliminar projetos</h2>
+      <div class="hint">Elimina um projeto e <b>todos os dados associados</b> &mdash; an&aacute;lises, fases, cap&iacute;tulos, pre&ccedil;os unit&aacute;rios, consultas, vers&otilde;es e or&ccedil;amento. A&ccedil;&atilde;o <b>irrevers&iacute;vel</b>: exporta primeiro. As bibliotecas partilhadas (taxonomia, r&aacute;cios) <b>n&atilde;o</b> s&atilde;o tocadas.</div>
+      <div class="filters">
+        <div style="min-width:280px"><label>Projeto a eliminar</label><select id="gpProj" onchange="gpPreview()"></select></div>
+        <div style="align-self:end"><button class="btn ghost" onclick="gpPreview()">Recontar</button></div>
+      </div>
+      <div id="gpCounts" class="hint" style="margin-top:6px">Escolhe um projeto para ver o que ser&aacute; eliminado.</div>
+      <label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:12px"><input type="checkbox" id="gpIncReais"> Remover tamb&eacute;m as linhas deste projeto da <b>biblioteca de custos reais</b> (precos_reais) &mdash; pode afetar r&aacute;cios de outros projetos.</label>
+      <div style="background:#fff4f4;border:1px solid var(--red);border-radius:8px;padding:12px;margin-top:8px">
+        <div style="font-weight:700;color:var(--red);margin-bottom:6px">Confirma&ccedil;&atilde;o</div>
+        <div class="hint" style="margin:0">Para confirmar, escreve o nome exato do projeto: <b id="gpNomeEco">&mdash;</b></div>
+        <input type="text" id="gpConfirm" placeholder="Escreve o nome do projeto" oninput="gpConfirmCheck()" style="margin-top:6px;max-width:340px">
+        <div><button id="gpDelBtn" class="btn" style="margin-top:10px;background:var(--red);color:#fff;opacity:.45;pointer-events:none" onclick="gpDelete()">Eliminar definitivamente</button></div>
+      </div>
+    </div>
+  </div>
+
   <div id="lib-pane-caps">
   <div class="card" style="padding:14px 20px">
     <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler:</b> cada projeto é uma entrada única. A biblioteca mostra, por capítulo, o <b>Orçamento</b> (estimativa inicial), o <b>Real</b> (conta final da obra, com trabalhos adicionais) e o <b>Desvio</b> entre os dois. O Real é a referência para orçamentar projetos novos; o desvio diz-te onde as tuas estimativas historicamente falham.</div>
@@ -1313,6 +1333,78 @@ async function loadProjetos(){
   });
   try{fillAplRef();}catch(e){}
 }
+/* ================= GERIR / ELIMINAR PROJETOS ================= */
+function gpRender(){
+  const sel=document.getElementById('gpProj'); if(!sel)return;
+  sel.innerHTML = PROJETOS.length
+    ? PROJETOS.map(p=>`<option value="${esc(p.nome)}">${esc(p.nome)}</option>`).join("")
+    : '<option value="">— sem projetos —</option>';
+  const ci=document.getElementById('gpConfirm'); if(ci) ci.value="";
+  gpConfirmCheck();
+  gpPreview();
+}
+async function gpCount(tbl,col,val){
+  const {count,error}=await sb.from(tbl).select('*',{count:'exact',head:true}).eq(col,val);
+  return error?'?':(count||0);
+}
+async function gpPreview(){
+  const box=document.getElementById('gpCounts'); if(!box)return;
+  const nome=document.getElementById('gpProj').value;
+  const proj=PROJETOS.find(p=>p.nome===nome);
+  const eco=document.getElementById('gpNomeEco'); if(eco) eco.textContent=nome||"—";
+  gpConfirmCheck();
+  if(!proj){ box.textContent="Escolhe um projeto para ver o que será eliminado."; return; }
+  box.textContent="A contar…";
+  const {data:fs}=await sb.from('fases').select('id').eq('projeto_id',proj.id);
+  const faseIds=(fs||[]).map(f=>f.id);
+  let nCap=0;
+  if(faseIds.length){ const {count}=await sb.from('capitulos').select('*',{count:'exact',head:true}).in('fase_id',faseIds); nCap=count||0; }
+  const nFase=faseIds.length;
+  const nAnal=await gpCount('analises','projeto_id',proj.id);
+  const nPU=await gpCount('precos_unitarios','projeto',nome);
+  const nCons=await gpCount('consultas','projeto',nome);
+  const nVer=await gpCount('orcamento_versoes','projeto_nome',nome);
+  const nOrc=await gpCount('orcamentos','projeto_nome',nome);
+  const nReais=await gpCount('precos_reais','projeto',nome);
+  box.innerHTML = `Vai eliminar: <b>${nAnal}</b> análises &middot; <b>${nFase}</b> fases &middot; <b>${nCap}</b> capítulos &middot; <b>${nPU}</b> preços unitários &middot; <b>${nCons}</b> consultas &middot; <b>${nVer}</b> versões &middot; <b>${nOrc}</b> orçamento &middot; e o próprio projeto.<br>Biblioteca de custos reais deste projeto: <b>${nReais}</b> linha(s) &mdash; só apagadas se marcares a opção acima.`;
+}
+function gpConfirmCheck(){
+  const nome=(document.getElementById('gpProj')||{}).value||"";
+  const typed=(document.getElementById('gpConfirm')||{}).value||"";
+  const btn=document.getElementById('gpDelBtn'); if(!btn)return;
+  const ok = !!nome && typed===nome;
+  btn.style.opacity = ok?'1':'.45';
+  btn.style.pointerEvents = ok?'auto':'none';
+}
+function gpFail(btn){ if(btn) btn.textContent="Eliminar definitivamente"; gpConfirmCheck(); }
+async function gpDelete(){
+  if(!SESSION) return alertx("Inicia sessão de gestor para eliminar projetos.");
+  const nome=document.getElementById('gpProj').value;
+  const proj=PROJETOS.find(p=>p.nome===nome);
+  if(!proj) return alertx("Projeto não encontrado.");
+  if(document.getElementById('gpConfirm').value!==nome) return alertx("O nome de confirmação não coincide.");
+  if(!confirm('Eliminar definitivamente o projeto "'+nome+'" e todos os seus dados? Esta ação é irreversível.')) return;
+  const btn=document.getElementById('gpDelBtn'); btn.style.pointerEvents='none'; btn.textContent="A eliminar…";
+  const {data:fs}=await sb.from('fases').select('id').eq('projeto_id',proj.id);
+  const faseIds=(fs||[]).map(f=>f.id);
+  let r;
+  if(faseIds.length){ r=await sbq(sb.from('capitulos').delete().in('fase_id',faseIds),"Apagar capítulos"); if(r.error)return gpFail(btn); }
+  r=await sbq(sb.from('fases').delete().eq('projeto_id',proj.id),"Apagar fases"); if(r.error)return gpFail(btn);
+  r=await sbq(sb.from('analises').delete().eq('projeto_id',proj.id),"Apagar análises"); if(r.error)return gpFail(btn);
+  r=await sbq(sb.from('precos_unitarios').delete().eq('projeto',nome),"Apagar preços unitários"); if(r.error)return gpFail(btn);
+  r=await sbq(sb.from('consultas').delete().eq('projeto',nome),"Apagar consultas"); if(r.error)return gpFail(btn);
+  r=await sbq(sb.from('orcamento_versoes').delete().eq('projeto_nome',nome),"Apagar versões"); if(r.error)return gpFail(btn);
+  r=await sbq(sb.from('orcamentos').delete().eq('projeto_nome',nome),"Apagar orçamento"); if(r.error)return gpFail(btn);
+  if(document.getElementById('gpIncReais').checked){
+    r=await sbq(sb.from('precos_reais').delete().eq('projeto',nome),"Apagar custos reais"); if(r.error)return gpFail(btn);
+  }
+  r=await sbq(sb.from('projetos').delete().eq('id',proj.id),"Apagar projeto"); if(r.error)return gpFail(btn);
+  btn.textContent="Eliminar definitivamente";
+  alertx('Projeto "'+nome+'" eliminado.',true);
+  await loadProjetos();
+  gpRender();
+}
+
 async function loadMappings(){
   const {data}=await sb.from('mapeamentos').select('*');
   MAPPINGS=data||[];
@@ -4798,7 +4890,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['caps','pu','ver','tax','dpr','import'].forEach(x=>{
+  ['caps','pu','ver','tax','dpr','import','gerir'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -4810,6 +4902,7 @@ function libTab(t){
   if(t==='tax') renderTaxonomia();
   if(t==='dpr') preencherProjSelect('dprProj');
   if(t==='import') renderImpGrid();
+  if(t==='gerir') gpRender();
 }
 function preencherProjSelect(id){
   const s=document.getElementById(id); if(!s)return;
