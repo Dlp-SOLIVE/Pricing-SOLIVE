@@ -1277,7 +1277,7 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','estimador','orcamento','consultas','fecho','verificar','racios','comparar','biblioteca'].forEach(x=>{
+  ['analisador','estimador','orcamento','consultas','fecho','verificar','racios','precomq','comparar','biblioteca'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
@@ -6606,6 +6606,160 @@ function vfDrill(cap){
     try{ const a=document.getElementById('dAbc'), f=document.getElementById('dFogos');
       if(a&&a.value) document.getElementById('rxAbc').value=a.value;
       if(f&&f.value) document.getElementById('rxFogos').value=f.value; }catch(e){}
+  }
+})();
+
+/* ==========================================================================
+   ETAPA 5 — MOTOR DE ORÇAMENTAÇÃO DE MQ (empty bill of quantities)
+   Lê um MQ vazio (Art/Designação/Un/Quant, sem preço), e para cada linha
+   procura no custo gravado o preço MELHOR SUPORTADO (mesma unidade + maior
+   semelhança de descrição), devolvendo preço recomendado + nº de registos +
+   amplitude min–mediana–max + confiança, rastreável até à origem.
+   Regra: preenche automaticamente o que é seguro; assinala o resto.
+   ========================================================================== */
+const VF_STOP=new Set(['DE','DA','DO','DAS','DOS','E','EM','PARA','COM','A','O','AS','OS','AO','NO','NA','POR','UM','UMA','INCLUINDO','INCL','TIPO','OU','SEM','SOB','ATE','ENTRE','MODELO','REF','C']);
+function vfTokens(s){
+  return new Set(vfNorm(s).split(/[^A-Z0-9]+/).filter(t=>t.length>1&&!VF_STOP.has(t)));
+}
+function vfDice(a,b){
+  if(!a.size||!b.size) return 0;
+  let inter=0; a.forEach(t=>{ if(b.has(t)) inter++; });
+  return (2*inter)/(a.size+b.size);
+}
+function vfMedian(arr){
+  const s=arr.slice().sort((x,y)=>x-y); const n=s.length; if(!n) return null;
+  return n%2? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2;
+}
+/* procura o preço melhor suportado para uma linha de MQ.
+   Pooling em torno do MELHOR match (não um limiar fixo), para não juntar
+   artigos parecidos mas diferentes (ex.: armários de tamanhos distintos que
+   partilham "folhas/abrir"). O preço vem de itens quase idênticos ao melhor. */
+function vfMatchLine(line, lib){
+  const un=vfNorm(line.unidade);
+  const lt=vfTokens(line.designacao);
+  const scored=lib.filter(r=>vfNorm(r.unidade)===un && Number(r.preco_unit)>0)
+    .map(r=>({r,score:vfDice(lt,vfTokens(r.designacao))}))
+    .sort((a,b)=>b.score-a.score);
+  const best=scored.length?scored[0].score:0;
+  if(best<0.4) return {rec:null,n:0,min:null,med:null,max:null,conf:'sem',best,cands:scored.slice(0,5).map(x=>({desc:x.r.designacao,pu:Number(x.r.preco_unit),contrato:x.r.contrato,score:x.score}))};
+  // pool = itens tão semelhantes como o melhor (dentro de 0.08), com piso em 0.6
+  const floor=Math.max(best>=0.6?0.6:0.4, best-0.08);
+  const pool=scored.filter(x=>x.score>=floor);
+  const prices=pool.map(x=>Number(x.r.preco_unit));
+  const med=vfMedian(prices), min=Math.min(...prices), max=Math.max(...prices);
+  const spread=med?(max-min)/med:1;
+  let conf;
+  if(best>=0.85) conf=(pool.length>=2 && spread<=0.35)?'alta':'média';
+  else if(best>=0.6) conf=(pool.length>=2 && spread<=0.5)?'média':'baixa';
+  else conf='baixa';
+  return {rec:med,n:pool.length,min,med,max,conf,best,
+          cands:pool.slice(0,6).map(x=>({desc:x.r.designacao,pu:Number(x.r.preco_unit),contrato:x.r.contrato,score:x.score}))};
+}
+/* leitor de MQ vazio (mesma família de template; não exige colunas de preço) */
+function vfReadMQ(rows){
+  let H=null;
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const r=(rows[i]||[]).map(vfNorm);
+    const des=r.findIndex(x=>/DESIGNA/.test(x));
+    const un=r.findIndex(x=>/^UN\.?$/.test(x));
+    const qt=r.findIndex(x=>/^QUANT/.test(x));
+    if(des>=0&&un>=0&&qt>=0){ H={row:i,des,un,qty:qt}; break; }
+  }
+  if(!H) return null;
+  const out=[]; let secao=null;
+  for(let i=H.row+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const a=String(r[0]==null?"":r[0]).trim();
+    const d=String(r[H.des]==null?"":r[H.des]).trim();
+    const un=String(r[H.un]==null?"":r[H.un]).trim();
+    const q=vfNum(r[H.qty]);
+    if(/^VALOR GLOBAL|^TOTAL DO CONTRATO/.test(vfNorm(d))) continue;
+    if(un!=="" && q!=null){ out.push({pos:i,art:a,designacao:d,unidade:un,quantidade:q,cap:secao||null}); }
+    else if(d&&!un){ if(VF_ROMAN.test(a)&&a) secao=d; }
+  }
+  return out;
+}
+async function vfPriceMQFile(){
+  const inp=document.getElementById('mqFile'); const out=document.getElementById('mqOut');
+  if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o MQ (.xlsx) primeiro.</div>'; return; }
+  if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
+  out.innerHTML='<div class="note">A carregar biblioteca de custo…</div>';
+  const q=await sb.from('custo_linha').select('designacao,unidade,preco_unit,capitulo_canonico,contrato');
+  if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
+  const lib=(q.data||[]).filter(r=>Number(r.preco_unit)>0);
+  if(!lib.length){ out.innerHTML='<div class="note">Sem custo gravado ainda — importa autos primeiro.</div>'; return; }
+  const f=inp.files[0]; const rd=new FileReader();
+  rd.onload=e=>{
+    let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){ out.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
+    let mq=null;
+    for(const sn of wb.SheetNames){ const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null}); const m=vfReadMQ(rows); if(m&&m.length){ mq=m; break; } }
+    if(!mq){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades neste ficheiro (preciso de colunas Designação / Un. / Quant.).</div>'; return; }
+    const results=mq.map(l=>({l,m:vfMatchLine(l,lib)}));
+    window.__mqResults=results;
+    vfRenderMQ(results,lib.length);
+  };
+  rd.readAsArrayBuffer(f);
+}
+function vfConfBadge(c){
+  const map={alta:['#1c7c46','alta'],'média':['#298893','média'],baixa:['#b26a00','baixa'],sem:['#E62336','sem match']};
+  const m=map[c]||map.sem;
+  return '<span style="background:'+m[0]+';color:#fff;padding:1px 8px;border-radius:20px;font-size:11px;font-weight:700">'+m[1]+'</span>';
+}
+function vfRenderMQ(results, libN){
+  const out=document.getElementById('mqOut');
+  const th='<tr><th>Designação (MQ)</th><th>Un</th><th style="text-align:right">Qt</th><th style="text-align:right">€/un recomendado</th><th style="text-align:right">Apoio</th><th style="text-align:right">Amplitude</th><th>Confiança</th><th style="text-align:right">Total linha</th></tr>';
+  const body=results.map((x,i)=>{
+    const m=x.m; const rec=m.rec;
+    const amp = m.n? fmt(m.min,0)+'–'+fmt(m.max,0) : '—';
+    const inp='<input type="number" id="mqp_'+i+'" value="'+(rec!=null?rec.toFixed(2):'')+'" style="width:90px;text-align:right" oninput="vfMQTotal()">';
+    return '<tr style="cursor:pointer" onclick="vfMQDrill('+i+')">'
+      +'<td>'+esc(String(x.l.designacao).slice(0,60))+'</td>'
+      +'<td>'+esc(x.l.unidade)+'</td>'
+      +'<td class="mono" style="text-align:right">'+fmt(x.l.quantidade,2)+'</td>'
+      +'<td class="mono" style="text-align:right" onclick="event.stopPropagation()">'+inp+'</td>'
+      +'<td class="mono" style="text-align:right">'+(m.n||'—')+'</td>'
+      +'<td class="mono" style="text-align:right;color:#48566b">'+amp+'</td>'
+      +'<td>'+vfConfBadge(m.conf)+'</td>'
+      +'<td class="mono" style="text-align:right" id="mqt_'+i+'">'+(rec!=null?vfMoeda(rec*x.l.quantidade):'—')+'</td></tr>';
+  }).join('');
+  const auto=results.filter(x=>x.m.conf==='alta'||x.m.conf==='média').length;
+  const flag=results.length-auto;
+  out.innerHTML='<div class="note" style="margin-bottom:8px">Biblioteca: '+libN+' preços reais. <b>'+auto+'</b> linhas com preço fiável, <b>'+flag+'</b> por confirmar. Ajusta os preços por confirmar e o total actualiza. Clica numa linha para ver os registos que suportam o preço.</div>'
+    +'<table style="font-size:12.5px">'+th+body+'</table>'
+    +'<div style="margin-top:10px;font-size:15px"><b>Estimativa total: <span id="mqTotal">—</span></b></div>'
+    +'<div id="mqDrill" style="margin-top:12px"></div>';
+  vfMQTotal();
+}
+function vfMQTotal(){
+  const results=window.__mqResults||[]; let tot=0;
+  results.forEach((x,i)=>{
+    const el=document.getElementById('mqp_'+i); const v=el?parseFloat(el.value):NaN;
+    const cell=document.getElementById('mqt_'+i);
+    if(isFinite(v)){ const lt=v*x.l.quantidade; tot+=lt; if(cell) cell.textContent=vfMoeda(lt); }
+    else if(cell) cell.textContent='—';
+  });
+  const t=document.getElementById('mqTotal'); if(t) t.textContent=vfMoeda(tot);
+}
+function vfMQDrill(i){
+  const x=(window.__mqResults||[])[i]; const d=document.getElementById('mqDrill'); if(!x||!d) return;
+  const c=x.m.cands||[];
+  const th='<tr><th>Registo de custo</th><th>Contrato</th><th style="text-align:right">€/un</th><th style="text-align:right">Semelhança</th></tr>';
+  const body=c.length?c.map(k=>'<tr><td>'+esc(String(k.desc).slice(0,64))+'</td><td class="mono">'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score*100).toFixed(0)+'%</td></tr>').join(''):'<tr><td colspan="4">Sem registos comparáveis — preço a introduzir manualmente.</td></tr>';
+  d.innerHTML='<div class="card"><b>'+esc(String(x.l.designacao).slice(0,80))+'</b> · '+esc(x.l.unidade)+'<table style="margin-top:8px;font-size:12.5px">'+th+body+'</table></div>';
+}
+(function vfMountMQ(){
+  if(document.getElementById('nav-precomq')) return;
+  const navR=document.getElementById('nav-racios');
+  if(navR) navR.insertAdjacentHTML('afterend','<button id="nav-precomq" onclick="showView(\'precomq\')">Preço MQ</button>');
+  const host=document.getElementById('view-racios')||document.getElementById('view-verificar');
+  if(host){
+    const mv=document.createElement('div'); mv.id='view-precomq'; mv.className='hidden';
+    mv.innerHTML='<h2 style="color:#143A67">Orçamentar MQ pelo custo real</h2>'
+      +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante) e mostra o preço recomendado, quantos registos o suportam, a amplitude e a confiança. Preenche o seguro; assinala o resto. Nada é inventado — a semelhança só ordena candidatos reais.</div>'
+      +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button></div>'
+      +'<div id="mqOut" style="margin-top:12px"></div>';
+    host.parentNode.appendChild(mv);
   }
 })();
 
