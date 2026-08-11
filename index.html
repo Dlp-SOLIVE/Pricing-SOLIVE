@@ -6298,10 +6298,13 @@ refreshLib();
 
 <script>
 /* ==========================================================================
-   IMPORTAÇÃO CONFIÁVEL — ETAPA 2 (verificação, sem gravar)
-   Lê um auto de medição (formato Legendre), reconcilia a soma das linhas
-   contra o total declarado no ficheiro, e mostra o veredicto + avisos.
-   NÃO grava nada na base de dados (isso é a Etapa 3).
+   IMPORTAÇÃO CONFIÁVEL — ETAPAS 2 e 3
+   Etapa 2: lê um auto (formato Legendre), reconcilia a soma das linhas
+            contra o total declarado, mostra veredicto + avisos. (só leitura)
+   Etapa 3: mapeia os capítulos de origem -> taxonomia L'Urbain (confirmar
+            uma vez) e GRAVA o custo com proveniência (custo_import +
+            custo_linha + mapa_capitulo). Só grava se reconciliar e todos os
+            capítulos estiverem mapeados.
    ========================================================================== */
 function vfNorm(s){return String(s==null?"":s).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").toUpperCase().trim();}
 function vfNum(v){
@@ -6334,6 +6337,13 @@ function vfVerificarSheet(rows,sheetName){
   if(!H) return null;
   const contrato=vfHeaderVal(rows,/^CONTRATO N/);
   const subemp=vfHeaderVal(rows,/^SUBEMPREITEIRO/);
+  const nif=vfHeaderVal(rows,/^NIF/);
+  const obra=vfHeaderVal(rows,/CODIGO OBRA/);
+  let autoNum=null;
+  for(let i=0;i<Math.min(rows.length,6)&&autoNum==null;i++){
+    const r=rows[i]||[];
+    for(const cell of r){ const m=vfNorm(cell).match(/AUTO DE MEDICAO N\D*(\d+)/); if(m){ autoNum=parseInt(m[1],10); break; } }
+  }
   const leaves=[]; const decContr=[]; let decGlobal=null; let secao=null, aditCtx=null;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
@@ -6347,23 +6357,96 @@ function vfVerificarSheet(rows,sheetName){
     if(/^TOTAL DO ADITAMENTO/.test(dn)){ aditCtx=null; continue; }
     if(/^AD?\s?\d+$/i.test(a)&&d&&!un){ aditCtx=a; continue; }
     const isLeaf = un!=="" && q!=null && pu!=null && tot!=null;
-    if(isLeaf){ leaves.push({pos:i,a,d,un,q,pu,tot,cap:secao,adit:aditCtx}); }
+    if(isLeaf){ leaves.push({pos:i,a,d,un,q,pu,tot,cap:secao||"(sem capítulo)",adit:aditCtx}); }
     else if(d&&!un){ if(VF_ROMAN.test(a)&&a) secao=d; }
   }
   const sumLeaf=Math.round(leaves.reduce((s,l)=>s+l.tot,0)*100)/100;
-  const declared = decGlobal!=null ? decGlobal
-                 : Math.round(decContr.reduce((s,x)=>s+(x||0),0)*100)/100;
+  const declaredRaw = decGlobal!=null ? decGlobal
+                    : decContr.reduce((s,x)=>s+(x||0),0);
+  const declared = declaredRaw!=null ? Math.round(declaredRaw*100)/100 : null;
   const reconcilia = declared!=null && Math.abs(sumLeaf-declared)<0.005;
   const codes={}; leaves.forEach(l=>{ if(l.a) codes[l.a]=(codes[l.a]||0)+1; });
   const dupCodes=Object.keys(codes).filter(k=>codes[k]>1);
   const blankCodes=leaves.filter(l=>!l.a).length;
   const arithBad=leaves.filter(l=>Math.abs(Math.round(l.q*l.pu*100)/100-Math.round(l.tot*100)/100)>0.02).length;
   const chapters=[...new Set(leaves.map(l=>l.cap).filter(Boolean))];
-  const porMapear = chapters.filter(c=>{ try{ return !(typeof mapCapitulo==="function" && mapCapitulo(c)); }catch(e){ return true; } });
-  return {sheetName,contrato,subemp,nLinhas:leaves.length,sumLeaf,declared,reconcilia,
-          dupCodes,blankCodes,arithBad,chapters,porMapear};
+  return {sheetName,contrato,subemp,nif,obra,autoNum,leaves,
+          nLinhas:leaves.length,sumLeaf,declared,reconcilia,
+          dupCodes,blankCodes,arithBad,chapters};
 }
+/* lista canónica de capítulos = referência L'Urbain (CAPS runtime, senão CAPS_BASE) */
+function vfCanon(){
+  try{ if(typeof CAPS!=="undefined"&&CAPS&&CAPS.length) return CAPS; }catch(e){}
+  try{ if(typeof CAPS_BASE!=="undefined"&&CAPS_BASE&&CAPS_BASE.length) return CAPS_BASE; }catch(e){}
+  return [];
+}
+function vfGuess(origem){ try{ return (typeof mapCapitulo==="function"&&mapCapitulo(origem))||""; }catch(e){ return ""; } }
 function vfMoeda(n){ return (typeof fmt==="function")?fmt(n,2)+" €":Number(n).toFixed(2); }
+
+/* --- ETAPA 3: construção do payload de gravação (função pura, testável) --- */
+function vfBuildPayload(v, mapping){
+  const header={
+    projeto_ref: v.obra||null,
+    contrato: v.contrato||null,
+    subempreiteiro: v.subemp||null,
+    nif: v.nif!=null?String(v.nif):null,
+    obra_codigo: v.obra||null,
+    auto_numero: v.autoNum!=null?parseInt(v.autoNum,10)||null:null,
+    ficheiro_nome: v.ficheiro||v.sheetName||null,
+    total_declarado: v.declared,
+    total_calculado: v.sumLeaf,
+    reconcilia: !!v.reconcilia,
+    estado: 'confirmado',
+    avisos: {dupCodes:v.dupCodes, blankCodes:v.blankCodes, arithBad:v.arithBad}
+  };
+  const linhas=v.leaves.map(l=>({
+    contrato: v.contrato||null,
+    linha_pos: l.pos,
+    art_codigo: l.a||null,
+    capitulo_origem: l.cap||null,
+    capitulo_canonico: mapping[l.cap]||null,
+    designacao: l.d||null,
+    unidade: l.un||null,
+    quantidade: l.q,
+    preco_unit: l.pu,
+    total: l.tot,
+    is_aditamento: !!l.adit,
+    aditamento_ref: l.adit||null
+  }));
+  const mapas=Object.keys(mapping).filter(k=>mapping[k]).map(k=>({capitulo_origem:k, capitulo_canonico:mapping[k]}));
+  return {header, linhas, mapas};
+}
+/* grava no Supabase: apaga o custo anterior do mesmo contrato e insere de novo
+   (o custo representa o CONTRATO — importar um auto mais recente refresca-o). */
+async function vfGravar(sheetName){
+  const v=(window.__vfState||{})[sheetName];
+  if(!v){ toast("Verifica o ficheiro primeiro."); return; }
+  if(!v.reconcilia){ toast("Não grava: o auto não reconcilia."); return; }
+  const mapping={};
+  let faltam=0;
+  v.chapters.forEach((c,idx)=>{
+    const sel=document.getElementById('vfmap_'+sheetName.replace(/\W/g,'')+'_'+idx);
+    const val=sel?sel.value:"";
+    if(!val) faltam++; else mapping[c]=val;
+  });
+  if(faltam){ toast("Faltam "+faltam+" capítulo(s) por mapear."); return; }
+  if(typeof sb==="undefined"||!sb){ toast("Precisas de estar ligado e com sessão iniciada."); return; }
+  const {header,linhas,mapas}=vfBuildPayload({...v,ficheiro:v.ficheiro||sheetName}, mapping);
+  try{
+    await sb.from('custo_import').delete().eq('contrato',header.contrato);
+    const ins=await sb.from('custo_import').insert(header).select('id').single();
+    if(ins.error) throw ins.error;
+    const impId=ins.data.id;
+    const withId=linhas.map(l=>({...l,import_id:impId}));
+    const li=await sb.from('custo_linha').insert(withId);
+    if(li.error) throw li.error;
+    if(mapas.length) await sb.from('mapa_capitulo').upsert(mapas,{onConflict:'capitulo_origem,capitulo_canonico',ignoreDuplicates:true});
+    toast("Custo gravado: "+linhas.length+" linhas · "+vfMoeda(header.total_calculado));
+    const btn=document.getElementById('vfgrav_'+sheetName.replace(/\W/g,''));
+    if(btn){ btn.textContent="✓ Gravado"; btn.disabled=true; }
+  }catch(err){ toast("Erro a gravar: "+(err.message||err)); }
+}
+
 function vfVerificarFile(){
   const inp=document.getElementById('vfFile');
   const out=document.getElementById('vfOut');
@@ -6373,22 +6456,37 @@ function vfVerificarFile(){
   rd.onload=e=>{
     let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
     catch(err){ out.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
+    window.__vfState={};
     const cards=[];
     wb.SheetNames.forEach(sn=>{
       const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
       const v=vfVerificarSheet(rows,sn);
       if(!v||v.declared==null) return;
+      v.ficheiro=f.name;
+      window.__vfState[sn]=v;
+      const key=sn.replace(/\W/g,'');
       const badge = v.reconcilia
         ? '<span style="background:#1c7c46;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px">RECONCILIA ✓</span>'
         : '<span style="background:#E62336;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px">NÃO RECONCILIA ✗</span>';
       const dif=Math.round((v.sumLeaf-v.declared)*100)/100;
       const avisos=[];
       if(v.dupCodes.length) avisos.push('Códigos de artigo repetidos: <b>'+esc(v.dupCodes.join(', '))+'</b>');
-      if(v.blankCodes) avisos.push('<b>'+v.blankCodes+'</b> linhas sem código de artigo (identidade posicional)');
+      if(v.blankCodes) avisos.push('<b>'+v.blankCodes+'</b> linhas sem código (identidade posicional)');
       if(v.arithBad) avisos.push('<b>'+v.arithBad+'</b> linhas onde Quant × Preço ≠ Total');
-      if(v.porMapear.length) avisos.push('Capítulos por mapear: <b>'+esc(v.porMapear.join(', '))+'</b>');
-      const avHtml = avisos.length ? '<ul style="margin:8px 0 0 18px">'+avisos.map(a=>'<li>'+a+'</li>').join('')+'</ul>'
-                                   : '<div class="note" style="margin-top:6px">Sem avisos.</div>';
+      const avHtml = avisos.length ? '<ul style="margin:8px 0 0 18px">'+avisos.map(a=>'<li>'+a+'</li>').join('')+'</ul>':'';
+      // Etapa 3 — mapeamento de capítulos (só se reconcilia)
+      let mapHtml='';
+      if(v.reconcilia){
+        const canon=vfCanon();
+        const opts=cap=>{ const g=vfGuess(cap); return '<option value="">— escolher —</option>'+
+          canon.map(c=>'<option'+(vfNorm(c)===vfNorm(g)?' selected':'')+'>'+esc(c)+'</option>').join(''); };
+        mapHtml='<div style="margin-top:10px"><b>Mapear capítulos para a taxonomia L\u2019Urbain</b>'
+          +'<table style="margin-top:6px;font-size:13px"><tr><th>Capítulo no ficheiro</th><th>Capítulo canónico</th></tr>'
+          +v.chapters.map((c,idx)=>'<tr><td>'+esc(c)+'</td><td><select id="vfmap_'+key+'_'+idx+'" style="min-width:220px">'+opts(c)+'</select></td></tr>').join('')
+          +'</table>'
+          +'<button class="btn red" id="vfgrav_'+key+'" style="margin-top:10px" onclick="vfGravar(\''+sn.replace(/'/g,"\\'")+'\')">Gravar custo (confirmar)</button>'
+          +' <span class="note" style="font-size:12px">Grava com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo.</span></div>';
+      }
       cards.push(
         '<div class="card" style="border-left:5px solid '+(v.reconcilia?'#1c7c46':'#E62336')+'">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
@@ -6398,10 +6496,10 @@ function vfVerificarFile(){
         +'<tr><td class="mono">'+v.nLinhas+'</td><td class="mono">'+vfMoeda(v.sumLeaf)+'</td><td class="mono">'+vfMoeda(v.declared)+'</td>'
         +'<td class="mono" style="color:'+(Math.abs(dif)<0.005?'#1c7c46':'#E62336')+'">'+vfMoeda(dif)+'</td></tr></table>'
         +'<div style="margin-top:8px;font-size:12.5px;color:#48566b">Capítulos detetados: '+(v.chapters.length?esc(v.chapters.join(' · ')):'—')+'</div>'
-        +avHtml+'</div>');
+        +avHtml+mapHtml+'</div>');
     });
     out.innerHTML = cards.length
-      ? '<div class="note" style="margin-bottom:8px">A verificação é só de leitura — nada foi gravado. A gravação com proveniência é a Etapa 3.</div>'+cards.join('')
+      ? '<div class="note" style="margin-bottom:8px">A verificação é só de leitura. A gravação só fica disponível se o auto reconciliar e todos os capítulos estiverem mapeados.</div>'+cards.join('')
       : '<div class="note">Nenhuma folha reconhecida como auto de medição neste ficheiro.</div>';
   };
   rd.readAsArrayBuffer(f);
@@ -6417,8 +6515,8 @@ function vfVerificarFile(){
     const div=document.createElement('div');
     div.id='view-verificar'; div.className='hidden';
     div.innerHTML=
-      '<h2 style="color:#143A67">Verificar Auto de Medição</h2>'
-      +'<div class="note">Confirma que um auto <b>bate certo</b> antes de o considerar fiável: a soma das linhas (Quant × Preço) tem de igualar o total declarado no ficheiro, ao cêntimo. Mostra também avisos (códigos repetidos, linhas sem código, capítulos por mapear). <b>Não grava nada.</b></div>'
+      '<h2 style="color:#143A67">Verificar e Gravar Auto de Medição</h2>'
+      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia L\u2019Urbain, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo anterior.</div>'
       +'<div class="card" style="margin-top:10px"><label>Ficheiro do auto (.xlsx)</label> '
       +'<input type="file" id="vfFile" accept=".xlsx"> '
       +'<button class="btn navy" onclick="vfVerificarFile()">Verificar</button></div>'
