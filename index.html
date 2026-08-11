@@ -455,7 +455,7 @@ tr.resolved td textarea{text-decoration:line-through}
     <h1>Estimativa rápida para o Business Plan</h1>
     <p>Na fase inicial só tens os descritores do projeto e o budget do BP. O estimador aplica os rácios de custo da biblioteca aos teus descritores e devolve uma estimativa por capítulo, com o intervalo do que os projetos históricos implicam — e confronta o total com o teu budget. Idealmente alimentado por custos reais de obra; quanto mais projetos fechados, mais fiável.</p>
     <div class="io"><span class="in">Usa: rácios da Biblioteca</span><span class="in">Entra: descritores + budget do BP</span><span class="out">Produz: estimativa por capítulo com intervalo</span></div>
-    <div class="note" style="margin-top:10px">Método <b>top-down</b>: estima a partir dos descritores (ABC, fogos), sem precisar de um mapa de quantidades. <span class="infodot" data-tip="Usa rácios históricos EUR/m2 e EUR/fogo por capítulo, com inflação e calibração. Ideal na fase de Business Plan.">i</span> &nbsp;Já tens um mapa de quantidades detalhado? <button class="btn ghost" style="padding:4px 10px" onclick="document.getElementById('est-aplicar-card').scrollIntoView({behavior:'smooth'})">Ver método por MQ (em baixo) →</button></div>
+    <div class="note" style="margin-top:10px">Método <b>top-down</b>: estima a partir dos descritores (ABC, fogos), sem precisar de um mapa de quantidades. <span class="infodot" data-tip="Usa rácios históricos EUR/m2 e EUR/fogo por capítulo, com inflação e calibração. Ideal na fase de Business Plan.">i</span></div>
   </div>
 
   <div class="card">
@@ -543,25 +543,6 @@ tr.resolved td textarea{text-decoration:line-through}
         <tbody id="tbSoft"></tbody>
       </table>
       </div>
-    </div>
-  </div>
-  <div id="est-aplicar-card" style="margin-top:18px">
-    <div class="card">
-      <h2>Aplicar custo real a um mapa de quantidades novo</h2>
-      <div class="hint">Carrega o mapa de quantidades de um projeto novo (formato Legendre). A plataforma procura na biblioteca de <b>custo real da construtora</b> o preço mais recente para cada artigo — igual (por código) ou parecido (por família) — e mostra o <b>grau de aproximação</b> de cada linha. Onde só existe metade do preço (só material ou só aplicação), assinala como parcial.</div>
-      <div class="note" style="margin-bottom:10px">Método <b>bottom-up</b>: aplica o custo real do L&rsquo;Urbain a cada linha de um mapa de quantidades. <span class="infodot" data-tip="Para quando já existe um MQ detalhado. Cada artigo é comparado com a biblioteca de custo real.">i</span> &nbsp;Ainda sem MQ? <button class="btn ghost" style="padding:4px 10px" onclick="document.getElementById('view-estimador').scrollIntoView({behavior:'smooth'})">Ir para os descritores (topo) ↑</button></div>
-      <div style="margin-bottom:8px"><label style="font-size:12px;color:#48566b">Preços de referência <span class="infodot" data-tip="De que projeto vêm os preços de custo real aplicados ao MQ. “Todos” usa toda a biblioteca (inclui o L&#39;Urbain).">i</span></label> <select id="aplRef" style="min-width:230px;margin-left:6px"></select></div>
-      <div id="aplDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('aplFile').click()">Clica para carregar o MQ (.xlsx)</div>
-      <input type="file" id="aplFile" accept=".xlsx" class="hidden" onchange="if(this.files[0])aplicarBibliotecaFile(this.files[0])">
-      <div id="aplResumo" class="hint hidden" style="margin:12px 0;color:var(--navy)"></div>
-      <button id="aplExportBtn" class="btn navy hidden" style="margin-bottom:10px" onclick="exportAplicacao()">Exportar (.xlsx) com custo real — preserva os separadores</button>
-      <div style="overflow-x:auto">
-        <table class="hidden" id="aplTabela">
-          <thead><tr><th>Capítulo</th><th>Artigo</th><th style="width:46px">Un</th><th style="text-align:right;width:80px">Qtd</th><th style="text-align:right;width:96px">Custo unit.</th><th style="text-align:right;width:104px">Total</th><th>Fonte</th><th style="width:78px">Data</th><th style="width:150px">Aproximação</th></tr></thead>
-          <tbody id="aplBody"></tbody>
-        </table>
-      </div>
-      <div id="aplLegenda" class="hint hidden" style="margin-top:10px"></div>
     </div>
   </div>
 </div>
@@ -924,7 +905,6 @@ tr.resolved td textarea{text-decoration:line-through}
     <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
-    <button id="lib-tab-import" onclick="libTab('import')">Importar custo real</button>
     <button id="lib-tab-gerir" onclick="libTab('gerir')">Gerir projetos</button>
   </div>
 
@@ -1059,53 +1039,6 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
-  <div id="lib-pane-import" class="hidden">
-    <div class="card">
-      <h2>Importar custo real &mdash; contratos e fornecimentos <span class="infodot" data-tip="Escreve na biblioteca de custo real (precos_reais). Preenche a fonte, cola as linhas do Excel e revê antes de importar.">i</span></h2>
-      <div class="hint">Preenche os dados da fonte, cola as linhas do Excel (uma por linha: <b>descrição</b> [tab] <b>unidade</b> [tab] <b>preço</b>), ajusta o âmbito e as exclusões de cada linha, e revê antes de importar.</div>
-      <div class="filters" style="margin:10px 0 6px">
-        <div style="min-width:170px"><label>Projeto</label><input type="text" id="impProj" value="L'Urbain"></div>
-        <div style="min-width:180px"><label>Fonte / referência</label><input type="text" id="impFonte" placeholder="UR.2026021 ou ADJ UR...."></div>
-        <div style="min-width:170px"><label>Fornecedor</label><input type="text" id="impForn"></div>
-        <div style="min-width:140px"><label>Data</label><input type="date" id="impData"></div>
-        <div style="min-width:180px"><label>Tipo de fonte</label><select id="impTipo"><option value="empreitada">empreitada (subcontrato)</option><option value="fornecimento">fornecimento (material)</option><option value="mao_obra">mão de obra</option></select></div>
-        <div style="min-width:150px"><label>Âmbito por defeito <span class="infodot" data-tip="F&amp;A = fornecimento e aplicação (custo instalado). Mão de obra = só aplicação. Fornecimento = só material.">i</span></label><select id="impAmb"><option value="F&A">F&amp;A</option><option value="fornecimento">fornecimento</option><option value="mao_obra">mão de obra</option></select></div>
-        <div style="min-width:170px"><label>Família</label><input type="text" id="impFam" placeholder="ex.: Impermeabilização"></div>
-        <div style="min-width:120px"><label>Confiança</label><select id="impConf"><option value="alta">alta</option><option value="media">média</option><option value="baixa">baixa</option></select></div>
-      </div>
-      <div style="font-size:12px;color:#48566b;font-weight:600;margin:6px 0 2px">Opção A — arrastar o Excel do ADJ</div>
-      <div id="impDrop" class="drop" style="cursor:pointer" onclick="document.getElementById('impXlsx').click()" ondragover="event.preventDefault()" ondrop="impDropHandler(event)">Arrasta aqui o ficheiro Excel (.xlsx), ou clica para escolher</div>
-      <input type="file" id="impXlsx" accept=".xlsx,.xls,.csv" class="hidden" onchange="if(this.files[0])impReadXlsx(this.files[0])">
-      <div id="impMapWrap" class="hidden" style="margin:6px 0 12px;padding:10px;background:#f5f7fa;border:1px solid #d8e0ea;border-radius:8px">
-        <div style="font-size:12px;color:#48566b;margin-bottom:6px">Confirma que colunas usar (a auto-deteção é um palpite — revê a amostra em baixo):</div>
-        <div class="filters">
-          <div style="min-width:150px"><label>Folha</label><select id="impSheet" onchange="impSheetChange()"></select></div>
-          <div style="min-width:160px"><label>Coluna Descrição</label><select id="impColDesc"></select></div>
-          <div style="min-width:130px"><label>Coluna Unidade</label><select id="impColUn"></select></div>
-          <div style="min-width:130px"><label>Coluna Preço</label><select id="impColPreco"></select></div>
-          <div style="min-width:110px"><label>Linha inicial</label><input type="number" id="impLinIni" value="1" min="1" style="width:70px"></div>
-          <div style="display:flex;align-items:end"><button class="btn navy" onclick="impFillFromSheet()">Preencher grelha</button></div>
-        </div>
-        <div style="overflow-x:auto;margin-top:8px"><table style="font-size:11px;border-collapse:collapse"><tbody id="impPreview"></tbody></table></div>
-      </div>
-      <div style="font-size:12px;color:#48566b;font-weight:600;margin:4px 0 2px">Opção B — colar linhas</div>
-      <label style="font-size:12px;color:#48566b">Colar linhas do Excel</label>
-      <textarea id="impPaste" rows="4" style="width:100%;font-family:monospace;font-size:12px" placeholder="Reboco REDUR IRP exterior projetado&#9;saco&#9;2,01"></textarea>
-      <div style="display:flex;gap:8px;margin:8px 0">
-        <button class="btn navy" onclick="impParse()">Processar colado</button>
-        <button class="btn ghost" onclick="impAddRow()">+ Linha</button>
-        <button class="btn ghost" onclick="impClear()">Limpar</button>
-      </div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead><tr><th>Descrição</th><th style="width:56px">Un</th><th style="width:84px;text-align:right">Preço</th><th style="width:130px">Âmbito</th><th>Exclusões</th><th style="width:34px"></th></tr></thead>
-          <tbody id="impBody"></tbody>
-        </table>
-      </div>
-      <div class="hint" id="impResumo" style="margin-top:8px"></div>
-      <button class="btn red" style="margin-top:8px" onclick="impImport()">Importar para a biblioteca</button>
-    </div>
-  </div>
   <div id="lib-pane-gerir" class="hidden">
     <div class="card">
       <h2>Gerir / eliminar projetos</h2>
@@ -4890,7 +4823,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['caps','pu','ver','tax','dpr','import','gerir'].forEach(x=>{
+  ['caps','pu','ver','tax','dpr','gerir'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -6618,6 +6551,9 @@ function vfDrill(cap){
    Regra: preenche automaticamente o que é seguro; assinala o resto.
    ========================================================================== */
 const VF_STOP=new Set(['DE','DA','DO','DAS','DOS','E','EM','PARA','COM','A','O','AS','OS','AO','NO','NA','POR','UM','UMA','INCLUINDO','INCL','TIPO','OU','SEM','SOB','ATE','ENTRE','MODELO','REF','C']);
+/* normaliza unidades: maiúsculas sem acentos, sem pontos/espaços, ² -> 2, ³ -> 3,
+   para que "m²"="m2", "Un."="UN", "vg"="VG" contem como a mesma unidade */
+function vfUnit(u){ return vfNorm(u).replace(/²/g,'2').replace(/³/g,'3').replace(/[^A-Z0-9]/g,''); }
 function vfTokens(s){
   return new Set(vfNorm(s).split(/[^A-Z0-9]+/).filter(t=>t.length>1&&!VF_STOP.has(t)));
 }
@@ -6635,9 +6571,9 @@ function vfMedian(arr){
    artigos parecidos mas diferentes (ex.: armários de tamanhos distintos que
    partilham "folhas/abrir"). O preço vem de itens quase idênticos ao melhor. */
 function vfMatchLine(line, lib){
-  const un=vfNorm(line.unidade);
+  const un=vfUnit(line.unidade);
   const lt=vfTokens(line.designacao);
-  const scored=lib.filter(r=>vfNorm(r.unidade)===un && Number(r.preco_unit)>0)
+  const scored=lib.filter(r=>vfUnit(r.unidade)===un && Number(r.preco_unit)>0)
     .map(r=>({r,score:vfDice(lt,vfTokens(r.designacao))}))
     .sort((a,b)=>b.score-a.score);
   const best=scored.length?scored[0].score:0;
@@ -6692,9 +6628,14 @@ async function vfPriceMQFile(){
   rd.onload=e=>{
     let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
     catch(err){ out.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
-    let mq=null;
-    for(const sn of wb.SheetNames){ const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null}); const m=vfReadMQ(rows); if(m&&m.length){ mq=m; break; } }
-    if(!mq){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades neste ficheiro (preciso de colunas Designação / Un. / Quant.).</div>'; return; }
+    let mq=[];
+    for(const sn of wb.SheetNames){
+      if(/INDICE|ÍNDICE/i.test(sn)) continue;
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
+      const m=vfReadMQ(rows);
+      if(m&&m.length){ m.forEach(l=>{ if(!l.cap||l.cap==='(sem capítulo)') l.cap=sn; }); mq.push(...m); }
+    }
+    if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades neste ficheiro (preciso de colunas Designação / Un. / Quant.).</div>'; return; }
     const results=mq.map(l=>({l,m:vfMatchLine(l,lib)}));
     window.__mqResults=results;
     vfRenderMQ(results,lib.length);
