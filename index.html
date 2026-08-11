@@ -1277,7 +1277,7 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','estimador','orcamento','consultas','fecho','comparar','biblioteca'].forEach(x=>{
+  ['analisador','estimador','orcamento','consultas','fecho','verificar','comparar','biblioteca'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
@@ -6294,6 +6294,139 @@ function confereProjeto(wbk,nomeAtivo){
 
 initSupa();
 refreshLib();
+</script>
+
+<script>
+/* ==========================================================================
+   IMPORTAÇÃO CONFIÁVEL — ETAPA 2 (verificação, sem gravar)
+   Lê um auto de medição (formato Legendre), reconcilia a soma das linhas
+   contra o total declarado no ficheiro, e mostra o veredicto + avisos.
+   NÃO grava nada na base de dados (isso é a Etapa 3).
+   ========================================================================== */
+function vfNorm(s){return String(s==null?"":s).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").toUpperCase().trim();}
+function vfNum(v){
+  if(v==null) return null;
+  if(typeof v==="number") return isFinite(v)?v:null;
+  const n=parseFloat(String(v).replace(/\s|€/g,"").replace(/\.(?=\d{3}(\D|$))/g,"").replace(",","."));
+  return isFinite(n)?n:null;
+}
+const VF_ROMAN=/^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/i;
+function vfHeaderVal(rows,re){
+  for(let i=0;i<Math.min(rows.length,14);i++){
+    const r=rows[i]||[];
+    for(let c=0;c<r.length;c++){ if(re.test(vfNorm(r[c]))){
+      for(let k=c+1;k<r.length;k++){ if(r[k]!=null&&String(r[k]).trim()!=="") return r[k]; } } }
+  }
+  return null;
+}
+function vfFindHeader(rows){
+  for(let i=0;i<Math.min(rows.length,25);i++){
+    const r=(rows[i]||[]).map(vfNorm);
+    const des=r.findIndex(x=>/DESIGNA/.test(x));
+    const un=r.findIndex(x=>/^UN\.?$/.test(x));
+    const con=r.findIndex(x=>/TOTAIS? FINA/.test(x));
+    if(des>=0&&un>=0&&con>=0) return {row:i,des,un,qty:un+1,price:un+2,con};
+  }
+  return null;
+}
+function vfVerificarSheet(rows,sheetName){
+  const H=vfFindHeader(rows);
+  if(!H) return null;
+  const contrato=vfHeaderVal(rows,/^CONTRATO N/);
+  const subemp=vfHeaderVal(rows,/^SUBEMPREITEIRO/);
+  const leaves=[]; const decContr=[]; let decGlobal=null; let secao=null, aditCtx=null;
+  for(let i=H.row+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const a=String(r[0]==null?"":r[0]).trim();
+    const d=String(r[H.des]==null?"":r[H.des]).trim();
+    const un=String(r[H.un]==null?"":r[H.un]).trim();
+    const q=vfNum(r[H.qty]),pu=vfNum(r[H.price]),tot=vfNum(r[H.con]);
+    const dn=vfNorm(d);
+    if(/^TOTAL DO CONTRATO/.test(dn)){ decContr.push(tot); aditCtx=null; continue; }
+    if(/^VALOR GLOBAL/.test(dn)){ decGlobal=tot; break; }
+    if(/^TOTAL DO ADITAMENTO/.test(dn)){ aditCtx=null; continue; }
+    if(/^AD?\s?\d+$/i.test(a)&&d&&!un){ aditCtx=a; continue; }
+    const isLeaf = un!=="" && q!=null && pu!=null && tot!=null;
+    if(isLeaf){ leaves.push({pos:i,a,d,un,q,pu,tot,cap:secao,adit:aditCtx}); }
+    else if(d&&!un){ if(VF_ROMAN.test(a)&&a) secao=d; }
+  }
+  const sumLeaf=Math.round(leaves.reduce((s,l)=>s+l.tot,0)*100)/100;
+  const declared = decGlobal!=null ? decGlobal
+                 : Math.round(decContr.reduce((s,x)=>s+(x||0),0)*100)/100;
+  const reconcilia = declared!=null && Math.abs(sumLeaf-declared)<0.005;
+  const codes={}; leaves.forEach(l=>{ if(l.a) codes[l.a]=(codes[l.a]||0)+1; });
+  const dupCodes=Object.keys(codes).filter(k=>codes[k]>1);
+  const blankCodes=leaves.filter(l=>!l.a).length;
+  const arithBad=leaves.filter(l=>Math.abs(Math.round(l.q*l.pu*100)/100-Math.round(l.tot*100)/100)>0.02).length;
+  const chapters=[...new Set(leaves.map(l=>l.cap).filter(Boolean))];
+  const porMapear = chapters.filter(c=>{ try{ return !(typeof mapCapitulo==="function" && mapCapitulo(c)); }catch(e){ return true; } });
+  return {sheetName,contrato,subemp,nLinhas:leaves.length,sumLeaf,declared,reconcilia,
+          dupCodes,blankCodes,arithBad,chapters,porMapear};
+}
+function vfMoeda(n){ return (typeof fmt==="function")?fmt(n,2)+" €":Number(n).toFixed(2); }
+function vfVerificarFile(){
+  const inp=document.getElementById('vfFile');
+  const out=document.getElementById('vfOut');
+  if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe um ficheiro .xlsx primeiro.</div>'; return; }
+  const f=inp.files[0];
+  const rd=new FileReader();
+  rd.onload=e=>{
+    let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
+    catch(err){ out.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
+    const cards=[];
+    wb.SheetNames.forEach(sn=>{
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
+      const v=vfVerificarSheet(rows,sn);
+      if(!v||v.declared==null) return;
+      const badge = v.reconcilia
+        ? '<span style="background:#1c7c46;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px">RECONCILIA ✓</span>'
+        : '<span style="background:#E62336;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px">NÃO RECONCILIA ✗</span>';
+      const dif=Math.round((v.sumLeaf-v.declared)*100)/100;
+      const avisos=[];
+      if(v.dupCodes.length) avisos.push('Códigos de artigo repetidos: <b>'+esc(v.dupCodes.join(', '))+'</b>');
+      if(v.blankCodes) avisos.push('<b>'+v.blankCodes+'</b> linhas sem código de artigo (identidade posicional)');
+      if(v.arithBad) avisos.push('<b>'+v.arithBad+'</b> linhas onde Quant × Preço ≠ Total');
+      if(v.porMapear.length) avisos.push('Capítulos por mapear: <b>'+esc(v.porMapear.join(', '))+'</b>');
+      const avHtml = avisos.length ? '<ul style="margin:8px 0 0 18px">'+avisos.map(a=>'<li>'+a+'</li>').join('')+'</ul>'
+                                   : '<div class="note" style="margin-top:6px">Sem avisos.</div>';
+      cards.push(
+        '<div class="card" style="border-left:5px solid '+(v.reconcilia?'#1c7c46':'#E62336')+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+        +'<div><b>'+esc(sn)+'</b> &middot; <span class="mono">'+esc(v.contrato||'—')+'</span><br>'
+        +'<span style="font-size:12.5px;color:#48566b">'+esc((v.subemp||'').toString().slice(0,48))+'</span></div>'+badge+'</div>'
+        +'<table style="margin-top:10px;font-size:13px"><tr><th>Linhas</th><th>Soma das linhas</th><th>Total declarado</th><th>Diferença</th></tr>'
+        +'<tr><td class="mono">'+v.nLinhas+'</td><td class="mono">'+vfMoeda(v.sumLeaf)+'</td><td class="mono">'+vfMoeda(v.declared)+'</td>'
+        +'<td class="mono" style="color:'+(Math.abs(dif)<0.005?'#1c7c46':'#E62336')+'">'+vfMoeda(dif)+'</td></tr></table>'
+        +'<div style="margin-top:8px;font-size:12.5px;color:#48566b">Capítulos detetados: '+(v.chapters.length?esc(v.chapters.join(' · ')):'—')+'</div>'
+        +avHtml+'</div>');
+    });
+    out.innerHTML = cards.length
+      ? '<div class="note" style="margin-bottom:8px">A verificação é só de leitura — nada foi gravado. A gravação com proveniência é a Etapa 3.</div>'+cards.join('')
+      : '<div class="note">Nenhuma folha reconhecida como auto de medição neste ficheiro.</div>';
+  };
+  rd.readAsArrayBuffer(f);
+}
+/* injeta o botão de navegação e a vista, sem editar o HTML existente */
+(function vfMount(){
+  if(document.getElementById('nav-verificar')) return;
+  const navF=document.getElementById('nav-fecho');
+  if(navF) navF.insertAdjacentHTML('afterend',
+    '<button id="nav-verificar" onclick="showView(\'verificar\')">Verificar Auto</button>');
+  const host=document.getElementById('view-fecho');
+  if(host){
+    const div=document.createElement('div');
+    div.id='view-verificar'; div.className='hidden';
+    div.innerHTML=
+      '<h2 style="color:#143A67">Verificar Auto de Medição</h2>'
+      +'<div class="note">Confirma que um auto <b>bate certo</b> antes de o considerar fiável: a soma das linhas (Quant × Preço) tem de igualar o total declarado no ficheiro, ao cêntimo. Mostra também avisos (códigos repetidos, linhas sem código, capítulos por mapear). <b>Não grava nada.</b></div>'
+      +'<div class="card" style="margin-top:10px"><label>Ficheiro do auto (.xlsx)</label> '
+      +'<input type="file" id="vfFile" accept=".xlsx"> '
+      +'<button class="btn navy" onclick="vfVerificarFile()">Verificar</button></div>'
+      +'<div id="vfOut" style="margin-top:12px"></div>';
+    host.parentNode.appendChild(div);
+  }
+})();
+
 </script>
 </body>
 </html>
