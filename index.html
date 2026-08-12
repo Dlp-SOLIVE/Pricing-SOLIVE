@@ -6790,6 +6790,12 @@ function vfMQDrill(i){
   }
 })();
 
+/* ETAPA 6 — encolher por omissão os banners de propósito (declutter).
+   O botão "esconder/mostrar" continua a funcionar para expandir. */
+(function vfFoldBanners(){
+  try{ document.querySelectorAll('.purpose[data-fold]').forEach(el=>el.classList.add('folded')); }catch(e){}
+})();
+
 </script>
 </body>
 </html>
