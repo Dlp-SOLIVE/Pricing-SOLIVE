@@ -6796,6 +6796,62 @@ function vfMQDrill(i){
   try{ document.querySelectorAll('.purpose[data-fold]').forEach(el=>el.classList.add('folded')); }catch(e){}
 })();
 
+/* ==========================================================================
+   NAVEGAÇÃO AGRUPADA (5 fluxos) — reorganiza os separadores por etapa de
+   trabalho sem mexer em nenhuma vista. Esconde a barra plana antiga e mostra
+   5 grupos com sub-separadores.
+   ========================================================================== */
+const VF_NAVGROUPS=[
+  {id:'estimar',   label:'Estimar',    views:[['estimador','Estimador']]},
+  {id:'orcamentar',label:'Orçamentar', views:[['analisador','Analisar MQ'],['precomq','Preço MQ'],['orcamento','Orçamentação']]},
+  {id:'consultas', label:'Consultas',  views:[['consultas','Consultas']]},
+  {id:'custoreal', label:'Custo Real', views:[['verificar','Verificar Auto'],['racios','Rácios'],['fecho','Fecho de Obra'],['comparar','Comparar']]},
+  {id:'biblioteca',label:'Biblioteca', views:[['biblioteca','Biblioteca']]}
+];
+function vfGroupOf(view){ return VF_NAVGROUPS.find(g=>g.views.some(v=>v[0]===view)); }
+function vfSyncNav(view){
+  const g=vfGroupOf(view); if(!g) return;
+  document.querySelectorAll('#vfgroupbar button[data-grp]').forEach(b=>b.classList.toggle('on', b.getAttribute('data-grp')===g.id));
+  const sub=document.getElementById('vfsubnav'); if(!sub) return;
+  if(g.views.length>1){
+    sub.style.display='flex';
+    sub.innerHTML=g.views.map(v=>'<button data-sub="'+v[0]+'" class="'+(v[0]===view?'on':'')+'" onclick="vfShowGroup(\''+g.id+'\',\''+v[0]+'\')">'+v[1]+'</button>').join('');
+  } else { sub.style.display='none'; sub.innerHTML=''; }
+}
+function vfShowGroup(gid, view){
+  const g=VF_NAVGROUPS.find(x=>x.id===gid); if(!g) return;
+  showView(view||g.views[0][0]);   // showView (com wrapper) trata da sincronização
+}
+(function vfBuildGroupNav(){
+  const nav=document.querySelector('header nav'); if(!nav||document.getElementById('vfgroupbar')) return;
+  const st=document.createElement('style');
+  st.textContent='header nav > button[id^="nav-"]{display:none!important}'
+    +'#vfgroupbar{display:inline-flex;gap:4px;flex-wrap:wrap}'
+    +'#vfgroupbar button{background:none;border:none;color:#dfe7f1;font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border-radius:7px;cursor:pointer}'
+    +'#vfgroupbar button:hover{background:#1a3a63;color:#fff}'
+    +'#vfgroupbar button.on{background:#E62336;color:#fff}'
+    +'#vfsubnav{display:none;gap:6px;padding:7px 20px;background:#0f2d50;flex-wrap:wrap;align-items:center}'
+    +'#vfsubnav button{background:none;border:none;color:#cdd8e8;font:inherit;font-size:13px;padding:5px 11px;border-radius:6px;cursor:pointer}'
+    +'#vfsubnav button:hover{background:#1a3a63;color:#fff}'
+    +'#vfsubnav button.on{background:#298893;color:#fff;font-weight:600}';
+  document.head.appendChild(st);
+  const bar=document.createElement('span'); bar.id='vfgroupbar';
+  bar.innerHTML=VF_NAVGROUPS.map(g=>'<button data-grp="'+g.id+'" onclick="vfShowGroup(\''+g.id+'\')">'+g.label+'</button>').join('');
+  nav.insertBefore(bar, nav.firstChild);
+  const sub=document.createElement('div'); sub.id='vfsubnav';
+  const header=document.querySelector('header');
+  if(header&&header.parentNode) header.parentNode.insertBefore(sub, header.nextSibling);
+  // wrap showView para sincronizar a nav agrupada em qualquer chamada
+  if(!window.__vfShowViewWrapped){
+    const _sv=showView;
+    window.showView=function(v){ _sv(v); try{ vfSyncNav(v); }catch(e){} };
+    window.__vfShowViewWrapped=true;
+  }
+  // ativa o grupo da vista atualmente visível (por omissão: analisador -> Orçamentar)
+  let cur=VF_NAVGROUPS.flatMap(g=>g.views.map(v=>v[0])).find(id=>{ const el=document.getElementById('view-'+id); return el&&!el.classList.contains('hidden'); })||'analisador';
+  vfSyncNav(cur);
+})();
+
 </script>
 </body>
 </html>
