@@ -6319,19 +6319,26 @@ async function vfLoadRatios(){
   const fogos=parseFloat(document.getElementById('rxFogos').value)||null;
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar custo gravado…</div>';
-  const q=await sb.from('custo_linha').select('capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza');
+  const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza');
   if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
   const lines=q.data||[];
-  // segmento e projeto por contrato (via custo_import) — para comparar obras semelhantes
-  const segMap={}, projMap={};
-  try{ const qi=await sb.from('custo_import').select('contrato,segmento,projeto_ref'); (qi.data||[]).forEach(r=>{ segMap[r.contrato]=r.segmento||null; projMap[r.contrato]=r.projeto_ref||null; }); }catch(e){}
-  lines.forEach(l=>{ l.__seg=segMap[l.contrato]||null; l.__proj=projMap[l.contrato]||null; });
+  // projeto/segmento a partir do custo_import — junção FIÁVEL por import_id.
+  // O contrato em texto pode ter variações (espaços, reimportações, duplicados);
+  // o import_id é a chave estável. Contrato normalizado só como salvaguarda.
+  const impById={}, impByContr={};
+  try{ const qi=await sb.from('custo_import').select('id,contrato,segmento,projeto_ref');
+    (qi.data||[]).forEach(r=>{ const v={seg:r.segmento||null,proj:r.projeto_ref||null};
+      impById[r.id]=v; if(r.contrato) impByContr[vfNorm(r.contrato)]=v; }); }catch(e){}
+  lines.forEach(l=>{ const m=impById[l.import_id]||impByContr[vfNorm(l.contrato)]||{}; l.__seg=m.seg||null; l.__proj=m.proj||null; });
   window.__rxLines=lines;
+  // opções construídas a partir das linhas realmente mapeadas (cada opção garante resultados)
+  const projSet={}, segSet={};
+  lines.forEach(l=>{ if(l.__proj) projSet[l.__proj]=1; if(l.__seg) segSet[l.__seg]=1; });
   const segSel=document.getElementById('rxSeg');
-  if(segSel){ const segs=[...new Set(Object.values(segMap).filter(Boolean))]; const cur=segSel.value;
+  if(segSel){ const segs=Object.keys(segSet).sort(); const cur=segSel.value;
     segSel.innerHTML='<option value="">Todos os segmentos</option>'+segs.map(s=>'<option'+(vfNorm(s)===vfNorm(cur)?' selected':'')+'>'+esc(s)+'</option>').join(''); }
   const projSel=document.getElementById('rxProj');
-  if(projSel){ const projs=[...new Set(Object.values(projMap).filter(Boolean))].sort(); const curp=projSel.value;
+  if(projSel){ const projs=Object.keys(projSet).sort(); const curp=projSel.value;
     projSel.innerHTML='<option value="">Todos os projetos</option>'+projs.map(p=>'<option'+(vfNorm(p)===vfNorm(curp)?' selected':'')+'>'+esc(p)+'</option>').join(''); }
   if(!lines.length){ out.innerHTML='<div class="note">Ainda não há custo gravado. Importa autos no separador “Verificar Auto”.</div>'; return; }
   const seg=segSel?segSel.value:'';
