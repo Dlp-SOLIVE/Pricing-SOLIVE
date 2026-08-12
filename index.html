@@ -6272,6 +6272,7 @@ function vfBuildPayload(v, mapping){
     subempreiteiro: v.subemp||null,
     nif: v.nif!=null?String(v.nif):null,
     obra_codigo: v.obra||null,
+    segmento: (typeof CTX!=='undefined'&&CTX&&CTX.D&&CTX.D.segmento)||null,
     auto_numero: v.autoNum!=null?parseInt(v.autoNum,10)||null:null,
     ficheiro_nome: v.ficheiro||v.sheetName||null,
     total_declarado: v.declared,
@@ -6417,15 +6418,20 @@ function vfRatios(lines, abc, fogos){
   const g={};
   lines.forEach(l=>{
     const cap=l.capitulo_canonico||l.capitulo_origem||"(sem capítulo)";
-    if(!g[cap]) g[cap]={cap,custo:0,nL:0,contratos:{}};
-    g[cap].custo+=Number(l.total)||0; g[cap].nL++; if(l.contrato) g[cap].contratos[l.contrato]=1;
+    if(!g[cap]) g[cap]={cap,custo:0,nL:0,contratos:{},units:{}};
+    const t=Number(l.total)||0; g[cap].custo+=t; g[cap].nL++;
+    if(l.contrato) g[cap].contratos[l.contrato]=1;
+    const u=vfUnit(l.unidade); if(u){ if(!g[cap].units[u]) g[cap].units[u]={un:l.unidade,custo:0,qt:0,n:0}; g[cap].units[u].custo+=t; g[cap].units[u].qt+=Number(l.quantidade)||0; g[cap].units[u].n++; }
   });
   return Object.values(g).map(o=>{
     const custo=Math.round(o.custo*100)/100;
     const eur_m2=abc?custo/abc:null, eur_fogo=fogos?custo/fogos:null;
     const ref=vfRefEurM2(o.cap);
     const delta=(ref&&eur_m2!=null)?(eur_m2-ref)/ref:null;
-    return {cap:o.cap,custo,eur_m2,eur_fogo,ref_eur_m2:ref,delta,nL:o.nL,nContratos:Object.keys(o.contratos).length};
+    // driver do elemento = unidade dominante (por custo) -> €/unidade natural
+    let dom=null; Object.values(o.units).forEach(u=>{ if(!dom||u.custo>dom.custo) dom=u; });
+    const domUn=dom?dom.un:null, eurUn=(dom&&dom.qt>0)?dom.custo/dom.qt:null;
+    return {cap:o.cap,custo,eur_m2,eur_fogo,ref_eur_m2:ref,delta,nL:o.nL,nContratos:Object.keys(o.contratos).length,domUn,eurUn};
   }).sort((a,b)=>b.custo-a.custo);
 }
 async function vfLoadRatios(){
@@ -6436,19 +6442,32 @@ async function vfLoadRatios(){
   out.innerHTML='<div class="note">A carregar custo gravado…</div>';
   const q=await sb.from('custo_linha').select('capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit');
   if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
-  const lines=q.data||[]; window.__rxLines=lines;
+  const lines=q.data||[];
+  // segmento por contrato (via custo_import) — para comparar obras semelhantes
+  const segMap={};
+  try{ const qi=await sb.from('custo_import').select('contrato,segmento'); (qi.data||[]).forEach(r=>{ segMap[r.contrato]=r.segmento||null; }); }catch(e){}
+  lines.forEach(l=>{ l.__seg=segMap[l.contrato]||null; });
+  window.__rxLines=lines;
+  const segSel=document.getElementById('rxSeg');
+  if(segSel){ const segs=[...new Set(Object.values(segMap).filter(Boolean))]; const cur=segSel.value;
+    segSel.innerHTML='<option value="">Todos os segmentos</option>'+segs.map(s=>'<option'+(vfNorm(s)===vfNorm(cur)?' selected':'')+'>'+esc(s)+'</option>').join(''); }
   if(!lines.length){ out.innerHTML='<div class="note">Ainda não há custo gravado. Importa autos no separador “Verificar Auto”.</div>'; return; }
-  vfRenderRatios(vfRatios(lines,abc,fogos), abc, fogos);
+  const seg=segSel?segSel.value:'';
+  const filtered=seg?lines.filter(l=>vfNorm(l.__seg)===vfNorm(seg)):lines;
+  if(!filtered.length){ out.innerHTML='<div class="note">Sem custo gravado para o segmento «'+esc(seg)+'».</div>'; return; }
+  vfRenderRatios(vfRatios(filtered,abc,fogos), abc, fogos, seg);
 }
-function vfRenderRatios(rows, abc, fogos){
+function vfRenderRatios(rows, abc, fogos, seg){
   const out=document.getElementById('rxOut');
-  const th='<tr><th>Capítulo</th><th style="text-align:right">Custo (€)</th><th style="text-align:right">€/m²</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Ref. L\u2019Urbain €/m²</th><th style="text-align:right">Δ</th><th style="text-align:right">Contratos</th></tr>';
+  const th='<tr><th>Capítulo (elemento)</th><th style="text-align:right">Custo (€)</th><th>Un.</th><th style="text-align:right">€/unidade</th><th style="text-align:right">€/m² ABC</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Ref €/m²</th><th style="text-align:right">Δ</th><th style="text-align:right">Contr.</th></tr>';
   const body=rows.map(r=>{
     const dpct=r.delta==null?'—':(r.delta>0?'+':'')+(r.delta*100).toFixed(0)+'%';
     const dcol=r.delta==null?'#48566b':(r.delta>0?'#b26a00':'#1c7c46');
     return '<tr style="cursor:pointer" onclick="vfDrill(\''+String(r.cap).replace(/\\/g,'').replace(/'/g,"\\'")+'\')">'
       +'<td>'+esc(r.cap)+'</td>'
       +'<td class="mono" style="text-align:right">'+vfMoeda(r.custo)+'</td>'
+      +'<td>'+esc(r.domUn||'—')+'</td>'
+      +'<td class="mono" style="text-align:right;font-weight:600">'+(r.eurUn==null?'—':fmt(r.eurUn,2))+'</td>'
       +'<td class="mono" style="text-align:right">'+(r.eur_m2==null?'—':fmt(r.eur_m2,1))+'</td>'
       +'<td class="mono" style="text-align:right">'+(r.eur_fogo==null?'—':fmt(r.eur_fogo,0))+'</td>'
       +'<td class="mono" style="text-align:right;color:#48566b">'+(r.ref_eur_m2==null?'—':fmt(r.ref_eur_m2,1))+'</td>'
@@ -6456,9 +6475,9 @@ function vfRenderRatios(rows, abc, fogos){
       +'<td class="mono" style="text-align:right">'+r.nContratos+'</td></tr>';
   }).join('');
   const totCusto=rows.reduce((s,r)=>s+r.custo,0);
-  out.innerHTML='<div class="note" style="margin-bottom:8px">Rácios do <b>custo real gravado</b> (ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'). Clica numa linha para ver a origem. Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.</div>'
+  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.</div>'
     +'<table style="font-size:13px">'+th+body
-    +'<tr style="font-weight:700"><td>TOTAL</td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="5"></td></tr></table>'
+    +'<tr style="font-weight:700"><td>TOTAL</td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
     +'<div id="rxDrill" style="margin-top:12px"></div>';
 }
 function vfDrill(cap){
@@ -6477,9 +6496,10 @@ function vfDrill(cap){
   const host=document.getElementById('view-verificar');
   if(host){
     const rx=document.createElement('div'); rx.id='view-racios'; rx.className='hidden';
-    rx.innerHTML='<h2 style="color:#143A67">Rácios por Capítulo (custo real)</h2>'
+    rx.innerHTML='<h2 style="color:#143A67">Rácios por Elemento (custo real)</h2>'
       +'<div class="note">€/m² e €/fogo a partir do custo gravado, por capítulo canónico, comparados com a referência L\u2019Urbain. Cada linha é rastreável até aos subcontratos.</div>'
-      +'<div class="card" style="margin-top:10px"><label>ABC (m²)</label> <input type="number" id="rxAbc" value="4552" style="width:120px"> &nbsp;'
+      +'<div class="card" style="margin-top:10px"><label>Segmento</label> <select id="rxSeg" onchange="vfLoadRatios()" style="min-width:200px"><option value="">Todos os segmentos</option></select> &nbsp;'
+      +'<label>ABC (m²)</label> <input type="number" id="rxAbc" value="4552" style="width:120px"> &nbsp;'
       +'<label>Nº de fogos</label> <input type="number" id="rxFogos" value="30" style="width:90px"> &nbsp;'
       +'<button class="btn navy" onclick="vfLoadRatios()">Calcular</button></div>'
       +'<div id="rxOut" style="margin-top:12px"></div>';
