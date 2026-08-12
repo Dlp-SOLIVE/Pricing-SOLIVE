@@ -6487,13 +6487,21 @@ function vfReadMQ(rows){
   }
   return out;
 }
+async function vfMQFillProjects(){
+  const sel=document.getElementById('mqProj'); if(!sel||typeof sb==='undefined'||!sb) return;
+  try{ const qi=await sb.from('custo_import').select('projeto_ref');
+    const projs=[...new Set((qi.data||[]).map(r=>r.projeto_ref).filter(Boolean))].sort();
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Todos os projetos (combina tudo)</option>'+projs.map(p=>'<option'+(vfNorm(p)===vfNorm(cur)?' selected':'')+'>'+esc(p)+'</option>').join('');
+  }catch(e){}
+}
 async function vfPriceMQFile(){
   const inp=document.getElementById('mqFile'); const out=document.getElementById('mqOut');
   if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o MQ (.xlsx) primeiro.</div>'; return; }
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar biblioteca de custo…</div>';
   // Paginar (custo_linha pode ter >1000 linhas; senão a biblioteca vem truncada a 1000).
-  const SELM='capitulo_canonico,designacao,unidade,quantidade,preco_unit,total,contrato,natureza';
+  const SELM='import_id,capitulo_canonico,designacao,unidade,quantidade,preco_unit,total,contrato,natureza';
   let clAll=[];
   for(let from=0; from<200000; from+=1000){
     const q=await sb.from('custo_linha').select(SELM).range(from,from+999);
@@ -6501,10 +6509,19 @@ async function vfPriceMQFile(){
     const batch=q.data||[]; clAll=clAll.concat(batch);
     if(batch.length<1000) break;
   }
+  // Base de custo: restringir a um projeto (ex.: só L'Urbain) — junção fiável por import_id.
+  const projSel=(document.getElementById('mqProj')||{}).value||'';
+  if(projSel){
+    const impById={}, impByContr={};
+    try{ const qi=await sb.from('custo_import').select('id,contrato,projeto_ref');
+      (qi.data||[]).forEach(r=>{ impById[r.id]=r.projeto_ref||null; if(r.contrato) impByContr[vfNorm(r.contrato)]=r.projeto_ref||null; }); }catch(e){}
+    clAll=clAll.filter(r=>{ const pr=impById[r.import_id]||impByContr[vfNorm(r.contrato)]||null; return pr && vfNorm(pr)===vfNorm(projSel); });
+  }
   let qc={data:[]}; try{ qc=await sb.from('custo_compra').select('descricao,unidade,preco_unit,kind,ref'); }catch(e){}
   const cd=(qc&&qc.data)||[];
   const map=r=>({designacao:r.descricao,unidade:r.unidade,preco_unit:r.preco_unit,contrato:r.ref});
   const cl=clAll.filter(r=>Number(r.preco_unit)>0);
+  if(projSel && !cl.length){ out.innerHTML='<div class="note">Sem custo gravado para o projeto «'+esc(projSel)+'». Escolhe outro ou «Todos os projetos».</div>'; return; }
   const natOf=r=>r.natureza||'full';
   // custo_linha (autos) encaminhado por natureza + compras por kind
   const libFull=cl.filter(r=>natOf(r)==='full').concat(cd.filter(r=>r.kind==='full').map(map));
@@ -6539,7 +6556,7 @@ async function vfPriceMQFile(){
     const results=mq.map(l=>{ const canon=vfCanonMQ(l); l.__canon=canon;
       return {l,m:vfPriceLine(l,libFull,libMat,libLab,uplift,chap,canon)}; });
     window.__mqResults=results;
-    vfRenderMQ(results,libFull.length,libMat.length);
+    vfRenderMQ(results,libFull.length,libMat.length,projSel||'todos os projetos (combinado)');
   };
   rd.readAsArrayBuffer(f);
 }
@@ -6650,7 +6667,7 @@ function vfKindBadge(k){
   const m={completo:['#1c7c46','completo'],composto:['#298893','mat+inst'],'só material':['#b26a00','só material'],'material+inst.%':['#b26a00','mat+inst %'],'rácio cap.':['#2E6DB0','rácio cap.']}[k];
   return m?'<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700">'+m[1]+'</span>':'—';
 }
-function vfRenderMQ(results, libFullN, libMatN){
+function vfRenderMQ(results, libFullN, libMatN, scope){
   const out=document.getElementById('mqOut');
   const th='<tr><th>Designação (MQ)</th><th>Un</th><th style="text-align:right">Qt</th><th>Origem</th><th style="text-align:right">€/un recomendado</th><th style="text-align:right">Apoio</th><th>Confiança</th><th style="text-align:right">Total linha</th></tr>';
   const body=results.map((x,i)=>{
@@ -6670,7 +6687,7 @@ function vfRenderMQ(results, libFullN, libMatN){
   const comMat=results.filter(x=>x.m.kind==='só material'||x.m.kind==='material+inst.%'||x.m.kind==='composto').length;
   const porCap=results.filter(x=>x.m.kind==='rácio cap.').length;
   const semNada=results.filter(x=>x.m.rec==null).length;
-  out.innerHTML='<div class="note" style="margin-bottom:8px">Biblioteca: '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> com preço fiável (match de texto) · <b>'+comMat+'</b> via material · <b>'+porCap+'</b> via rácio de capítulo · <b>'+semNada+'</b> sem preço (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
+  out.innerHTML='<div class="note" style="margin-bottom:8px">Base de custo: <b>'+esc(scope||'todos os projetos')+'</b> · '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> com preço fiável (match de texto) · <b>'+comMat+'</b> via material · <b>'+porCap+'</b> via rácio de capítulo · <b>'+semNada+'</b> sem preço (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
     +'<table style="font-size:12.5px">'+th+body+'</table>'
     +'<div style="margin-top:10px;font-size:15px"><b>Estimativa total: <span id="mqTotal">—</span></b></div>'
     +'<div id="mqDrill" style="margin-top:12px"></div>';
@@ -6705,10 +6722,13 @@ function vfMQDrill(i){
       +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante). Onde não há correspondência de texto fiável, usa o <b>rácio do capítulo</b> (€/unidade médio do elemento no custo real). Preenche o seguro; confirma os que vêm por rácio. Nada é inventado — só custo real.</div>'
       +'<div class="card" style="margin-top:10px"><b>Biblioteca de compras (fornecedores)</b><div class="note">Importa o ficheiro de Compras (.xlsm) — uma vez, ou sempre que houver novas adjudicações. Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato. Alimenta a composição material + instalação.</div><input type="file" id="cmFile" accept=".xlsm,.xlsx"> <button class="btn navy" onclick="vfImportComprasFile()">Importar compras</button> <span id="cmOut" class="note"></span></div>'
       +'<div class="card" style="margin-top:10px"><label>Uplift de instalação sobre material (%)</label> <input type="number" id="mqUplift" value="0" style="width:80px"> <span class="note">Aplica-se às linhas onde só há preço de material (sem mão de obra registada).</span></div>'
+      +'<div class="card" style="margin-top:10px"><label>Base de custo a usar</label> <select id="mqProj" style="min-width:250px" onmousedown="vfMQFillProjects()"><option value="">Todos os projetos (combina tudo)</option></select> <span class="note">Escolhe um projeto (ex.: só L’Urbain) para orçamentar apenas com o custo real dessa obra, em vez da média de todas. Aplica-se ao match de texto e aos rácios de capítulo.</span></div>'
       +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades vazio (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx,.xls"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button></div>'
       +'<div id="mqOut" style="margin-top:12px"></div>';
     host.parentNode.appendChild(mv);
   }
+  // preenche a lista de projetos sempre que o Preço MQ é aberto
+  try{ const _sv=window.showView||showView; window.showView=function(v){ _sv(v); if(v==='precomq'){ try{ vfMQFillProjects(); }catch(e){} } }; }catch(e){}
 })();
 
 /* ETAPA 6 — encolher por omissão os banners de propósito (declutter).
