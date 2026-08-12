@@ -202,7 +202,6 @@ tr.resolved td textarea{text-decoration:line-through}
     <button id="nav-estimador" onclick="showView('estimador')">Estimador</button>
     <button id="nav-orcamento" onclick="showView('orcamento')">Orçamentação</button>
     <button id="nav-consultas" onclick="showView('consultas')">Consultas</button>
-    <button id="nav-fecho" onclick="showView('fecho')">Fecho de Obra</button>
     <button id="nav-comparar" onclick="showView('comparar')">Comparar</button>
     <button id="nav-biblioteca" onclick="showView('biblioteca')">Biblioteca</button>
     <button id="btnLogout" class="hidden" onclick="logout()" title="Terminar sessão">Sair</button>
@@ -692,120 +691,6 @@ tr.resolved td textarea{text-decoration:line-through}
   </div>
 </div>
 
-<div id="view-fecho" class="hidden">
-  <div class="flowbar"><b>Ciclo do projeto</b><span class="fstep">1 · Rever MQ</span><span class="arr">→</span><span class="fstep">2 · Orçamentar</span><span class="arr">→</span><span class="fstep cur">3 · Fechar obra</span><span class="arr">→</span><span class="fstep">Biblioteca cresce</span></div>
-  <div class="purpose teal" data-fold>
-    <button class="toggle" onclick="foldPurpose(this)">esconder</button>
-    <div class="eyebrow">O que fazer aqui</div>
-    <h1>Fechar a obra com custos reais</h1>
-    <p>No fim da empreitada, gera o modelo para a equipa de obra preencher com os custos reais por capítulo. Importa o ficheiro devolvido e a plataforma calcula os desvios face ao orçamento. Os valores reais são o dado mais valioso da biblioteca — passam a ter peso na estimativa de projetos futuros.</p>
-    <div class="io"><span class="out">Produz: modelo de fecho para a obra (.xlsx)</span><span class="in">Entra: conta final preenchida pela obra</span><span class="out">Alimenta: Biblioteca (fase Real) e Comparação</span></div>
-  </div>
-
-  <div class="card">
-    <div class="step"><div class="n">1</div><h2>Projeto e descritores</h2></div>
-    <div class="hint">Escolhe um projeto existente ou escreve um nome novo para o criar. Preenche os descritores — a ABC e os fogos tornam os custos em rácios; os restantes (do programa do projeto) completam a Comparação. Ao escolher um projeto existente, os descritores já gravados são pré-carregados.</div>
-    <div class="grid g6">
-      <div style="grid-column:span 2"><label>Projeto (existente ou novo)</label><input type="text" id="foProjeto" list="foProjList" placeholder="Ex.: Parque Atlântico"><datalist id="foProjList"></datalist></div>
-      <div><label>ABC total (m²)</label><input type="number" id="foAbc" placeholder="—"></div>
-      <div><label>Ac. acima solo (m²)</label><input type="number" id="foGca" placeholder="—"></div>
-      <div><label>Ac. abaixo solo (m²)</label><input type="number" id="foAbaixo" placeholder="—"></div>
-      <div><label>Data de fecho</label><input type="date" id="foData"></div>
-    </div>
-    <div class="grid g6" style="margin-top:12px">
-      <div><label>Nº de fogos</label><input type="number" id="foFogos" placeholder="—"></div>
-      <div><label>Pisos elevados</label><input type="number" id="foPisosAcima" placeholder="—"></div>
-      <div><label>Pisos enterrados</label><input type="number" id="foPisosAbaixo" placeholder="—"></div>
-      <div><label>Área implantação (m²)</label><input type="number" id="foImplantacao" placeholder="—"></div>
-      <div><label>Área do lote (m²)</label><input type="number" id="foLote" placeholder="—"></div>
-      <div style="display:flex;align-items:end;gap:8px">
-        <div style="flex:1"><label>Estacionamento</label><input type="number" id="foEstacionamento" placeholder="—"></div>
-      </div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-      <button class="btn navy" style="padding:8px 16px" onclick="genModelo()">Modelo em branco (.xlsx)</button>
-      <button class="btn teal" style="padding:8px 16px" onclick="saveDescritores()">Guardar só descritores</button>
-    </div>
-    <div class="note" id="foOffline" style="margin-top:14px"></div>
-  </div>
-
-  <div class="card">
-    <div class="step"><div class="n">2</div><h2>Importar custos do projeto</h2></div>
-    <div class="hint">Escolhe a fase e importa o ficheiro. Aceita: o <b>auto de medição</b> (Totais Finais + trabalhos adicionais), um <b>mapa de quantidades com preços</b> (orçamento de obra, ao nível do artigo), o modelo de fecho, ou um mapa por capítulo. Confere sempre o mapeamento no passo 3 antes de gravar.</div>
-    <div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--navy)"><input type="radio" name="foFase" value="Real" checked onchange="foFaseChange()"> Conta final / auto (Real)</label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:var(--navy)"><input type="radio" name="foFase" value="Orçamento" onchange="foFaseChange()"> Orçamento de obra (Orçamento)</label>
-    </div>
-    <div class="drop" id="foDrop" style="padding:26px">
-      <button class="btn red" style="pointer-events:none;margin-bottom:10px" id="foDropBtn">📄 Escolher ficheiro (.xlsx)</button>
-      <div style="font-size:13px;color:#69788f" id="foDropHint">ou arrasta para aqui o <b>auto de medição</b> / conta final</div>
-    </div>
-    <input type="file" id="foFile" accept=".xlsx,.xls" class="hidden">
-    <div id="foSheetPick" class="hidden"><label style="margin-top:14px">Folha</label><div class="pills" id="foSheetPills"></div></div>
-  </div>
-
-  <div class="card" id="accCard" style="background:#fafbfd;padding:13px 18px">
-    <label style="display:flex;align-items:center;gap:9px;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">
-      <input type="checkbox" id="foAcumular" onchange="toggleAcumular(this)" style="width:16px;height:16px;accent-color:var(--teal)">
-      <span><b>Somar a este ficheiro os que já importei</b> — para obras com mais do que uma empreitada</span>
-    </label>
-    <div id="accAviso" class="hidden" style="margin-top:9px;font-size:12px;color:#48566b;background:#EEF6F7;border-left:3px solid var(--teal);padding:9px 12px;border-radius:6px">
-      Modo acumulação ligado. Cada ficheiro que carregares soma-se por capítulo ao que já está no quadro, em vez de o substituir. Grava só depois de teres importado todos. Desliga a caixa para recomeçar do zero.
-    </div>
-  </div>
-
-  <div class="card hidden" id="pricingOpt" style="background:#fafbfd">
-    <div class="grid g6" style="align-items:end">
-      <div style="grid-column:span 3"><label>Coluna do pricing sheet a importar</label>
-        <select id="pricingCol" onchange="PRICING_COL=this.value;if(FO_WB&&FO_SHEET)processFecho(FO_SHEET)">
-          <option value="venda">Venda — contrato de empreitada (recomendado)</option>
-          <option value="custo">Dry costs — custo da construtora</option>
-        </select></div>
-      <div style="grid-column:span 3"><div class="hint" style="margin:0">A biblioteca guarda valores de contrato de empreitada. O custo da construtora só interessa durante a orçamentação de projetos novos.</div></div>
-    </div>
-  </div>
-
-  <div class="card hidden" id="tadCard" style="border-left:3px solid var(--warn)">
-    <h2>Trabalhos adicionais por classificar <span class="tag" id="tadTag"></span>
-      <button class="btn ghost" style="float:right;padding:6px 14px" onclick="tadAlocarRestantes()">Alocar restantes a DIVERSOS</button>
-    </h2>
-    <div class="hint">Estes adicionais não foram reconhecidos automaticamente. Aloca cada um ao capítulo respetivo — é o que faz o custo real ficar corretamente distribuído. <b>Ficam sempre registados como adicionais</b>, por isso entram nos rácios da biblioteca mas não na calibração: alteração de âmbito não é erro de estimativa.</div>
-    <div style="overflow-x:auto">
-    <table><thead><tr><th style="width:90px">Ref.</th><th>Designação</th><th style="text-align:right;width:120px">Valor (€)</th><th style="width:280px">Capítulo</th></tr></thead>
-    <tbody id="tbTad"></tbody></table>
-    </div>
-  </div>
-
-  <div class="card hidden" id="foPreviewCard">
-    <div id="foAviso" class="hidden" style="background:#FBE5E8;border:1px solid var(--err);border-radius:8px;padding:11px 14px;margin-bottom:13px;font-size:12.5px;color:#7a1f28"></div>
-    <div class="step"><div class="n">3</div><h2>Conferir e gravar <span class="tag" id="foFich"></span></h2></div>
-    <div class="hint">Confere o mapeamento e os totais antes de gravar. Podes corrigir qualquer valor diretamente na tabela.</div>
-    <div style="overflow-x:auto">
-    <table class="preview">
-      <thead><tr><th>Capítulo (ficheiro da obra)</th><th>Capítulo standard</th><th style="text-align:right;width:135px">Contrato (€)</th><th style="text-align:right;width:135px">Adicionais (€)</th><th style="text-align:right;width:135px">Total real (€)</th><th>Comentário da obra</th></tr></thead>
-      <tbody id="tbFoPrev"></tbody>
-    </table>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
-      <div style="margin-right:auto;font-weight:700;color:var(--navy)">Total: <span class="mono" id="foTotal">—</span></div>
-      <button class="btn red" id="btnGravarReal" onclick="saveReal()">Gravar na biblioteca</button>
-    </div>
-  </div>
-
-  <div class="card hidden" id="foDesvCard">
-    <h2>Desvios — orçamento vs. real <span class="tag" id="foDesvTag"></span>
-      <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportDesvios()">Exportar (.xlsx)</button>
-    </h2>
-    <div class="hint">Comparação por capítulo entre a fase de orçamento mais recente e os valores reais da obra.</div>
-    <div style="overflow-x:auto">
-    <table class="preview">
-      <thead><tr><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Contrato (€)</th><th style="text-align:right">Adicionais (€)</th><th style="text-align:right">Real total (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right">Real €/m² ABC</th></tr></thead>
-      <tbody id="tbDesvios"></tbody>
-    </table>
-    </div>
-  </div>
-</div>
-
 <!-- ===================== VISTA: COMPARAR ===================== -->
 <div id="view-comparar" class="hidden">
   <div class="purpose amber" data-fold>
@@ -1033,12 +918,11 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','estimador','orcamento','consultas','fecho','verificar','racios','precomq','comparar','biblioteca'].forEach(x=>{
+  ['analisador','estimador','orcamento','consultas','verificar','racios','precomq','comparar','biblioteca'].forEach(x=>{
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
   if(v==='biblioteca'){ refreshLib(); try{ renderTaxonomia(); }catch(e){} }
-  if(v==='fecho') refreshFecho();
   if(v==='consultas') refreshConsultas();
   if(v==='comparar') renderComparar();
   if(v==='estimador') document.getElementById('estAno').value=document.getElementById('estAno').value||new Date().getFullYear();
@@ -2090,11 +1974,13 @@ function extractAuto(rows){
 
 /* ================= FECHO DE OBRA ================= */
 const foDrop=document.getElementById('foDrop'), foFi=document.getElementById('foFile');
+if(foDrop&&foFi){   /* Fecho de Obra removido — só liga se a vista existir */
 foDrop.onclick=()=>foFi.click();
 foDrop.ondragover=e=>{e.preventDefault();foDrop.classList.add('over')};
 foDrop.ondragleave=()=>foDrop.classList.remove('over');
 foDrop.ondrop=e=>{e.preventDefault();foDrop.classList.remove('over');if(e.dataTransfer.files[0])loadFecho(e.dataTransfer.files[0])};
 foFi.onchange=()=>{if(foFi.files[0])loadFecho(foFi.files[0])};
+}
 
 let FO_SHEET=null; let FO_WB=null;
 function refreshFecho(){
@@ -5414,7 +5300,7 @@ async function ctxDefinir(nome){
 /* Trocar de projeto tem de repercutir-se na vista aberta, senão fica-se a olhar
    para os números do projeto anterior sem nada o indicar. */
 async function refrescarVistaAtual(){
-  const v=['analisador','estimador','orcamento','consultas','fecho','comparar','biblioteca']
+  const v=['analisador','estimador','orcamento','consultas','comparar','biblioteca']
     .find(x=>{const e=document.getElementById('view-'+x);return e&&!e.classList.contains('hidden')});
   if(!v) return;
   try{
@@ -5424,7 +5310,6 @@ async function refrescarVistaAtual(){
       await alinharLibProjeto();
       renderVersoes();
     }
-    if(v==='fecho')      { refreshFecho(); }
     if(v==='consultas')  { await refreshConsultas(); }
     if(v==='comparar')   { renderComparar(); }
     if(v==='estimador'){
@@ -6264,10 +6149,10 @@ function vfVerificarFile(){
 /* injeta o botão de navegação e a vista, sem editar o HTML existente */
 (function vfMount(){
   if(document.getElementById('nav-verificar')) return;
-  const navF=document.getElementById('nav-fecho');
+  const navF=document.getElementById('nav-comparar')||document.getElementById('nav-consultas');
   if(navF) navF.insertAdjacentHTML('afterend',
     '<button id="nav-verificar" onclick="showView(\'verificar\')">Verificar Auto</button>');
-  const host=document.getElementById('view-fecho');
+  const host=document.getElementById('view-comparar')||document.getElementById('view-consultas');
   if(host){
     const div=document.createElement('div');
     div.id='view-verificar'; div.className='hidden';
@@ -6746,7 +6631,7 @@ const VF_NAVGROUPS=[
   {id:'estimar',   label:'Estimar',    views:[['estimador','Estimador']]},
   {id:'orcamentar',label:'Orçamentar', views:[['analisador','Analisar MQ'],['precomq','Preço MQ'],['orcamento','Orçamentação']]},
   {id:'consultas', label:'Consultas',  views:[['consultas','Consultas']]},
-  {id:'custoreal', label:'Custo Real', views:[['verificar','Verificar Auto'],['racios','Rácios'],['fecho','Fecho de Obra'],['comparar','Comparar']]},
+  {id:'custoreal', label:'Custo Real', views:[['verificar','Verificar Auto'],['racios','Rácios'],['comparar','Comparar']]},
   {id:'biblioteca',label:'Biblioteca', views:[['biblioteca','Biblioteca']]}
 ];
 function vfGroupOf(view){ return VF_NAVGROUPS.find(g=>g.views.some(v=>v[0]===view)); }
