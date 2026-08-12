@@ -854,9 +854,7 @@ tr.resolved td textarea{text-decoration:line-through}
   <div class="subtabs">
     <button id="lib-tab-caps" class="on" onclick="libTab('caps')">Rácios por capítulo</button>
     <button id="lib-tab-pu" onclick="libTab('pu')" title="Mediana histórica dos preços por família — referência para estimar.">Preços unitários (orçamento)</button>
-    <button id="lib-tab-ver" onclick="libTab('ver')">Versões do orçamento</button>
     <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
-    <button id="lib-tab-dpr" onclick="libTab('dpr')">Ponte com o DPR</button>
     <button id="lib-tab-gerir" onclick="libTab('gerir')">Gerir projetos</button>
   </div>
 
@@ -891,26 +889,6 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
-  <div id="lib-pane-ver" class="hidden">
-    <div class="card">
-      <h2>Histórico do projeto <span class="tag" id="verTag"></span></h2>
-      <div class="hint">Duas coisas distintas: as <b>fases da biblioteca</b> (o que importaste no Fecho de Obra — orçamento de empreitada, conta final) e as <b>versões de trabalho</b> (cada gravação no separador Orçamentação, com comentário e diferenças). As fases são o registo do que a obra é; as versões são o rasto de como lá chegaste.</div>
-      <div class="filters">
-        <div style="min-width:260px"><label>Projeto</label><select id="verProj" onchange="renderVersoes()"></select></div>
-      </div>
-      <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.5px;margin:4px 0 8px">FASES NA BIBLIOTECA</div>
-      <div id="verFases"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.5px;margin:16px 0 8px">VERSÕES DE TRABALHO (separador Orçamentação)</div>
-      <div id="verLista"></div>
-      <div class="empty" id="verEmpty">Sem versões gravadas para este projeto.</div>
-      <div id="verDiffBox" class="hidden" style="margin-top:16px">
-        <h2 style="font-size:13px">Diferenças <span class="tag" id="verDiffTag"></span></h2>
-        <div style="overflow-x:auto">
-        <table><thead><tr><th>Capítulo</th><th style="text-align:right">Versão anterior (€)</th><th style="text-align:right">Esta versão (€)</th><th style="text-align:right">Δ (€)</th><th>Estado</th></tr></thead><tbody id="tbVerDiff"></tbody></table>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div id="lib-pane-tax" class="hidden">
     <div class="card">
@@ -952,44 +930,6 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
-  <div id="lib-pane-dpr" class="hidden">
-    <div class="card">
-      <h2>Ponte com o sistema DPR</h2>
-      <div class="hint">A plataforma de orçamentação define o <b>baseline</b> de hard costs; o DPR mede a execução contra ele. Esta ponte evita reintroduzir números à mão nos dois lados e permite que a biblioteca aprenda com custos parciais durante a obra, sem esperar pelo fecho.</div>
-      <div class="grid g6">
-        <div style="grid-column:span 3">
-          <label>Exportar baseline para o DPR</label>
-          <select id="dprProj" style="margin-bottom:10px"></select>
-          <div style="display:flex;gap:8px">
-            <button class="btn navy" style="flex:1;justify-content:center" onclick="exportDprBaseline('json')">Baseline (.json)</button>
-            <button class="btn ghost" style="flex:1;justify-content:center" onclick="exportDprBaseline('xlsx')">Baseline (.xlsx)</button>
-          </div>
-          <div class="hint" style="margin-top:8px">Produz a linha <b>Hard Costs</b> do separador Budget do DPR, com a decomposição pelos 33 capítulos por baixo, pronta a colar.</div>
-        </div>
-        <div style="grid-column:span 3">
-          <label>Importar JSON do DPR (ExportDashboardJSON)</label>
-          <textarea id="dprJson" rows="5" placeholder="Cola aqui o JSON exportado pela macro do DPR"></textarea>
-          <div style="display:flex;gap:8px;margin-top:10px">
-            <button class="btn teal" style="flex:1;justify-content:center" onclick="importDprJson()">Ler e comparar</button>
-          </div>
-          <div class="hint" style="margin-top:8px">Lê os hard costs em budget, EoS e executado, e confronta-os com o orçamento desta plataforma. Nota: o DPR agrega por categoria, não por capítulo — a comparação é de topo.</div>
-        </div>
-      </div>
-      <div id="dprOut" class="hidden" style="margin-top:16px">
-        <div class="kpis">
-          <div class="kpi"><div class="v" id="dprKBud">—</div><div class="l">Hard costs · budget DPR</div></div>
-          <div class="kpi"><div class="v" id="dprKEos">—</div><div class="l">Hard costs · EoS DPR</div></div>
-          <div class="kpi"><div class="v" id="dprKSpent">—</div><div class="l">Executado</div></div>
-          <div class="kpi"><div class="v" id="dprKPlat">—</div><div class="l">Orçamento da plataforma</div></div>
-          <div class="kpi" id="dprKDeltaBox"><div class="v" id="dprKDelta">—</div><div class="l">Desvio plataforma vs. DPR</div></div>
-        </div>
-        <div class="note" id="dprNota"></div>
-        <div style="display:flex;justify-content:flex-end;margin-top:12px">
-          <button class="btn red" onclick="dprGravarParcial()">Gravar como fase Real (parcial, topo)</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div id="lib-pane-gerir" class="hidden">
     <div class="card">
@@ -4771,7 +4711,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['caps','pu','ver','tax','dpr','gerir'].forEach(x=>{
+  ['caps','pu','tax','gerir'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -6830,6 +6770,45 @@ function vfShowGroup(gid, view){
   // ativa o grupo da vista atualmente visível (por omissão: analisador -> Orçamentar)
   let cur=VF_NAVGROUPS.flatMap(g=>g.views.map(v=>v[0])).find(id=>{ const el=document.getElementById('view-'+id); return el&&!el.classList.contains('hidden'); })||'analisador';
   vfSyncNav(cur);
+})();
+
+/* ==========================================================================
+   MIGRAÇÃO M1 — Comparar e Estimador lêem da base de CUSTO REAL (custo_linha),
+   não das fases de promotor. gatherProjectData é a fonte partilhada dos dois;
+   re-aponto-a por override, com fallback seguro ao comportamento antigo se
+   ainda não houver custo gravado. Só usa linhas de natureza 'full'.
+   ========================================================================== */
+function vfAggProjects(lines, impMap){
+  const byProj={};
+  lines.forEach(l=>{ if((l.natureza||'full')!=='full') return;
+    const info=impMap[l.contrato]||{proj:'(sem projeto)',seg:null};
+    const cap=l.capitulo_canonico||l.capitulo_origem||'(sem capítulo)';
+    if(!byProj[info.proj]) byProj[info.proj]={nome:info.proj,seg:info.seg,caps:{}};
+    byProj[info.proj].caps[cap]=(byProj[info.proj].caps[cap]||0)+(Number(l.total)||0);
+  });
+  return byProj;
+}
+(function vfMigrateGPD(){
+  if(typeof gatherProjectData!=='function'||window.__gpdMigrated) return;
+  const _legacy=gatherProjectData; window.__gpdMigrated=true;
+  window.gatherProjectData=async function(pref){
+    try{
+      if(typeof sb==='undefined'||!sb) return _legacy(pref);
+      const q=await sb.from('custo_linha').select('total,capitulo_canonico,capitulo_origem,natureza,contrato');
+      const li=(q&&q.data)||[];
+      if(!li.length) return _legacy(pref);   // sem custo real ainda -> comportamento antigo
+      let imp={}; try{ const qi=await sb.from('custo_import').select('contrato,projeto_ref,segmento');
+        (qi.data||[]).forEach(r=>imp[r.contrato]={proj:r.projeto_ref||'(sem projeto)',seg:r.segmento||null}); }catch(e){}
+      const byProj=vfAggProjects(li,imp);
+      const out=Object.values(byProj).map(p=>{
+        let gfa=null,fogos=null;
+        try{ const pr=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>vfNorm(x.nome)===vfNorm(p.nome)); if(pr){gfa=pr.gfa;fogos=pr.fogos;} }catch(e){}
+        if(gfa==null && /URBAIN/i.test(p.nome||'')){ gfa=REF.gfa; fogos=REF.fogos; }
+        return {nome:p.nome,ano:(new Date()).getFullYear(),gfa,fogos,caps:p.caps,fase:'Custo real',D:{segmento:p.seg,abc:gfa,fogos}};
+      });
+      return out.length?out:_legacy(pref);
+    }catch(e){ return _legacy(pref); }
+  };
 })();
 
 </script>
