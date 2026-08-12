@@ -5942,6 +5942,7 @@ refreshLib();
 </script>
 
 <script>
+/* IMPORTAÇÃO CONFIÁVEL — ETAPAS 2 e 3 (bloco injetado) */
 /* ==========================================================================
    IMPORTAÇÃO CONFIÁVEL — ETAPAS 2 e 3
    Etapa 2: lê um auto (formato Legendre), reconcilia a soma das linhas
@@ -6830,7 +6831,12 @@ async function vfDvFreeze(){
     await vfDvRender();
   }catch(err){ out.innerHTML='<div class="note">Erro a congelar: '+esc(err.message||String(err))+'</div>'; }
 }
+function vfDvSetMode(m){ window.__dvMode=m;
+  ['solive','legendre'].forEach(x=>{ const b=document.getElementById('dvmode-'+x); if(b) b.classList.toggle('on', x===m); });
+  vfDvRender();
+}
 async function vfDvRender(){
+  if(window.__dvMode==='legendre') return vfDvRenderLegendre();
   const out=document.getElementById('dvOut'); const proj=(document.getElementById('dvProj')||{}).value||'';
   if(!out) return;
   if(!proj){ out.innerHTML=''; return; }
@@ -6848,19 +6854,86 @@ async function vfDvRender(){
   }
   const keys=[...new Set([...Object.keys(orc),...Object.keys(real)])];
   const rows=keys.map(k=>{ const o=(orc[k]||{}).v||0, rr=(real[k]||{}).v||0; const cap=((orc[k]||real[k])||{}).cap||k;
-    const dv=rr-o, pct=o?dv/o:null; return {cap,o,rr,dv,pct}; }).sort((a,b)=>Math.abs(b.dv)-Math.abs(a.dv));
-  const totO=rows.reduce((s,r)=>s+r.o,0), totR=rows.reduce((s,r)=>s+r.rr,0), totD=totR-totO;
-  const body=rows.map(r=>{ const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
+    const temAuto=rr>0; const dv=temAuto?rr-o:null, pct=(temAuto&&o)?dv/o:null;
+    return {cap,o,rr,temAuto,dv,pct}; }).sort((a,b)=>{ if(a.temAuto!==b.temAuto) return a.temAuto?-1:1;
+      return a.temAuto ? Math.abs(b.dv)-Math.abs(a.dv) : b.o-a.o; });
+  const totO=rows.reduce((s,r)=>s+r.o,0), totR=rows.reduce((s,r)=>s+r.rr,0);
+  const covO=rows.filter(r=>r.temAuto).reduce((s,r)=>s+r.o,0);   // orçamento dos capítulos COM auto
+  const covR=rows.filter(r=>r.temAuto).reduce((s,r)=>s+r.rr,0);  // real dos capítulos com auto
+  const covD=covR-covO;
+  const cobertura=totO?covO/totO:0;                              // % do orçamento coberto por autos
+  const cobPct=(cobertura*100).toFixed(0);
+  const cobCol=cobertura>=0.9?'#1c7c46':(cobertura>=0.5?'#b26a00':'#E62336');
+  const body=rows.map(r=>{
+    if(!r.temAuto){ return '<tr style="color:#8391a3"><td>'+esc(r.cap)+'</td>'
+      +'<td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td>'
+      +'<td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">sem auto</span></td>'
+      +'<td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'; }
+    const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
     return '<tr><td>'+esc(r.cap)+'</td>'
-      +'<td class="mono" style="text-align:right">'+(r.o?vfMoeda(r.o):'—')+'</td>'
-      +'<td class="mono" style="text-align:right">'+(r.rr?vfMoeda(r.rr):'—')+'</td>'
+      +'<td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td>'
+      +'<td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td>'
       +'<td class="mono" style="text-align:right;color:'+col+'">'+(r.dv>0?'+':'')+vfMoeda(r.dv)+'</td>'
       +'<td class="mono" style="text-align:right;color:'+col+'">'+(r.pct==null?'—':(r.pct>0?'+':'')+(r.pct*100).toFixed(0)+'%')+'</td></tr>'; }).join('');
-  const tcol=totD>0?'#b26a00':(totD<0?'#1c7c46':'#48566b');
-  out.innerHTML='<div class="note" style="margin-bottom:8px">Orçamento transferido vs custo real executado, por capítulo, para <b>'+esc(proj)+'</b>. <span style="color:#1c7c46">Verde</span> = executou abaixo do orçamento; <span style="color:#b26a00">laranja</span> = acima. Capítulos com «—» no real ainda não têm autos importados.</div>'
+  const dcol=covD>0?'#b26a00':(covD<0?'#1c7c46':'#48566b');
+  out.innerHTML=
+    '<div class="note" style="margin-bottom:8px;padding:10px 12px;background:#f6f8fb;border:1px solid #e1e7ef;border-radius:8px">'
+      +'<b style="color:'+cobCol+'">Cobertura de autos: '+cobPct+'%</b> do orçamento transferido ('+vfMoeda(covO)+' de '+vfMoeda(totO)+'). '
+      +'Faltam autos em <b>'+((1-cobertura)*100).toFixed(0)+'%</b> do âmbito, por isso o custo real ainda não é o custo final da obra. '
+      +'O <b>desvio só é fiável nos capítulos que já têm auto</b>.'
+    +'</div>'
+    +'<div class="note" style="margin-bottom:8px"><span style="color:#1c7c46">Verde</span> = abaixo do orçamento; <span style="color:#b26a00">laranja</span> = acima; <b>sem auto</b> = capítulo orçamentado ainda sem medição (não é poupança).</div>'
     +'<table style="font-size:13px"><tr><th>Capítulo</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
     +body
-    +'<tr style="font-weight:700"><td>TOTAL</td><td class="mono" style="text-align:right">'+vfMoeda(totO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(totR)+'</td><td class="mono" style="text-align:right;color:'+tcol+'">'+(totD>0?'+':'')+vfMoeda(totD)+'</td><td class="mono" style="text-align:right;color:'+tcol+'">'+(totO?((totD/totO>0?'+':'')+(totD/totO*100).toFixed(0)+'%'):'—')+'</td></tr>'
+    +'<tr style="font-weight:700;border-top:2px solid #143A67"><td>DESVIO FIÁVEL (só capítulos com auto)</td>'
+      +'<td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td>'
+      +'<td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td>'
+      +'<td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td>'
+      +'<td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
+    +'<tr style="color:#5b6b7f"><td>Orçamento total (âmbito completo)</td><td class="mono" style="text-align:right">'+vfMoeda(totO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(totR)+' <span style="font-size:10px">(real parcial · '+cobPct+'%)</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'
+    +'</table>';
+}
+/* LENTE LEGENDRE — desvios nas categorias oficiais (Transfert), para a monitorização
+   da obra. Real = autos, mapeados capítulo Solive -> categoria Legendre (mapa_legendre).
+   Baseline = orcamento_legendre (Transfert congelado no trespasse). Só leitura. */
+async function vfDvRenderLegendre(){
+  const out=document.getElementById('dvOut'); const proj=(document.getElementById('dvProj')||{}).value||'';
+  if(!out) return;
+  if(!proj){ out.innerHTML=''; return; }
+  if(typeof sb==='undefined'||!sb){ out.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
+  let orc={}; try{ const o=await sb.from('orcamento_legendre').select('legendre_categoria,total_transferido').eq('projeto_ref',proj);
+    (o.data||[]).forEach(r=>{ orc[r.legendre_categoria]=(orc[r.legendre_categoria]||0)+(Number(r.total_transferido)||0); }); }catch(e){}
+  if(!Object.keys(orc).length){ out.innerHTML='<div class="note">Sem orçamento Legendre congelado para <b>'+esc(proj)+'</b>. Corre o <b>etapa_legendre.sql</b> no Supabase.</div>'; return; }
+  let map={}; try{ const m=await sb.from('mapa_legendre').select('capitulo_solive,legendre_categoria'); (m.data||[]).forEach(r=>{ map[vfNorm(r.capitulo_solive)]=r.legendre_categoria; }); }catch(e){}
+  const impIds={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) impIds[r.id]=1; }); }catch(e){}
+  let real={}, semMapa=0;
+  for(let from=0; from<200000; from+=1000){
+    const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(from,from+999);
+    if(q.error) break; const batch=q.data||[];
+    batch.forEach(r=>{ if(impIds[r.import_id]){ const lg=map[vfNorm(r.capitulo_canonico)]; const t=Number(r.total)||0; if(lg) real[lg]=(real[lg]||0)+t; else semMapa+=t; } });
+    if(batch.length<1000) break;
+  }
+  const keys=[...new Set([...Object.keys(orc),...Object.keys(real)])];
+  const rows=keys.map(k=>{ const o=orc[k]||0, rr=real[k]||0; const temAuto=rr>0; const dv=temAuto?rr-o:null, pct=(temAuto&&o)?dv/o:null;
+    return {cat:k,o,rr,temAuto,dv,pct}; }).sort((a,b)=>{ if(a.temAuto!==b.temAuto) return a.temAuto?-1:1; return a.temAuto?Math.abs(b.dv)-Math.abs(a.dv):b.o-a.o; });
+  const totO=rows.reduce((s,r)=>s+r.o,0), totR=rows.reduce((s,r)=>s+r.rr,0);
+  const covO=rows.filter(r=>r.temAuto).reduce((s,r)=>s+r.o,0), covR=rows.filter(r=>r.temAuto).reduce((s,r)=>s+r.rr,0), covD=covR-covO;
+  const cob=totO?covO/totO:0, cobPct=(cob*100).toFixed(0), cobCol=cob>=0.9?'#1c7c46':(cob>=0.5?'#b26a00':'#E62336');
+  const body=rows.map(r=>{
+    if(!r.temAuto){ return '<tr style="color:#8391a3"><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">sem auto</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'; }
+    const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
+    return '<tr><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td><td class="mono" style="text-align:right;color:'+col+'">'+(r.dv>0?'+':'')+vfMoeda(r.dv)+'</td><td class="mono" style="text-align:right;color:'+col+'">'+(r.pct==null?'—':(r.pct>0?'+':'')+(r.pct*100).toFixed(0)+'%')+'</td></tr>';
+  }).join('');
+  const dcol=covD>0?'#b26a00':(covD<0?'#1c7c46':'#48566b');
+  out.innerHTML=
+    '<div class="note" style="margin-bottom:8px;padding:10px 12px;background:#f0f4fb;border:1px solid #d5e0f0;border-radius:8px">'
+     +'<b style="color:#143A67">Lente Legendre (Fondamental 7)</b> — desvios nas categorias oficiais que a obra monitoriza. '
+     +'<b style="color:'+cobCol+'">Cobertura: '+cobPct+'%</b> do âmbito subcontratado ('+vfMoeda(covO)+' de '+vfMoeda(totO)+').'
+     +(semMapa>0?' <span style="color:#b26a00">'+vfMoeda(semMapa)+' de real ainda sem categoria Legendre (capítulo por mapear em mapa_legendre).</span>':'')
+    +'</div>'
+    +'<table style="font-size:13px"><tr><th>Categoria Legendre</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
+    +body
+    +'<tr style="font-weight:700;border-top:2px solid #143A67"><td>DESVIO FIÁVEL (categorias com auto)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
     +'</table>';
 }
 (function vfMountDesvios(){
@@ -6878,7 +6951,9 @@ async function vfDvRender(){
    +'<div class="filters" style="margin-top:8px">'
    +'<div style="min-width:220px"><label>Projeto</label><br><select id="dvProj" onmousedown="vfDvFillProjects()" onchange="vfDvRender()" style="min-width:220px"><option value="">—</option></select></div>'
    +'<div style="min-width:360px"><label>Importar orçamento transferido (.xlsx)</label><br><input type="file" id="dvFile" accept=".xlsx,.xls"> <button class="btn navy" onclick="vfDvImport()">Ler orçamento</button></div>'
-   +'</div><div id="dvOut" style="margin-top:12px"></div>';
+   +'</div>'
+   +'<div class="subtabs" style="margin-top:10px"><button id="dvmode-solive" class="on" onclick="vfDvSetMode(\'solive\')">As minhas categorias</button><button id="dvmode-legendre" onclick="vfDvSetMode(\'legendre\')">Categorias Legendre (monitorização)</button></div>'
+   +'<div id="dvOut" style="margin-top:12px"></div>';
   host.appendChild(div);
   try{ const _sv=window.showView||showView; window.showView=function(v){ _sv(v); if(v==='comparar'){ try{ vfDvFillProjects(); }catch(e){} } }; }catch(e){}
 })();
@@ -6915,17 +6990,20 @@ function vfBuildBoardPDF(m, JsPDF){
     doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.text(k[1],kx+kw/2,48,{align:'center'}); kx+=kw+6; });
   let y=63;
   doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Benchmarks e rigor por projeto',15,y); y+=7;
-  doc.setFontSize(8.5); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont('helvetica','bold');
-  doc.text('Projeto',15,y); doc.text('Segmento',58,y);
-  doc.text('Custo real',120,y,{align:'right'}); doc.text('€/m2',140,y,{align:'right'}); doc.text('€/fogo',165,y,{align:'right'}); doc.text('Desvio*',195,y,{align:'right'});
+  const RED=[230,35,54];
+  doc.setFontSize(8); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont('helvetica','bold');
+  doc.text('Projeto',15,y); doc.text('Segmento',50,y);
+  doc.text('Custo real',108,y,{align:'right'}); doc.text('€/m2',126,y,{align:'right'}); doc.text('€/fogo',148,y,{align:'right'}); doc.text('Cobertura',171,y,{align:'right'}); doc.text('Desvio*',195,y,{align:'right'});
   y+=1.6; doc.setDrawColor(210,215,225); doc.line(15,y,195,y); y+=5.5;
   m.projetos.forEach(p=>{
-    doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(String(p.nome).slice(0,26),15,y);
-    doc.setFont('helvetica','normal'); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFontSize(8.5); doc.text(String(p.seg||'—').slice(0,22),58,y);
-    doc.setFontSize(9); doc.setTextColor(INK[0],INK[1],INK[2]);
-    doc.text(E(p.real),120,y,{align:'right'});
-    doc.text(p.eur_m2?N(p.eur_m2):'—',140,y,{align:'right'});
-    doc.text(p.eur_fogo?N(p.eur_fogo):'—',165,y,{align:'right'});
+    doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont('helvetica','bold'); doc.setFontSize(8.7); doc.text(String(p.nome).slice(0,22),15,y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFontSize(8); doc.text(String(p.seg||'—').slice(0,20),50,y);
+    doc.setFontSize(8.7); doc.setTextColor(INK[0],INK[1],INK[2]);
+    doc.text(E(p.real),108,y,{align:'right'});
+    doc.text(p.eur_m2?N(p.eur_m2):'—',126,y,{align:'right'});
+    doc.text(p.eur_fogo?N(p.eur_fogo):'—',148,y,{align:'right'});
+    if(p.cobertura==null){ doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text('—',171,y,{align:'right'}); }
+    else { const cc=p.cobertura>=0.9?OKG:(p.cobertura>=0.5?AMBER:RED); doc.setTextColor(cc[0],cc[1],cc[2]); doc.text((p.cobertura*100).toFixed(0)+'%',171,y,{align:'right'}); }
     if(p.desvioPct==null){ doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text('—',195,y,{align:'right'}); }
     else { const c=p.desvioPct>0?AMBER:OKG; doc.setTextColor(c[0],c[1],c[2]); doc.text((p.desvioPct>0?'+':'')+N(p.desvioPct*100)+'%',195,y,{align:'right'}); }
     y+=7;
@@ -6941,15 +7019,22 @@ function vfBuildBoardPDF(m, JsPDF){
     y+=8;
   });
   if(m.notas&&m.notas.length){
-    y+=4; const bh=9+m.notas.length*6;
+    y+=4;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    const perLine=3.9, gap=1.9;
+    const wrapped=m.notas.map(t=>doc.splitTextToSize(String(t),164));
+    const bodyH=wrapped.reduce((s,w)=>s+w.length*perLine,0)+(wrapped.length-1)*gap;
+    const bh=12+bodyH+2;
     doc.setFillColor(BG[0],BG[1],BG[2]); doc.roundedRect(15,y,180,bh,2,2,'F');
-    doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Leitura rápida',20,y+6.5);
+    doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Leitura rápida',20,y+7);
     doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]);
-    let ly=y+13; m.notas.forEach(t=>{ doc.setFillColor(TEAL[0],TEAL[1],TEAL[2]); doc.circle(22,ly-1.3,0.8,'F'); doc.text(String(t),26,ly,{maxWidth:166}); ly+=6; });
+    let ly=y+13.5;
+    wrapped.forEach(w=>{ doc.setFillColor(TEAL[0],TEAL[1],TEAL[2]); doc.circle(22,ly-1.3,0.8,'F');
+      w.forEach((ln,i)=>doc.text(ln,26,ly+i*perLine)); ly+=w.length*perLine+gap; });
   }
   doc.setDrawColor(220,225,232); doc.line(15,283,195,283);
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(MUT[0],MUT[1],MUT[2]);
-  doc.text('* Desvio = custo real vs orçamento transferido, só nos capítulos já executados (com autos). Onde faltam autos, o real é parcial.',15,288);
+  doc.text('* Desvio só nos capítulos já executados. Cobertura = % do orçamento transferido já com auto submetido; o restante ainda não é custo final.',15,288);
   doc.text('Custo real gravado dos autos de medição, reconciliado. A margem é aplicada fora da plataforma. Gerado pela Plataforma de Orçamentação Solive.',15,292);
   return doc;
 }
@@ -6969,7 +7054,9 @@ async function vfBoardReport(){
     const dim=nome=>{ let gfa=null,fogos=null; try{ const pr=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>vfNorm(x.nome)===vfNorm(nome)); if(pr){gfa=pr.gfa;fogos=pr.fogos;} }catch(e){} if((gfa==null)&&/URBAIN/i.test(nome||'')){ try{gfa=REF.gfa;fogos=REF.fogos;}catch(e){} } return {gfa,fogos}; };
     const projetos=Object.keys(realProj).map(nome=>{ const d=dim(nome); const real=realProj[nome]; const ob=orc[vfNorm(nome)]||{}; const rc=realProjCap[nome]||{};
       let cb=0,cr=0; Object.keys(rc).forEach(ck=>{ if(rc[ck]>0 && ob[ck]!=null){ cb+=ob[ck]; cr+=rc[ck]; } });
-      return {nome, seg:segOf[nome]||null, real, abc:d.gfa, fogos:d.fogos, eur_m2:d.gfa?real/d.gfa:null, eur_fogo:d.fogos?real/d.fogos:null, desvioPct:(cb>0)?(cr-cb)/cb:null }; })
+      const orcTot=Object.values(ob).reduce((s,x)=>s+x,0);          // âmbito total orçamentado
+      const cobertura=orcTot>0?cb/orcTot:null;                      // % do orçamento com auto
+      return {nome, seg:segOf[nome]||null, real, abc:d.gfa, fogos:d.fogos, eur_m2:d.gfa?real/d.gfa:null, eur_fogo:d.fogos?real/d.fogos:null, cobertura, desvioPct:(cb>0)?(cr-cb)/cb:null }; })
       .sort((a,b)=>b.real-a.real);
     const totalReal=projetos.reduce((s,p)=>s+p.real,0);
     const abcSum=projetos.reduce((s,p)=>s+(p.abc||0),0);
@@ -6982,6 +7069,8 @@ async function vfBoardReport(){
     const segs=Object.keys(bySeg);
     if(segs.length){ notas.push('Custo por segmento: '+segs.map(s=>s+' — '+Math.round(bySeg[s].r/bySeg[s].a).toLocaleString('pt-PT')+' €/m2').join(' · ')+'.'); }
     const dvs=projetos.filter(p=>p.desvioPct!=null).map(p=>Math.abs(p.desvioPct));
+    const cobs=projetos.filter(p=>p.cobertura!=null).map(p=>p.cobertura);
+    if(cobs.length){ const mc=cobs.reduce((s,x)=>s+x,0)/cobs.length; notas.push('Cobertura de autos: '+(mc*100).toFixed(0)+'% do orçamento transferido em média — o restante ainda sem medição (custo real parcial).'); }
     if(dvs.length){ const md=dvs.reduce((s,x)=>s+x,0)/dvs.length; notas.push('Rigor da orçamentação: desvio médio ±'+(md*100).toFixed(0)+'% (só nos capítulos já executados).'); }
     if(topCaps.length>=3){ const c3=topCaps.slice(0,3).reduce((s,c)=>s+c.pct,0); notas.push('Concentração: os 3 maiores capítulos valem '+(c3*100).toFixed(0)+'% do custo real total.'); }
     const model={data:(new Date()).toISOString().slice(0,10), projetos, totalReal, nProj:projetos.length, avgM2, topCaps, notas};
@@ -6991,6 +7080,7 @@ async function vfBoardReport(){
     if(out) out.textContent='Relatório gerado ('+model.data+').';
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
+
 </script>
 </body>
 </html>
