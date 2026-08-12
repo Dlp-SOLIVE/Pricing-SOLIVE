@@ -6492,18 +6492,37 @@ async function vfPriceMQFile(){
   if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o MQ (.xlsx) primeiro.</div>'; return; }
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar biblioteca de custo…</div>';
-  const q=await sb.from('custo_linha').select('designacao,unidade,preco_unit,contrato,natureza');
-  if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
+  // Paginar (custo_linha pode ter >1000 linhas; senão a biblioteca vem truncada a 1000).
+  const SELM='capitulo_canonico,designacao,unidade,quantidade,preco_unit,total,contrato,natureza';
+  let clAll=[];
+  for(let from=0; from<200000; from+=1000){
+    const q=await sb.from('custo_linha').select(SELM).range(from,from+999);
+    if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
+    const batch=q.data||[]; clAll=clAll.concat(batch);
+    if(batch.length<1000) break;
+  }
   let qc={data:[]}; try{ qc=await sb.from('custo_compra').select('descricao,unidade,preco_unit,kind,ref'); }catch(e){}
   const cd=(qc&&qc.data)||[];
   const map=r=>({designacao:r.descricao,unidade:r.unidade,preco_unit:r.preco_unit,contrato:r.ref});
-  const cl=(q.data||[]).filter(r=>Number(r.preco_unit)>0);
+  const cl=clAll.filter(r=>Number(r.preco_unit)>0);
   const natOf=r=>r.natureza||'full';
   // custo_linha (autos) encaminhado por natureza + compras por kind
   const libFull=cl.filter(r=>natOf(r)==='full').concat(cd.filter(r=>r.kind==='full').map(map));
   const libMat=cl.filter(r=>natOf(r)==='material').concat(cd.filter(r=>r.kind==='material'&&Number(r.preco_unit)>0).map(map));
   const libLab=cl.filter(r=>natOf(r)==='labour').concat(cd.filter(r=>r.kind==='labour'&&Number(r.preco_unit)>0).map(map));
   if(!libFull.length&&!libMat.length){ out.innerHTML='<div class="note">Sem custo gravado ainda — importa autos (Verificar) e/ou o ficheiro de Compras primeiro.</div>'; return; }
+  // Rácios por capítulo (custo completo) — €/unidade médio por capítulo canónico + unidade.
+  // Preenche as linhas do MQ que não casam por texto, com o rácio do elemento.
+  const chap={};
+  cl.filter(r=>natOf(r)==='full').forEach(r=>{
+    const c=r.capitulo_canonico, u=vfUnit(r.unidade);
+    const t=Number(r.total)||0, qn=Number(r.quantidade)||0;
+    if(!c||!u||qn<=0) return;
+    const k=vfNorm(c);
+    if(!chap[k]) chap[k]={};
+    if(!chap[k][u]) chap[k][u]={cap:c,eurNum:0,eurDen:0,n:0};
+    chap[k][u].eurNum+=t; chap[k][u].eurDen+=qn; chap[k][u].n++;
+  });
   const uplift=parseFloat((document.getElementById('mqUplift')||{}).value)||0;
   const f=inp.files[0]; const rd=new FileReader();
   rd.onload=e=>{
@@ -6517,7 +6536,8 @@ async function vfPriceMQFile(){
       if(m&&m.length){ m.forEach(l=>{ if(!l.cap||l.cap==='(sem capítulo)') l.cap=sn; }); mq.push(...m); }
     }
     if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades neste ficheiro (preciso de colunas Designação / Un. / Quant.).</div>'; return; }
-    const results=mq.map(l=>({l,m:vfPriceLine(l,libFull,libMat,libLab,uplift)}));
+    const results=mq.map(l=>{ const canon=vfCanonMQ(l); l.__canon=canon;
+      return {l,m:vfPriceLine(l,libFull,libMat,libLab,uplift,chap,canon)}; });
     window.__mqResults=results;
     vfRenderMQ(results,libFull.length,libMat.length);
   };
@@ -6525,7 +6545,20 @@ async function vfPriceMQFile(){
 }
 /* compõe o preço de uma linha: preço completo (subcontrato) se houver; senão
    material (compra) + instalação (mão de obra registada, ou uplift %). */
-function vfPriceLine(line, libFull, libMat, libLab, upliftPct){
+/* capítulo de uma linha de MQ: a secção do próprio MQ manda; senão, pela
+   descrição, com prioridade para o OFÍCIO sobre a localização (ex.:
+   "impermeabilização de coberturas" é IMPERMEABILIZAÇÕES, não COBERTURAS). */
+function vfCanonMQ(l){
+  let c=vfGuess(l.cap); if(c) return c;
+  const t=vfNorm(l.designacao);
+  if(/IMPERMEABILIZA|ISOLAMENTO/.test(t)) return 'IMPERMEABILIZAÇÕES E ISOLAMENTOS';
+  if(/GESSO CARTONADO|PLADUR|PLACA (SIMPLES|DUPLA)/.test(t)) return 'GESSO CARTONADO';
+  if(/BLOCO|TIJOLO|ALVENARIA/.test(t)) return 'ALVENARIAS';
+  if(/REBOCO|SALPICO|EMBO[ÇC]O|ARGAMASSA/.test(t)) return 'ARGAMASSAS';
+  if(/BETONILHA/.test(t)) return 'BETONILHAS';
+  return vfGuess(l.designacao)||null;
+}
+function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
   const full=vfMatchLine(line, libFull);
   if(full.conf==='alta'||full.conf==='média'){ full.kind='completo'; return full; }
   const mat=(libMat&&libMat.length)?vfMatchLine(line, libMat):{rec:null,conf:'sem'};
@@ -6538,6 +6571,17 @@ function vfPriceLine(line, libFull, libMat, libLab, upliftPct){
     const up=upliftPct||0; const inst=up>0?Math.round(mat.rec*up/100*100)/100:null;
     return {rec:Math.round(mat.rec*(1+up/100)*100)/100,n:mat.n,min:mat.min,max:mat.max,best:mat.best,
             conf:'baixa',kind:up>0?'material+inst.%':'só material',parts:{material:mat.rec,instalacao:inst},cands:mat.cands};
+  }
+  // FALLBACK: sem match de texto -> rácio do capítulo (custo completo) na mesma unidade.
+  // É a tua visão "€/elemento na unidade natural" — usa o €/un médio do capítulo do custo real.
+  if(chap && canon){
+    const u=vfUnit(line.unidade);
+    const cr=(chap[vfNorm(canon)]||{})[u];
+    if(cr && cr.eurDen>0){
+      const eur=Math.round(cr.eurNum/cr.eurDen*100)/100;
+      return {rec:eur,n:cr.n,min:null,med:eur,max:null,best:full.best,conf:'baixa',
+              kind:'rácio cap.',cap:cr.cap,viaCap:true,cands:(full.cands||[])};
+    }
   }
   full.kind='—'; return full;
 }
@@ -6603,7 +6647,7 @@ function vfConfBadge(c){
   return '<span style="background:'+m[0]+';color:#fff;padding:1px 8px;border-radius:20px;font-size:11px;font-weight:700">'+m[1]+'</span>';
 }
 function vfKindBadge(k){
-  const m={completo:['#1c7c46','completo'],composto:['#298893','mat+inst'],'só material':['#b26a00','só material'],'material+inst.%':['#b26a00','mat+inst %']}[k];
+  const m={completo:['#1c7c46','completo'],composto:['#298893','mat+inst'],'só material':['#b26a00','só material'],'material+inst.%':['#b26a00','mat+inst %'],'rácio cap.':['#2E6DB0','rácio cap.']}[k];
   return m?'<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700">'+m[1]+'</span>':'—';
 }
 function vfRenderMQ(results, libFullN, libMatN){
@@ -6624,8 +6668,9 @@ function vfRenderMQ(results, libFullN, libMatN){
   }).join('');
   const fiavel=results.filter(x=>x.m.conf==='alta'||x.m.conf==='média').length;
   const comMat=results.filter(x=>x.m.kind==='só material'||x.m.kind==='material+inst.%'||x.m.kind==='composto').length;
+  const porCap=results.filter(x=>x.m.kind==='rácio cap.').length;
   const semNada=results.filter(x=>x.m.rec==null).length;
-  out.innerHTML='<div class="note" style="margin-bottom:8px">Biblioteca: '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> linhas com preço completo fiável · <b>'+comMat+'</b> via material (compras) · <b>'+semNada+'</b> sem match (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
+  out.innerHTML='<div class="note" style="margin-bottom:8px">Biblioteca: '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> com preço fiável (match de texto) · <b>'+comMat+'</b> via material · <b>'+porCap+'</b> via rácio de capítulo · <b>'+semNada+'</b> sem preço (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
     +'<table style="font-size:12.5px">'+th+body+'</table>'
     +'<div style="margin-top:10px;font-size:15px"><b>Estimativa total: <span id="mqTotal">—</span></b></div>'
     +'<div id="mqDrill" style="margin-top:12px"></div>';
@@ -6645,8 +6690,9 @@ function vfMQDrill(i){
   const x=(window.__mqResults||[])[i]; const d=document.getElementById('mqDrill'); if(!x||!d) return;
   const c=x.m.cands||[];
   const th='<tr><th>Registo de custo</th><th>Contrato</th><th style="text-align:right">€/un</th><th style="text-align:right">Semelhança</th></tr>';
-  const body=c.length?c.map(k=>'<tr><td>'+esc(String(k.desc).slice(0,64))+'</td><td class="mono">'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score*100).toFixed(0)+'%</td></tr>').join(''):'<tr><td colspan="4">Sem registos comparáveis — preço a introduzir manualmente.</td></tr>';
-  d.innerHTML='<div class="card"><b>'+esc(String(x.l.designacao).slice(0,80))+'</b> · '+esc(x.l.unidade)+'<table style="margin-top:8px;font-size:12.5px">'+th+body+'</table></div>';
+  const body=c.length?c.map(k=>'<tr><td>'+esc(String(k.desc).slice(0,64))+'</td><td class="mono">'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score*100).toFixed(0)+'%</td></tr>').join(''):'<tr><td colspan="4">Sem registos comparáveis por texto.</td></tr>';
+  const capNota=x.m.viaCap?'<div class="note" style="margin:6px 0">Preço por <b>rácio de capítulo</b>: '+esc(x.m.cap||'')+' · €/'+esc(x.l.unidade)+' médio do custo real ('+(x.m.n||0)+' registos). Usado por não haver correspondência de texto fiável — confirma antes de fechar.</div>':'';
+  d.innerHTML='<div class="card"><b>'+esc(String(x.l.designacao).slice(0,80))+'</b> · '+esc(x.l.unidade)+capNota+'<table style="margin-top:8px;font-size:12.5px">'+th+body+'</table></div>';
 }
 (function vfMountMQ(){
   if(document.getElementById('nav-precomq')) return;
@@ -6656,7 +6702,7 @@ function vfMQDrill(i){
   if(host){
     const mv=document.createElement('div'); mv.id='view-precomq'; mv.className='hidden';
     mv.innerHTML='<h2 style="color:#143A67">Orçamentar MQ pelo custo real</h2>'
-      +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante) e mostra o preço recomendado, quantos registos o suportam, a amplitude e a confiança. Preenche o seguro; assinala o resto. Nada é inventado — a semelhança só ordena candidatos reais.</div>'
+      +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante). Onde não há correspondência de texto fiável, usa o <b>rácio do capítulo</b> (€/unidade médio do elemento no custo real). Preenche o seguro; confirma os que vêm por rácio. Nada é inventado — só custo real.</div>'
       +'<div class="card" style="margin-top:10px"><b>Biblioteca de compras (fornecedores)</b><div class="note">Importa o ficheiro de Compras (.xlsm) — uma vez, ou sempre que houver novas adjudicações. Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato. Alimenta a composição material + instalação.</div><input type="file" id="cmFile" accept=".xlsm,.xlsx"> <button class="btn navy" onclick="vfImportComprasFile()">Importar compras</button> <span id="cmOut" class="note"></span></div>'
       +'<div class="card" style="margin-top:10px"><label>Uplift de instalação sobre material (%)</label> <input type="number" id="mqUplift" value="0" style="width:80px"> <span class="note">Aplica-se às linhas onde só há preço de material (sem mão de obra registada).</span></div>'
       +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades vazio (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx,.xls"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button></div>'
@@ -6765,7 +6811,6 @@ function vfAggProjects(lines, impMap){
     }catch(e){ return _legacy(pref); }
   };
 })();
-
 </script>
 </body>
 </html>
