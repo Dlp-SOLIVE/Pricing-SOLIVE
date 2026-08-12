@@ -6716,6 +6716,130 @@ function vfAggProjects(lines, impMap){
     }catch(e){ return _legacy(pref); }
   };
 })();
+
+/* ==========================================================================
+   DESVIOS — Orçamento transferido (Produção) vs Custo real executado.
+   Vive no separador Comparar. Base: ficheiro do orçamento, congelado por
+   capítulo em orcamento_producao. Real: custo_linha por capítulo canónico.
+   ========================================================================== */
+function vfReadOrcamento(rows){
+  let H=null;
+  for(let i=0;i<Math.min(rows.length,30);i++){
+    const r=(rows[i]||[]).map(vfNorm);
+    const des=r.findIndex(x=>/DESIGNA/.test(x));
+    const un=r.findIndex(x=>/^UN\.?$/.test(x));
+    let tot=-1; r.forEach((x,idx)=>{ if(/TOTA|VALOR|IMPORT[ÂA]NCIA/.test(x)) tot=idx; });
+    if(des>=0&&un>=0&&tot>=0){ H={row:i,des,un,tot}; break; }
+  }
+  if(!H) return null;
+  const out=[]; let secao=null;
+  for(let i=H.row+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    const a=String(r[0]==null?"":r[0]).trim();
+    const d=String(r[H.des]==null?"":r[H.des]).trim();
+    const un=String(r[H.un]==null?"":r[H.un]).trim();
+    const tv=vfNum(r[H.tot]);
+    const dn=vfNorm(d);
+    if(/^VALOR GLOBAL|^TOTAL/.test(dn)) continue;
+    if(un!=="" && tv!=null){ out.push({designacao:d,total:tv,cap:secao}); }
+    else if(d && un==="" && tv==null){ if((VF_ROMAN.test(a)&&a) || vfGuess(d)) secao=d; }  // cabeçalho de capítulo (romano na col. A ou nome reconhecível)
+  }
+  return out;
+}
+function vfDvAggOrc(leaves){
+  const g={};
+  leaves.forEach(l=>{ const canon=vfCanonMQ({cap:l.cap,designacao:l.designacao})||'(sem capítulo)';
+    g[canon]=(g[canon]||0)+(Number(l.total)||0); });
+  return g;
+}
+async function vfDvFillProjects(){
+  const sel=document.getElementById('dvProj'); if(!sel||typeof sb==='undefined'||!sb) return;
+  const set={};
+  try{ const a=await sb.from('custo_import').select('projeto_ref'); (a.data||[]).forEach(r=>{ if(r.projeto_ref) set[r.projeto_ref]=1; }); }catch(e){}
+  try{ const b=await sb.from('orcamento_producao').select('projeto_ref'); (b.data||[]).forEach(r=>{ if(r.projeto_ref) set[r.projeto_ref]=1; }); }catch(e){}
+  const projs=Object.keys(set).sort(); const cur=sel.value;
+  sel.innerHTML='<option value="">—</option>'+projs.map(p=>'<option'+(vfNorm(p)===vfNorm(cur)?' selected':'')+'>'+esc(p)+'</option>').join('');
+}
+function vfDvImport(){
+  const inp=document.getElementById('dvFile'); const out=document.getElementById('dvOut');
+  const proj=(document.getElementById('dvProj')||{}).value||'';
+  if(!proj){ out.innerHTML='<div class="note">Escolhe primeiro o projeto.</div>'; return; }
+  if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o ficheiro do orçamento (.xlsx).</div>'; return; }
+  const f=inp.files[0]; const rd=new FileReader();
+  rd.onload=e=>{
+    let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }catch(err){ out.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
+    let leaves=[];
+    for(const sn of wb.SheetNames){ if(/INDICE|ÍNDICE/i.test(sn)) continue;
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
+      const m=vfReadOrcamento(rows); if(m&&m.length){ m.forEach(l=>{ if(!l.cap) l.cap=sn; }); leaves.push(...m); } }
+    if(!leaves.length){ out.innerHTML='<div class="note">Não reconheci um orçamento por linha (preciso de colunas Designação / Un. / Total). Confirma que é o orçamento de custo, ao nível do artigo.</div>'; return; }
+    const g=vfDvAggOrc(leaves);
+    const tot=Object.values(g).reduce((s,x)=>s+x,0);
+    window.__dvOrc={proj, chapters:g, ficheiro:f.name, tot};
+    const rowsH=Object.keys(g).sort().map(c=>'<tr><td>'+esc(c)+'</td><td class="mono" style="text-align:right">'+vfMoeda(g[c])+'</td></tr>').join('');
+    out.innerHTML='<div class="note">Lido de <b>'+esc(f.name)+'</b>: '+leaves.length+' linhas → '+Object.keys(g).length+' capítulos · total '+vfMoeda(tot)+'. Confere o mapeamento e congela como base para <b>'+esc(proj)+'</b>.</div>'
+      +'<table style="font-size:13px;max-width:540px"><tr><th>Capítulo</th><th style="text-align:right">Orçamento transferido</th></tr>'+rowsH+'</table>'
+      +'<button class="btn red" style="margin-top:10px" onclick="vfDvFreeze()">Congelar como orçamento transferido</button>';
+  };
+  rd.readAsArrayBuffer(f);
+}
+async function vfDvFreeze(){
+  const d=window.__dvOrc; const out=document.getElementById('dvOut');
+  if(!d||!d.proj) return;
+  if(typeof sb==='undefined'||!sb){ out.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
+  try{
+    await sb.from('orcamento_producao').delete().eq('projeto_ref',d.proj);
+    const rows=Object.keys(d.chapters).map(c=>({projeto_ref:d.proj,capitulo_canonico:c,total_orcado:Math.round(d.chapters[c]*100)/100,ficheiro:d.ficheiro}));
+    for(let i=0;i<rows.length;i+=500){ const ins=await sb.from('orcamento_producao').insert(rows.slice(i,i+500)); if(ins.error) throw ins.error; }
+    await vfDvRender();
+  }catch(err){ out.innerHTML='<div class="note">Erro a congelar: '+esc(err.message||String(err))+'</div>'; }
+}
+async function vfDvRender(){
+  const out=document.getElementById('dvOut'); const proj=(document.getElementById('dvProj')||{}).value||'';
+  if(!out) return;
+  if(!proj){ out.innerHTML=''; return; }
+  if(typeof sb==='undefined'||!sb){ out.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
+  let orc={}; try{ const o=await sb.from('orcamento_producao').select('capitulo_canonico,total_orcado').eq('projeto_ref',proj);
+    (o.data||[]).forEach(r=>{ orc[vfNorm(r.capitulo_canonico)]={cap:r.capitulo_canonico,v:Number(r.total_orcado)||0}; }); }catch(e){}
+  if(!Object.keys(orc).length){ out.innerHTML='<div class="note">Sem orçamento transferido congelado para <b>'+esc(proj)+'</b>. Importa o ficheiro do orçamento acima e congela.</div>'; return; }
+  const impIds={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) impIds[r.id]=1; }); }catch(e){}
+  let real={};
+  for(let from=0; from<200000; from+=1000){
+    const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(from,from+999);
+    if(q.error) break; const batch=q.data||[];
+    batch.forEach(r=>{ if(impIds[r.import_id]){ const k=vfNorm(r.capitulo_canonico); if(!real[k]) real[k]={cap:r.capitulo_canonico,v:0}; real[k].v+=Number(r.total)||0; } });
+    if(batch.length<1000) break;
+  }
+  const keys=[...new Set([...Object.keys(orc),...Object.keys(real)])];
+  const rows=keys.map(k=>{ const o=(orc[k]||{}).v||0, rr=(real[k]||{}).v||0; const cap=((orc[k]||real[k])||{}).cap||k;
+    const dv=rr-o, pct=o?dv/o:null; return {cap,o,rr,dv,pct}; }).sort((a,b)=>Math.abs(b.dv)-Math.abs(a.dv));
+  const totO=rows.reduce((s,r)=>s+r.o,0), totR=rows.reduce((s,r)=>s+r.rr,0), totD=totR-totO;
+  const body=rows.map(r=>{ const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
+    return '<tr><td>'+esc(r.cap)+'</td>'
+      +'<td class="mono" style="text-align:right">'+(r.o?vfMoeda(r.o):'—')+'</td>'
+      +'<td class="mono" style="text-align:right">'+(r.rr?vfMoeda(r.rr):'—')+'</td>'
+      +'<td class="mono" style="text-align:right;color:'+col+'">'+(r.dv>0?'+':'')+vfMoeda(r.dv)+'</td>'
+      +'<td class="mono" style="text-align:right;color:'+col+'">'+(r.pct==null?'—':(r.pct>0?'+':'')+(r.pct*100).toFixed(0)+'%')+'</td></tr>'; }).join('');
+  const tcol=totD>0?'#b26a00':(totD<0?'#1c7c46':'#48566b');
+  out.innerHTML='<div class="note" style="margin-bottom:8px">Orçamento transferido vs custo real executado, por capítulo, para <b>'+esc(proj)+'</b>. <span style="color:#1c7c46">Verde</span> = executou abaixo do orçamento; <span style="color:#b26a00">laranja</span> = acima. Capítulos com «—» no real ainda não têm autos importados.</div>'
+    +'<table style="font-size:13px"><tr><th>Capítulo</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
+    +body
+    +'<tr style="font-weight:700"><td>TOTAL</td><td class="mono" style="text-align:right">'+vfMoeda(totO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(totR)+'</td><td class="mono" style="text-align:right;color:'+tcol+'">'+(totD>0?'+':'')+vfMoeda(totD)+'</td><td class="mono" style="text-align:right;color:'+tcol+'">'+(totO?((totD/totO>0?'+':'')+(totD/totO*100).toFixed(0)+'%'):'—')+'</td></tr>'
+    +'</table>';
+}
+(function vfMountDesvios(){
+  const host=document.getElementById('view-comparar');
+  if(!host||document.getElementById('vfDvCard')) return;
+  const div=document.createElement('div'); div.id='vfDvCard'; div.className='card'; div.style.marginTop='14px';
+  div.innerHTML='<h2 style="color:#143A67">Desvios — Orçamento transferido vs Real</h2>'
+   +'<div class="note">Compara, por capítulo, o <b>orçamento que transferiste para a Produção</b> (custo, sem margem) com o <b>custo real executado</b> (autos). Mostra quão rigorosa foi a estimativa e onde os desvios vieram de trabalhos a mais ou alterações de projeto.</div>'
+   +'<div class="filters" style="margin-top:8px">'
+   +'<div style="min-width:220px"><label>Projeto</label><br><select id="dvProj" onmousedown="vfDvFillProjects()" onchange="vfDvRender()" style="min-width:220px"><option value="">—</option></select></div>'
+   +'<div style="min-width:360px"><label>Importar orçamento transferido (.xlsx)</label><br><input type="file" id="dvFile" accept=".xlsx,.xls"> <button class="btn navy" onclick="vfDvImport()">Ler orçamento</button></div>'
+   +'</div><div id="dvOut" style="margin-top:12px"></div>';
+  host.appendChild(div);
+  try{ const _sv=window.showView||showView; window.showView=function(v){ _sv(v); if(v==='comparar'){ try{ vfDvFillProjects(); }catch(e){} } }; }catch(e){}
+})();
 </script>
 </body>
 </html>
