@@ -852,45 +852,11 @@ tr.resolved td textarea{text-decoration:line-through}
     </dl>
   </div>
   <div class="subtabs">
-    <button id="lib-tab-caps" class="on" onclick="libTab('caps')">Rácios por capítulo</button>
-    <button id="lib-tab-pu" onclick="libTab('pu')" title="Mediana histórica dos preços por família — referência para estimar.">Preços unitários (orçamento)</button>
-    <button id="lib-tab-tax" onclick="libTab('tax')">Taxonomia e drivers</button>
+    <button id="lib-tab-tax" class="on" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-gerir" onclick="libTab('gerir')">Gerir projetos</button>
   </div>
 
-  <div id="lib-pane-pu" class="hidden">
-    <div class="card">
-      <h2>Biblioteca de preços unitários
-        <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportPU()">Exportar (.xlsx)</button>
-      </h2>
-      <div class="hint">Colhida automaticamente de todos os mapas de quantidades com preços e de todos os autos importados. Cada artigo é classificado numa <b>família</b> (betão, ETICS, betonilha, porta interior…) e o preço unitário guardado com o projeto e o ano. É esta tabela — e não o rácio por m² de ABC — que dá a estimativa mais precisa quando já existe medição.</div>
-      <div class="filters">
-        <div style="min-width:210px"><label>Fonte de preço <span class="infodot" data-tip="Orçamento = mediana histórica dos preços de vários projetos (para estimar). Custo real = custo efetivo pago no L&#39;Urbain (subempreitadas e fornecimentos).">i</span></label><select id="puFonte" onchange="puFonteChange()"><option value="orc">Orçamento (mediana histórica)</option><option value="real">Custo real (L'Urbain)</option></select></div>
-        <div style="min-width:220px"><label>Filtrar família</label><input type="text" id="puFiltro" placeholder="ex.: betão" oninput="puReRender()"></div>
-        <div style="min-width:230px"><label>Comparar com obras</label><select id="puSeg" onchange="renderPU()"><option value="">Todas as obras</option><option value="ativo">Só do segmento do projeto ativo</option></select></div>
-        <div style="min-width:210px"><label>Base do preço</label><select id="puBase" onchange="renderPU()"><option value="">Todas</option><option value="Custo construtora">Custo da construtora</option><option value="contrato">Contrato de empreitada</option></select></div>
-        <div style="min-width:160px"><label>Mínimo de observações</label><select id="puMinN" onchange="renderPU()"><option value="1">Todas</option><option value="2">≥ 2</option><option value="3">≥ 3</option></select></div>
-      </div>
-      <div style="overflow-x:auto" id="puOrcWrap">
-      <div class="hint hidden" id="puSegAviso" style="margin-bottom:10px;color:var(--navy)"></div>
-        <table>
-        <thead><tr><th>Família de artigo</th><th style="width:60px">Un</th><th style="text-align:right;width:60px">Nº</th><th style="text-align:right">Mediana (€)</th><th style="text-align:right">P10 (€)</th><th style="text-align:right">P90 (€)</th><th style="text-align:right">Dispersão</th><th>Projetos</th></tr></thead>
-        <tbody id="tbPU"></tbody>
-      </table>
-      </div>
-      <div class="empty" id="puEmpty">Ainda sem preços unitários. Analisa um mapa de quantidades com preços, ou importa um auto ao nível do artigo, e grava-o na biblioteca.</div>
-      <div id="puRealWrap" class="hidden" style="overflow-x:auto">
-        <table>
-        <thead><tr><th>Descrição (custo real)</th><th style="width:56px">Un</th><th style="text-align:right;width:90px">Custo (€)</th><th style="width:96px">Âmbito</th><th>Fornecedor</th><th>Fonte</th><th>Exclusões / notas</th></tr></thead>
-        <tbody id="tbPUreal"></tbody>
-      </table>
-      </div>
-      <div class="empty hidden" id="puRealEmpty">Sem custo real carregado. Corre os SQL da biblioteca de custo real no Supabase.</div>
-    </div>
-  </div>
-
-
-  <div id="lib-pane-tax" class="hidden">
+  <div id="lib-pane-tax">
     <div class="card">
       <h2>Taxonomia de capítulos e drivers de escala
         <button class="btn teal" style="float:right;padding:6px 14px" onclick="saveTaxonomia()">Gravar taxonomia</button>
@@ -950,41 +916,6 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
-  <div id="lib-pane-caps">
-  <div class="card" style="padding:14px 20px">
-    <div style="font-size:12.5px;color:#48566b"><b style="color:var(--navy)">Como ler:</b> cada projeto é uma entrada única. A biblioteca mostra, por capítulo, o <b>Orçamento</b> (estimativa inicial), o <b>Real</b> (conta final da obra, com trabalhos adicionais) e o <b>Desvio</b> entre os dois. O Real é a referência para orçamentar projetos novos; o desvio diz-te onde as tuas estimativas historicamente falham.</div>
-  </div>
-    <div class="card">
-    <div class="hint" id="libHint"></div>
-    <div class="filters">
-      <div style="min-width:260px"><label>Projeto</label><select id="libProjeto" onchange="libProjetoMudou(this.value)"></select></div>
-      <div style="margin-left:auto;display:flex;align-items:end;gap:8px"><button class="btn navy" onclick="exportWrapUp()">Wrap-up por capítulo</button><button class="btn teal" onclick="exportWrapUpLegendre()">Wrap-up Legendre</button></div>
-    </div>
-    <div class="legend hidden" id="libLegend">
-      <span><i style="background:var(--teal)"></i>Proposta recebida</span>
-      <span><i style="background:#E9B44C"></i>Proposta &lt; 2 anos</span>
-      <span><i style="background:var(--red)"></i>Sem fonte de preço</span>
-    </div>
-    <div style="overflow-x:auto">
-    <table class="preview">
-      <thead><tr id="libHeadRow"><th>Capítulo</th><th style="text-align:right">Orçamento (€)</th><th style="text-align:right">Real (€)</th><th style="text-align:right">Desvio (€)</th><th style="text-align:right">Desvio (%)</th><th style="text-align:right" id="thLast">Real €/m² ABC</th></tr></thead>
-      <tbody id="tbLib"></tbody>
-    </table>
-    </div>
-  </div>
-  <div class="card">
-    <h2 id="libQtyTitulo">Rácios de quantidades físicas
-      <button class="btn ghost hidden" id="btnLimparQty" style="float:right;padding:5px 12px;font-size:12px" onclick="limparQuantidades()">Limpar quantidades</button></h2>
-      <div class="hint" id="libQtyDica" style="margin:2px 0 10px"></div>
-    <div class="hint">Quantidades agregadas por capítulo e unidade, normalizadas por m² de ABC e por fogo. Quando o projeto tem auto importado, mostra as quantidades reais executadas; senão, a referência de arquitetura.</div>
-    <div style="overflow-x:auto">
-    <table>
-      <thead><tr><th>Capítulo (arquitetura)</th><th style="width:60px">Un</th><th style="text-align:right">Quantidade</th><th style="text-align:right">/m² GFA</th><th style="text-align:right">/fogo</th></tr></thead>
-      <tbody id="tbLibQty"></tbody>
-    </table>
-    </div>
-  </div>
-  </div>
 </div>
 </main>
 <footer>Solive · Plataforma de Orçamentação <b>v2.2</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-07-24 · c9b7c2d</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
@@ -1106,7 +1037,7 @@ function showView(v){
     document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
     document.getElementById('nav-'+x).classList.toggle('on', v===x);
   });
-  if(v==='biblioteca') refreshLib();
+  if(v==='biblioteca'){ refreshLib(); try{ renderTaxonomia(); }catch(e){} }
   if(v==='fecho') refreshFecho();
   if(v==='consultas') refreshConsultas();
   if(v==='comparar') renderComparar();
@@ -3317,6 +3248,7 @@ async function renderComparar(){
 /* ================= BIBLIOTECA ================= */
 async function refreshLib(){
   const selP=document.getElementById('libProjeto');
+  if(!selP) return;   // vista "Rácios por capítulo" removida — nada a preencher
   const opts=[];
   if(SESSION && PROJETOS.length){
     PROJETOS.forEach(p=>opts.push(`<option value="${p.id}">${esc(p.nome)}</option>`));
@@ -4711,7 +4643,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['caps','pu','tax','gerir'].forEach(x=>{
+  ['tax','gerir'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -6390,21 +6322,27 @@ async function vfLoadRatios(){
   const q=await sb.from('custo_linha').select('capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza');
   if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
   const lines=q.data||[];
-  // segmento por contrato (via custo_import) — para comparar obras semelhantes
-  const segMap={};
-  try{ const qi=await sb.from('custo_import').select('contrato,segmento'); (qi.data||[]).forEach(r=>{ segMap[r.contrato]=r.segmento||null; }); }catch(e){}
-  lines.forEach(l=>{ l.__seg=segMap[l.contrato]||null; });
+  // segmento e projeto por contrato (via custo_import) — para comparar obras semelhantes
+  const segMap={}, projMap={};
+  try{ const qi=await sb.from('custo_import').select('contrato,segmento,projeto_ref'); (qi.data||[]).forEach(r=>{ segMap[r.contrato]=r.segmento||null; projMap[r.contrato]=r.projeto_ref||null; }); }catch(e){}
+  lines.forEach(l=>{ l.__seg=segMap[l.contrato]||null; l.__proj=projMap[l.contrato]||null; });
   window.__rxLines=lines;
   const segSel=document.getElementById('rxSeg');
   if(segSel){ const segs=[...new Set(Object.values(segMap).filter(Boolean))]; const cur=segSel.value;
     segSel.innerHTML='<option value="">Todos os segmentos</option>'+segs.map(s=>'<option'+(vfNorm(s)===vfNorm(cur)?' selected':'')+'>'+esc(s)+'</option>').join(''); }
+  const projSel=document.getElementById('rxProj');
+  if(projSel){ const projs=[...new Set(Object.values(projMap).filter(Boolean))].sort(); const curp=projSel.value;
+    projSel.innerHTML='<option value="">Todos os projetos</option>'+projs.map(p=>'<option'+(vfNorm(p)===vfNorm(curp)?' selected':'')+'>'+esc(p)+'</option>').join(''); }
   if(!lines.length){ out.innerHTML='<div class="note">Ainda não há custo gravado. Importa autos no separador “Verificar Auto”.</div>'; return; }
   const seg=segSel?segSel.value:'';
-  const filtered=seg?lines.filter(l=>vfNorm(l.__seg)===vfNorm(seg)):lines;
-  if(!filtered.length){ out.innerHTML='<div class="note">Sem custo gravado para o segmento «'+esc(seg)+'».</div>'; return; }
-  vfRenderRatios(vfRatios(filtered,abc,fogos), abc, fogos, seg);
+  const proj=projSel?projSel.value:'';
+  let filtered=lines;
+  if(proj) filtered=filtered.filter(l=>vfNorm(l.__proj)===vfNorm(proj));
+  if(seg)  filtered=filtered.filter(l=>vfNorm(l.__seg)===vfNorm(seg));
+  if(!filtered.length){ out.innerHTML='<div class="note">Sem custo gravado para os filtros escolhidos'+(proj?' · projeto «'+esc(proj)+'»':'')+(seg?' · segmento «'+esc(seg)+'»':'')+'.</div>'; return; }
+  vfRenderRatios(vfRatios(filtered,abc,fogos), abc, fogos, seg, proj);
 }
-function vfRenderRatios(rows, abc, fogos, seg){
+function vfRenderRatios(rows, abc, fogos, seg, proj){
   const out=document.getElementById('rxOut');
   const natB=n=>{ const m={full:['#1c7c46','completo'],material:['#b26a00','material'],labour:['#298893','mão de obra']}[n]||['#8391a3',n]; return '<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700">'+m[1]+'</span>'; };
   const th='<tr><th>Capítulo (elemento)</th><th>Natureza</th><th style="text-align:right">Custo (€)</th><th>Un.</th><th style="text-align:right">€/unidade</th><th style="text-align:right">€/m² ABC</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Ref €/m²</th><th style="text-align:right">Δ</th><th style="text-align:right">Contr.</th></tr>';
@@ -6424,7 +6362,7 @@ function vfRenderRatios(rows, abc, fogos, seg){
       +'<td class="mono" style="text-align:right">'+r.nContratos+'</td></tr>';
   }).join('');
   const totCusto=rows.reduce((s,r)=>s+r.custo,0);
-  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.</div>'
+  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Projeto: <b>'+(proj?esc(proj):'todos')+'</b> · Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.</div>'
     +'<table style="font-size:13px">'+th+body
     +'<tr style="font-weight:700"><td>TOTAL</td><td></td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
     +'<div id="rxDrill" style="margin-top:12px"></div>';
@@ -6447,7 +6385,8 @@ function vfDrill(cap){
     const rx=document.createElement('div'); rx.id='view-racios'; rx.className='hidden';
     rx.innerHTML='<h2 style="color:#143A67">Rácios por Elemento (custo real)</h2>'
       +'<div class="note">€/m² e €/fogo a partir do custo gravado, por capítulo canónico, comparados com a referência L\u2019Urbain. Cada linha é rastreável até aos subcontratos.</div>'
-      +'<div class="card" style="margin-top:10px"><label>Segmento</label> <select id="rxSeg" onchange="vfLoadRatios()" style="min-width:200px"><option value="">Todos os segmentos</option></select> &nbsp;'
+      +'<div class="card" style="margin-top:10px"><label>Projeto</label> <select id="rxProj" onchange="vfLoadRatios()" style="min-width:200px"><option value="">Todos os projetos</option></select> &nbsp;'
+      +'<label>Segmento</label> <select id="rxSeg" onchange="vfLoadRatios()" style="min-width:200px"><option value="">Todos os segmentos</option></select> &nbsp;'
       +'<label>ABC (m²)</label> <input type="number" id="rxAbc" value="4552" style="width:120px"> &nbsp;'
       +'<label>Nº de fogos</label> <input type="number" id="rxFogos" value="30" style="width:90px"> &nbsp;'
       +'<button class="btn navy" onclick="vfLoadRatios()">Calcular</button></div>'
