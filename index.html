@@ -6296,7 +6296,7 @@ function vfRatios(lines, abc, fogos){
     const nat=l.natureza||'full';
     if(!g[cap]) g[cap]={cap,custo:0,nL:0,contratos:{},natCusto:{full:0,material:0,labour:0},natUnits:{}};
     const t=Number(l.total)||0; g[cap].custo+=t; g[cap].nL++;
-    if(l.contrato) g[cap].contratos[l.contrato]=1;
+    const cid=(l.import_id!=null)?('#'+l.import_id):(l.contrato||''); if(cid) g[cap].contratos[cid]=1;
     g[cap].natCusto[nat]=(g[cap].natCusto[nat]||0)+t;
     const u=vfUnit(l.unidade);
     if(u){ const key=nat+'|'+u; if(!g[cap].natUnits[key]) g[cap].natUnits[key]={nat,un:l.unidade,custo:0,qt:0}; g[cap].natUnits[key].custo+=t; g[cap].natUnits[key].qt+=Number(l.quantidade)||0; }
