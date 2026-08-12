@@ -6319,9 +6319,16 @@ async function vfLoadRatios(){
   const fogos=parseFloat(document.getElementById('rxFogos').value)||null;
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar custo gravado…</div>';
-  const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza');
-  if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
-  const lines=q.data||[];
+  // custo_linha pode ter >1000 linhas; o Supabase devolve no máx. 1000 por pedido.
+  // Paginar em blocos de 1000 até trazer tudo (senão os rácios ficam truncados).
+  const SEL='import_id,capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza';
+  let lines=[];
+  for(let from=0; from<200000; from+=1000){
+    const q=await sb.from('custo_linha').select(SEL).range(from,from+999);
+    if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
+    const batch=q.data||[]; lines=lines.concat(batch);
+    if(batch.length<1000) break;
+  }
   // projeto/segmento a partir do custo_import — junção FIÁVEL por import_id.
   // O contrato em texto pode ter variações (espaços, reimportações, duplicados);
   // o import_id é a chave estável. Contrato normalizado só como salvaguarda.
@@ -6331,6 +6338,8 @@ async function vfLoadRatios(){
       impById[r.id]=v; if(r.contrato) impByContr[vfNorm(r.contrato)]=v; }); }catch(e){}
   lines.forEach(l=>{ const m=impById[l.import_id]||impByContr[vfNorm(l.contrato)]||{}; l.__seg=m.seg||null; l.__proj=m.proj||null; });
   window.__rxLines=lines;
+  const nMap=lines.filter(l=>l.__proj).length;
+  window.__rxDiag='motor rácios r4 · linhas lidas '+lines.length+' · mapeadas a projeto '+nMap;
   // opções construídas a partir das linhas realmente mapeadas (cada opção garante resultados)
   const projSet={}, segSet={};
   lines.forEach(l=>{ if(l.__proj) projSet[l.__proj]=1; if(l.__seg) segSet[l.__seg]=1; });
@@ -6369,7 +6378,7 @@ function vfRenderRatios(rows, abc, fogos, seg, proj){
       +'<td class="mono" style="text-align:right">'+r.nContratos+'</td></tr>';
   }).join('');
   const totCusto=rows.reduce((s,r)=>s+r.custo,0);
-  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Projeto: <b>'+(proj?esc(proj):'todos')+'</b> · Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.</div>'
+  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Projeto: <b>'+(proj?esc(proj):'todos')+'</b> · Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.<br><span style="font-size:11px;color:#8391a3">'+(window.__rxDiag||'motor rácios r4')+'</span></div>'
     +'<table style="font-size:13px">'+th+body
     +'<tr style="font-weight:700"><td>TOTAL</td><td></td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
     +'<div id="rxDrill" style="margin-top:12px"></div>';
