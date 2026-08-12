@@ -3050,24 +3050,31 @@ async function renderComparar(){
   };
   let cols=[];
   if(SESSION && PROJETOS.length){
-    off.className='note'; off.textContent="A comparar os projetos gravados na biblioteca. O custo usa a fase mais sólida disponível (Real › Contrato › Orçamento).";
+    off.className='note'; off.textContent="A comparar os projetos gravados na biblioteca. O custo é o CUSTO REAL gravado (autos), consistente com os Rácios e os Desvios.";
+    // custo real por projeto a partir de custo_linha (paginado), via import_id -> projeto_ref
+    let realByProj={};
+    try{
+      let __all=[]; for(let __f=0;__f<200000;__f+=1000){ const __q=await sb.from('custo_linha').select('import_id,total').range(__f,__f+999); if(__q.error)break; const __b=__q.data||[]; __all=__all.concat(__b); if(__b.length<1000)break; }
+      const __imp={}; const __qi=await sb.from('custo_import').select('id,projeto_ref'); (__qi.data||[]).forEach(r=>{ __imp[r.id]=r.projeto_ref||null; });
+      __all.forEach(l=>{ const pr=__imp[l.import_id]; if(pr){ const k=norm(pr); realByProj[k]=(realByProj[k]||0)+(Number(l.total)||0); } });
+    }catch(e){ console.warn('custo real por projeto',e); }
+    if(!_vivo())return;
     for(const p of PROJETOS){
-      // custo: preferir a fase Real (auto), depois Contrato, depois Orçamento
-      const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id);
-      if(!_vivo())return;
+      // custo REAL gravado (custo_linha); só recorre às fases antigas se o projeto ainda não tem autos
       let total=null, fonte=null;
-      if(fs&&fs.length){
-        for(const tipo of ['Real','Contrato','Orçamento']){
-          const m=fs.filter(x=>x.fase===tipo);
-          if(m.length){ const f=m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]; total=+f.total||null; fonte=tipo; break; }
-        }
+      const __rk=norm(p.nome);
+      if(realByProj[__rk]!=null && realByProj[__rk]>0){ total=Math.round(realByProj[__rk]*100)/100; fonte='Custo real'; }
+      else {
+        const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id);
+        if(!_vivo())return;
+        if(fs&&fs.length){ for(const tipo of ['Real','Contrato','Orçamento']){ const m=fs.filter(x=>x.fase===tipo); if(m.length){ const f=m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]; total=+f.total||null; fonte=tipo; break; } } }
       }
       const col=Object.assign({},p,{_total:total,_fonte:fonte});
       // completar o L'Urbain gravado com a referência embutida onde estiver vazio
       if(norm(p.nome).includes("URBAIN")){
         ['gfa','gca','fogos','pisos_enterrados','ac_abaixo','area_implantacao','area_lote','estacionamento'].forEach(k=>{ if(col[k]==null && ref[k]!=null) col[k]=ref[k]; });
         if(!col.metricas || !Object.keys(col.metricas).length) col.metricas=refMetricas;
-        if(col._total==null) col._total=lurbTotal;
+        /* NÃO preencher o custo com o pricing sheet embutido — usa-se o custo real de custo_linha. */
       }
       cols.push(col);
     }
@@ -6458,6 +6465,8 @@ function vfCanonMQ(l){
   if(/BLOCO|TIJOLO|ALVENARIA/.test(t)) return 'ALVENARIAS';
   if(/REBOCO|SALPICO|EMBO[ÇC]O|ARGAMASSA/.test(t)) return 'ARGAMASSAS';
   if(/BETONILHA/.test(t)) return 'BETONILHAS';
+  if(/REVESTIMENTO.*PAVIMENTO|PAVIMENTO.*REVESTIMENTO/.test(t)) return 'REVESTIMENTOS DE PAVIMENTOS';
+  if(/DESE[MN]FUMAG/.test(t)) return 'SCIE';
   return vfGuess(l.designacao)||null;
 }
 function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
@@ -6723,6 +6732,7 @@ function vfAggProjects(lines, impMap){
    capítulo em orcamento_producao. Real: custo_linha por capítulo canónico.
    ========================================================================== */
 function vfReadOrcamento(rows){
+  // 1) formato AO NÍVEL DO ARTIGO (Designação + Un. + Total, capítulos em cabeçalhos)
   let H=null;
   for(let i=0;i<Math.min(rows.length,30);i++){
     const r=(rows[i]||[]).map(vfNorm);
@@ -6731,20 +6741,42 @@ function vfReadOrcamento(rows){
     let tot=-1; r.forEach((x,idx)=>{ if(/TOTA|VALOR|IMPORT[ÂA]NCIA/.test(x)) tot=idx; });
     if(des>=0&&un>=0&&tot>=0){ H={row:i,des,un,tot}; break; }
   }
-  if(!H) return null;
-  const out=[]; let secao=null;
-  for(let i=H.row+1;i<rows.length;i++){
-    const r=rows[i]||[];
-    const a=String(r[0]==null?"":r[0]).trim();
-    const d=String(r[H.des]==null?"":r[H.des]).trim();
-    const un=String(r[H.un]==null?"":r[H.un]).trim();
-    const tv=vfNum(r[H.tot]);
-    const dn=vfNorm(d);
-    if(/^VALOR GLOBAL|^TOTAL/.test(dn)) continue;
-    if(un!=="" && tv!=null){ out.push({designacao:d,total:tv,cap:secao}); }
-    else if(d && un==="" && tv==null){ if((VF_ROMAN.test(a)&&a) || vfGuess(d)) secao=d; }  // cabeçalho de capítulo (romano na col. A ou nome reconhecível)
+  if(H){
+    const out=[]; let secao=null;
+    for(let i=H.row+1;i<rows.length;i++){
+      const r=rows[i]||[];
+      const a=String(r[0]==null?"":r[0]).trim();
+      const d=String(r[H.des]==null?"":r[H.des]).trim();
+      const un=String(r[H.un]==null?"":r[H.un]).trim();
+      const tv=vfNum(r[H.tot]);
+      const dn=vfNorm(d);
+      if(/^VALOR GLOBAL|^TOTAL/.test(dn)) continue;
+      if(un!=="" && tv!=null){ out.push({designacao:d,total:tv,cap:secao}); }
+      else if(d && un==="" && tv==null){ if((VF_ROMAN.test(a)&&a) || vfGuess(d)) secao=d; }
+    }
+    if(out.length) return out;
   }
-  return out;
+  // 2) formato RESUMO POR CAPÍTULO (uma linha por capítulo: "TOTAL <cap>" + valor + peso%)
+  return vfReadResumo(rows);
+}
+function vfReadResumo(rows){
+  const out=[];
+  for(const r0 of (rows||[])){
+    const r=r0||[]; let txt=null; const nums=[];
+    for(let c=0;c<r.length;c++){ const v=r[c]; if(v==null) continue;
+      if(typeof v==='number'){ if(isFinite(v)) nums.push(v); }
+      else { const s=String(v).trim(); if(s && txt==null && !/^\d+([.,]\d+)?$/.test(s)) txt=s; } }
+    if(!txt) continue;
+    const tn=vfNorm(txt);
+    if(/^(CLIENTE|OBRA|FASE|DATA)\b/.test(tn)) continue;                 // cabeçalho do resumo
+    if(/RESUMO/.test(tn)) continue;                                      // linha de título
+    if(/^VALOR GLOBAL|^TOTAL DO CONTRATO/.test(tn)) continue;
+    if(/^TOTAL\s+(PROJE|GERAL|DA OBRA|EMPREITADA|OBRA)/.test(tn)) continue;  // total geral do orçamento
+    const cand=nums.filter(n=>Math.abs(n)>=1000);                        // totais de custo (ignora índice e peso %)
+    if(!cand.length) continue;                                          // linha de título/vazia
+    out.push({designacao:txt.replace(/^TOTAL\s+/i,'').trim(), total:Math.max(...cand), cap:null});
+  }
+  return out.length?out:null;
 }
 function vfDvAggOrc(leaves){
   const g={};
