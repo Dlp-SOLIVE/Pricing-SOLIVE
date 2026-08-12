@@ -611,54 +611,6 @@ tr.resolved td textarea{text-decoration:line-through}
     </div>
   </div>
 
-  <div class="card hidden" id="orcMargemCard">
-    <h2>Margem e venda — modelo Legendre <span class="tag">custo → selling factor → preço de trespasse</span>
-      <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportTrespasse()">Exportar (.xlsx)</button>
-    </h2>
-    <div class="hint">O preço de venda constrói-se em camadas sobre o custo, como na folha Legendre. As percentagens são globais (teóricas) e produzem um <b>selling factor = 1 / (1 − Σ%)</b> — margem sobre o preço de venda, não markup. Esse factor aplica-se ao custo de cada capítulo para dar o preço de trespasse por capítulo.</div>
-    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;margin-top:14px">
-      <div id="sellingLayers"></div>
-      <div>
-        <div class="kpis" style="grid-template-columns:1fr">
-          <div class="kpi"><div class="v" id="sfFactor">—</div><div class="l">Selling factor (Σ <span id="sfTotal">0</span>%)</div></div>
-        </div>
-        <div class="kpis" style="grid-template-columns:1fr;margin-top:10px">
-          <div class="kpi"><div class="v" id="orcTKCusto">—</div><div class="l">Custo total (construtora)</div></div>
-          <div class="kpi ok"><div class="v" id="orcTKTrespasse">—</div><div class="l">Preço de trespasse (venda)</div></div>
-          <div class="kpi"><div class="v" id="orcTKMargem">—</div><div class="l">Margem bruta (€ · % s/ venda)</div></div>
-        </div>
-        <div style="margin-top:10px" class="grid g6">
-          <div><label>Discount (€)</label><input type="number" id="sfDiscount" value="0" step="1" oninput="renderTrespasse()"></div>
-          <div><label>Contingency (€)</label><input type="number" id="sfConting" value="0" step="1" oninput="renderTrespasse()"></div>
-        </div>
-      </div>
-    </div>
-    <div class="note" id="sfAlvo" style="margin-top:14px"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:600;color:var(--navy);font-size:14px">Afetação da venda por capítulo</div>
-      <button class="btn" style="background:#fff;color:var(--navy);border:1px solid var(--line);padding:6px 12px" onclick="batchMargem()">Batch: aplicar margem a um grupo</button>
-    </div>
-    <div style="overflow-x:auto;margin-top:8px">
-    <table class="preview">
-      <thead><tr><th>Capítulo</th><th style="text-align:right;width:140px">Custo (€)</th><th style="text-align:right;width:150px">Trespasse / venda (€)</th><th style="text-align:right;width:120px">€/m² ABC</th><th style="text-align:right;width:110px">Peso (%)</th></tr></thead>
-      <tbody id="tbTrespasse"></tbody>
-    </table>
-    </div>
-
-    <div style="margin-top:18px;font-weight:600;color:var(--navy);font-size:14px">Wrap up Legendre (vivo) — custo vs. venda por categoria</div>
-    <div class="hint">Atualiza automaticamente à medida que orçamentas: os 33 capítulos alimentam as categorias Legendre em tempo real (custo e venda).</div>
-    <div style="overflow-x:auto;margin-top:8px">
-    <table class="preview">
-      <thead><tr><th>Categoria Legendre</th><th style="text-align:right;width:150px">Custo (€)</th><th style="text-align:right;width:150px">Venda (€)</th><th style="text-align:right;width:110px">Margem s/ custo</th></tr></thead>
-      <tbody id="tbWrapVivo"></tbody>
-    </table>
-    </div>
-
-    <div style="display:flex;gap:10px;justify-content:flex-end;align-items:end;margin-top:14px;flex-wrap:wrap">
-      <div style="flex:1;min-width:260px"><label>Comentário do freeze (obrigatório) — justifica o trespasse</label><input type="text" id="orcFreezeCom" placeholder="Ex.: Trespasse fechado com selling factor teórico; margem-alvo 5%; consultas em 9/33 capítulos."></div>
-      <button class="btn red" onclick="freezeTrespasse()">🔒 Freeze do trespasse (cria fase Contrato)</button>
-    </div>
-  </div>
 </div>
 
 <!-- ===================== VISTA: FECHO DE OBRA ===================== -->
@@ -2969,10 +2921,6 @@ function renderOrcKpis(){
       if(v>0){const d=document.createElement('div');d.className=e.cb;d.style.width=(v/total*100)+"%";d.title=e.lbl+": "+fmt(v,0)+" € ("+fmt(v/total*100,0)+"%)";bar.appendChild(d);}
     });
   }
-  // revelar e atualizar o cartão de margem/trespasse
-  const mostrar=!!ORC_ROWS.length;
-  document.getElementById('orcMargemCard').classList.toggle('hidden', !mostrar);
-  if(mostrar){ renderSellingLayers(); renderTrespasse(); }
 }
 // Camadas do selling factor (valores por defeito da folha Legendre L'Urbain)
 const SELLING_LAYERS=[
