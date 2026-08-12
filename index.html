@@ -6195,6 +6195,8 @@ function vfNum(v){
   return isFinite(n)?n:null;
 }
 const VF_ROMAN=/^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/i;
+/* marcador de linha/capítulo só de mão de obra (montagem sem fornecimento) */
+const VF_MONTAGEM=/APENAS MONTAGEM|S[ÓO] MONTAGEM|EXCLUI FORNECIMENTO|SEM FORNECIMENTO|APENAS ASSENTAMENTO/;
 function vfHeaderVal(rows,re){
   for(let i=0;i<Math.min(rows.length,14);i++){
     const r=rows[i]||[];
@@ -6225,7 +6227,7 @@ function vfVerificarSheet(rows,sheetName){
     const r=rows[i]||[];
     for(const cell of r){ const m=vfNorm(cell).match(/AUTO DE MEDICAO N\D*(\d+)/); if(m){ autoNum=parseInt(m[1],10); break; } }
   }
-  const leaves=[]; const decContr=[]; let decGlobal=null; let secao=null, aditCtx=null;
+  const leaves=[]; const decContr=[]; let decGlobal=null; let secao=null, secaoNat='full', aditCtx=null;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
     const a=String(r[0]==null?"":r[0]).trim();
@@ -6238,8 +6240,8 @@ function vfVerificarSheet(rows,sheetName){
     if(/^TOTAL DO ADITAMENTO/.test(dn)){ aditCtx=null; continue; }
     if(/^AD?\s?\d+$/i.test(a)&&d&&!un){ aditCtx=a; continue; }
     const isLeaf = un!=="" && q!=null && pu!=null && tot!=null;
-    if(isLeaf){ leaves.push({pos:i,a,d,un,q,pu,tot,cap:secao||"(sem capítulo)",adit:aditCtx}); }
-    else if(d&&!un){ if(VF_ROMAN.test(a)&&a) secao=d; }
+    if(isLeaf){ const nat=VF_MONTAGEM.test(dn)?'labour':secaoNat; leaves.push({pos:i,a,d,un,q,pu,tot,cap:secao||"(sem capítulo)",adit:aditCtx,nat}); }
+    else if(d&&!un){ if(VF_ROMAN.test(a)&&a){ secao=d; secaoNat=VF_MONTAGEM.test(dn)?'labour':'full'; } }
   }
   const sumLeaf=Math.round(leaves.reduce((s,l)=>s+l.tot,0)*100)/100;
   const declaredRaw = decGlobal!=null ? decGlobal
@@ -6293,7 +6295,8 @@ function vfBuildPayload(v, mapping){
     preco_unit: l.pu,
     total: l.tot,
     is_aditamento: !!l.adit,
-    aditamento_ref: l.adit||null
+    aditamento_ref: l.adit||null,
+    natureza: l.nat||'full'
   }));
   const mapas=Object.keys(mapping).filter(k=>mapping[k]).map(k=>({capitulo_origem:k, capitulo_canonico:mapping[k]}));
   return {header, linhas, mapas};
@@ -6418,20 +6421,24 @@ function vfRatios(lines, abc, fogos){
   const g={};
   lines.forEach(l=>{
     const cap=l.capitulo_canonico||l.capitulo_origem||"(sem capítulo)";
-    if(!g[cap]) g[cap]={cap,custo:0,nL:0,contratos:{},units:{}};
+    const nat=l.natureza||'full';
+    if(!g[cap]) g[cap]={cap,custo:0,nL:0,contratos:{},natCusto:{full:0,material:0,labour:0},natUnits:{}};
     const t=Number(l.total)||0; g[cap].custo+=t; g[cap].nL++;
     if(l.contrato) g[cap].contratos[l.contrato]=1;
-    const u=vfUnit(l.unidade); if(u){ if(!g[cap].units[u]) g[cap].units[u]={un:l.unidade,custo:0,qt:0,n:0}; g[cap].units[u].custo+=t; g[cap].units[u].qt+=Number(l.quantidade)||0; g[cap].units[u].n++; }
+    g[cap].natCusto[nat]=(g[cap].natCusto[nat]||0)+t;
+    const u=vfUnit(l.unidade);
+    if(u){ const key=nat+'|'+u; if(!g[cap].natUnits[key]) g[cap].natUnits[key]={nat,un:l.unidade,custo:0,qt:0}; g[cap].natUnits[key].custo+=t; g[cap].natUnits[key].qt+=Number(l.quantidade)||0; }
   });
   return Object.values(g).map(o=>{
     const custo=Math.round(o.custo*100)/100;
     const eur_m2=abc?custo/abc:null, eur_fogo=fogos?custo/fogos:null;
     const ref=vfRefEurM2(o.cap);
     const delta=(ref&&eur_m2!=null)?(eur_m2-ref)/ref:null;
-    // driver do elemento = unidade dominante (por custo) -> €/unidade natural
-    let dom=null; Object.values(o.units).forEach(u=>{ if(!dom||u.custo>dom.custo) dom=u; });
+    // natureza dominante (por custo) — o €/unidade é calculado DENTRO dessa natureza
+    let domNat='full',best=-1; Object.keys(o.natCusto).forEach(k=>{ if(o.natCusto[k]>best){best=o.natCusto[k];domNat=k;} });
+    let dom=null; Object.values(o.natUnits).forEach(u=>{ if(u.nat===domNat && (!dom||u.custo>dom.custo)) dom=u; });
     const domUn=dom?dom.un:null, eurUn=(dom&&dom.qt>0)?dom.custo/dom.qt:null;
-    return {cap:o.cap,custo,eur_m2,eur_fogo,ref_eur_m2:ref,delta,nL:o.nL,nContratos:Object.keys(o.contratos).length,domUn,eurUn};
+    return {cap:o.cap,custo,eur_m2,eur_fogo,ref_eur_m2:ref,delta,nL:o.nL,nContratos:Object.keys(o.contratos).length,domUn,eurUn,nat:domNat,natCusto:o.natCusto};
   }).sort((a,b)=>b.custo-a.custo);
 }
 async function vfLoadRatios(){
@@ -6440,7 +6447,7 @@ async function vfLoadRatios(){
   const fogos=parseFloat(document.getElementById('rxFogos').value)||null;
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar custo gravado…</div>';
-  const q=await sb.from('custo_linha').select('capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit');
+  const q=await sb.from('custo_linha').select('capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza');
   if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
   const lines=q.data||[];
   // segmento por contrato (via custo_import) — para comparar obras semelhantes
@@ -6459,12 +6466,14 @@ async function vfLoadRatios(){
 }
 function vfRenderRatios(rows, abc, fogos, seg){
   const out=document.getElementById('rxOut');
-  const th='<tr><th>Capítulo (elemento)</th><th style="text-align:right">Custo (€)</th><th>Un.</th><th style="text-align:right">€/unidade</th><th style="text-align:right">€/m² ABC</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Ref €/m²</th><th style="text-align:right">Δ</th><th style="text-align:right">Contr.</th></tr>';
+  const natB=n=>{ const m={full:['#1c7c46','completo'],material:['#b26a00','material'],labour:['#298893','mão de obra']}[n]||['#8391a3',n]; return '<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700">'+m[1]+'</span>'; };
+  const th='<tr><th>Capítulo (elemento)</th><th>Natureza</th><th style="text-align:right">Custo (€)</th><th>Un.</th><th style="text-align:right">€/unidade</th><th style="text-align:right">€/m² ABC</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Ref €/m²</th><th style="text-align:right">Δ</th><th style="text-align:right">Contr.</th></tr>';
   const body=rows.map(r=>{
     const dpct=r.delta==null?'—':(r.delta>0?'+':'')+(r.delta*100).toFixed(0)+'%';
     const dcol=r.delta==null?'#48566b':(r.delta>0?'#b26a00':'#1c7c46');
     return '<tr style="cursor:pointer" onclick="vfDrill(\''+String(r.cap).replace(/\\/g,'').replace(/'/g,"\\'")+'\')">'
       +'<td>'+esc(r.cap)+'</td>'
+      +'<td>'+natB(r.nat)+'</td>'
       +'<td class="mono" style="text-align:right">'+vfMoeda(r.custo)+'</td>'
       +'<td>'+esc(r.domUn||'—')+'</td>'
       +'<td class="mono" style="text-align:right;font-weight:600">'+(r.eurUn==null?'—':fmt(r.eurUn,2))+'</td>'
@@ -6477,7 +6486,7 @@ function vfRenderRatios(rows, abc, fogos, seg){
   const totCusto=rows.reduce((s,r)=>s+r.custo,0);
   out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.</div>'
     +'<table style="font-size:13px">'+th+body
-    +'<tr style="font-weight:700"><td>TOTAL</td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
+    +'<tr style="font-weight:700"><td>TOTAL</td><td></td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
     +'<div id="rxDrill" style="margin-top:12px"></div>';
 }
 function vfDrill(cap){
@@ -6588,14 +6597,17 @@ async function vfPriceMQFile(){
   if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o MQ (.xlsx) primeiro.</div>'; return; }
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar biblioteca de custo…</div>';
-  const q=await sb.from('custo_linha').select('designacao,unidade,preco_unit,contrato');
+  const q=await sb.from('custo_linha').select('designacao,unidade,preco_unit,contrato,natureza');
   if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
   let qc={data:[]}; try{ qc=await sb.from('custo_compra').select('descricao,unidade,preco_unit,kind,ref'); }catch(e){}
   const cd=(qc&&qc.data)||[];
   const map=r=>({designacao:r.descricao,unidade:r.unidade,preco_unit:r.preco_unit,contrato:r.ref});
-  const libFull=(q.data||[]).filter(r=>Number(r.preco_unit)>0).concat(cd.filter(r=>r.kind==='full').map(map));
-  const libMat=cd.filter(r=>r.kind==='material'&&Number(r.preco_unit)>0).map(map);
-  const libLab=cd.filter(r=>r.kind==='labour'&&Number(r.preco_unit)>0).map(map);
+  const cl=(q.data||[]).filter(r=>Number(r.preco_unit)>0);
+  const natOf=r=>r.natureza||'full';
+  // custo_linha (autos) encaminhado por natureza + compras por kind
+  const libFull=cl.filter(r=>natOf(r)==='full').concat(cd.filter(r=>r.kind==='full').map(map));
+  const libMat=cl.filter(r=>natOf(r)==='material').concat(cd.filter(r=>r.kind==='material'&&Number(r.preco_unit)>0).map(map));
+  const libLab=cl.filter(r=>natOf(r)==='labour').concat(cd.filter(r=>r.kind==='labour'&&Number(r.preco_unit)>0).map(map));
   if(!libFull.length&&!libMat.length){ out.innerHTML='<div class="note">Sem custo gravado ainda — importa autos (Verificar) e/ou o ficheiro de Compras primeiro.</div>'; return; }
   const uplift=parseFloat((document.getElementById('mqUplift')||{}).value)||0;
   const f=inp.files[0]; const rd=new FileReader();
