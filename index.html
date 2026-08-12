@@ -6801,7 +6801,11 @@ function vfDvImport(){
   rd.onload=e=>{
     let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }catch(err){ out.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
     let leaves=[];
-    for(const sn of wb.SheetNames){ if(/INDICE|ÍNDICE/i.test(sn)) continue;
+    // Se houver folha de RESUMO/SUMMARY, lê SÓ essa (as outras são o detalhe artigo-a-artigo
+    // de cada capítulo — somá-las multiplicaria o valor). Senão, lê todas.
+    const sumSheet=wb.SheetNames.find(sn=>/RESUMO|SUMMARY/i.test(sn));
+    const sheets=sumSheet?[sumSheet]:wb.SheetNames.filter(sn=>!/INDICE|ÍNDICE/i.test(sn));
+    for(const sn of sheets){
       const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
       const m=vfReadOrcamento(rows); if(m&&m.length){ m.forEach(l=>{ if(!l.cap) l.cap=sn; }); leaves.push(...m); } }
     if(!leaves.length){ out.innerHTML='<div class="note">Não reconheci um orçamento por linha (preciso de colunas Designação / Un. / Total). Confirma que é o orçamento de custo, ao nível do artigo.</div>'; return; }
