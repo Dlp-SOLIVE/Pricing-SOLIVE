@@ -6866,6 +6866,12 @@ async function vfDvRender(){
 (function vfMountDesvios(){
   const host=document.getElementById('view-comparar');
   if(!host||document.getElementById('vfDvCard')) return;
+  // Relatório para a Administração (Board)
+  const rb=document.createElement('div'); rb.id='vfBoardCard'; rb.className='card'; rb.style.marginTop='14px';
+  rb.innerHTML='<h2 style="color:#143A67">Relatório resumo</h2>'
+   +'<div class="note">Um resumo de <b>uma página (PDF)</b> com os dados mais relevantes: custo real por projeto, rácios €/m² e €/fogo, rigor dos orçamentos (desvios) e a estrutura de custo. Gerado a partir dos dados atuais.</div>'
+   +'<button class="btn navy" style="margin-top:8px" onclick="vfBoardReport()">📄 Gerar relatório (PDF)</button> <span id="rbOut" class="note"></span>';
+  host.appendChild(rb);
   const div=document.createElement('div'); div.id='vfDvCard'; div.className='card'; div.style.marginTop='14px';
   div.innerHTML='<h2 style="color:#143A67">Desvios — Orçamento transferido vs Real</h2>'
    +'<div class="note">Compara, por capítulo, o <b>orçamento que transferiste para a Produção</b> (custo, sem margem) com o <b>custo real executado</b> (autos). Mostra quão rigorosa foi a estimativa e onde os desvios vieram de trabalhos a mais ou alterações de projeto.</div>'
@@ -6876,6 +6882,115 @@ async function vfDvRender(){
   host.appendChild(div);
   try{ const _sv=window.showView||showView; window.showView=function(v){ _sv(v); if(v==='comparar'){ try{ vfDvFillProjects(); }catch(e){} } }; }catch(e){}
 })();
+
+/* ==========================================================================
+   RELATÓRIO PARA A ADMINISTRAÇÃO (Board) — PDF de uma página, dados vivos.
+   Custo real por projeto (€/m², €/fogo), rigor (desvio vs orçamento transferido,
+   só nos capítulos já executados) e estrutura de custo (principais capítulos).
+   ========================================================================== */
+function vfEnsureJsPDF(){
+  return new Promise((res,rej)=>{
+    if(window.jspdf&&window.jspdf.jsPDF) return res();
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('Não consegui carregar o gerador de PDF.'));
+    document.head.appendChild(s);
+  });
+}
+function vfBuildBoardPDF(m, JsPDF){
+  const doc=new JsPDF({unit:'mm',format:'a4'});
+  const NAVY=[20,58,103], TEAL=[41,136,147], MUT=[91,107,127], AMBER=[178,106,0], OKG=[28,124,70], BG=[244,247,251], INK=[31,43,58];
+  const E=n=>(n==null?'—':Math.round(n).toLocaleString('pt-PT')+' €');
+  const N=(n,d)=>(n==null?'—':Number(n).toLocaleString('pt-PT',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}));
+  doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0,0,210,26,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+  doc.text('Relatório de Custo de Construção',15,13);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(191,212,236);
+  doc.text('Relatório resumo · Solive',15,20);
+  doc.text(m.data,195,20,{align:'right'});
+  const kpis=[[String(m.nProj),'projetos com custo real'],[E(m.totalReal),'custo real registado'],[m.avgM2?N(m.avgM2)+' €/m2':'—','custo médio por m2 (ABC)']];
+  let kx=15; const kw=56;
+  kpis.forEach(k=>{ doc.setFillColor(BG[0],BG[1],BG[2]); doc.roundedRect(kx,32,kw,20,2,2,'F');
+    doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text(k[0],kx+kw/2,42,{align:'center'});
+    doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.text(k[1],kx+kw/2,48,{align:'center'}); kx+=kw+6; });
+  let y=63;
+  doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Benchmarks e rigor por projeto',15,y); y+=7;
+  doc.setFontSize(8.5); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont('helvetica','bold');
+  doc.text('Projeto',15,y); doc.text('Segmento',58,y);
+  doc.text('Custo real',120,y,{align:'right'}); doc.text('€/m2',140,y,{align:'right'}); doc.text('€/fogo',165,y,{align:'right'}); doc.text('Desvio*',195,y,{align:'right'});
+  y+=1.6; doc.setDrawColor(210,215,225); doc.line(15,y,195,y); y+=5.5;
+  m.projetos.forEach(p=>{
+    doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(String(p.nome).slice(0,26),15,y);
+    doc.setFont('helvetica','normal'); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFontSize(8.5); doc.text(String(p.seg||'—').slice(0,22),58,y);
+    doc.setFontSize(9); doc.setTextColor(INK[0],INK[1],INK[2]);
+    doc.text(E(p.real),120,y,{align:'right'});
+    doc.text(p.eur_m2?N(p.eur_m2):'—',140,y,{align:'right'});
+    doc.text(p.eur_fogo?N(p.eur_fogo):'—',165,y,{align:'right'});
+    if(p.desvioPct==null){ doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text('—',195,y,{align:'right'}); }
+    else { const c=p.desvioPct>0?AMBER:OKG; doc.setTextColor(c[0],c[1],c[2]); doc.text((p.desvioPct>0?'+':'')+N(p.desvioPct*100)+'%',195,y,{align:'right'}); }
+    y+=7;
+  });
+  y+=7;
+  doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Onde vai o custo — principais capítulos',15,y); y+=8;
+  const maxPct=Math.max.apply(null,m.topCaps.map(c=>c.pct).concat([0.0001]));
+  m.topCaps.forEach(c=>{
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(String(c.cap).slice(0,30),15,y);
+    const bw=(c.pct/maxPct)*66;
+    doc.setFillColor(TEAL[0],TEAL[1],TEAL[2]); doc.roundedRect(78,y-3.3,Math.max(bw,1),4,0.6,0.6,'F');
+    doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFontSize(8.5); doc.text(E(c.valor)+'  ('+N(c.pct*100)+'%)',195,y,{align:'right'});
+    y+=8;
+  });
+  if(m.notas&&m.notas.length){
+    y+=4; const bh=9+m.notas.length*6;
+    doc.setFillColor(BG[0],BG[1],BG[2]); doc.roundedRect(15,y,180,bh,2,2,'F');
+    doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Leitura rápida',20,y+6.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(INK[0],INK[1],INK[2]);
+    let ly=y+13; m.notas.forEach(t=>{ doc.setFillColor(TEAL[0],TEAL[1],TEAL[2]); doc.circle(22,ly-1.3,0.8,'F'); doc.text(String(t),26,ly,{maxWidth:166}); ly+=6; });
+  }
+  doc.setDrawColor(220,225,232); doc.line(15,283,195,283);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(MUT[0],MUT[1],MUT[2]);
+  doc.text('* Desvio = custo real vs orçamento transferido, só nos capítulos já executados (com autos). Onde faltam autos, o real é parcial.',15,288);
+  doc.text('Custo real gravado dos autos de medição, reconciliado. A margem é aplicada fora da plataforma. Gerado pela Plataforma de Orçamentação Solive.',15,292);
+  return doc;
+}
+async function vfBoardReport(){
+  const out=document.getElementById('rbOut');
+  if(typeof sb==='undefined'||!sb){ if(out)out.textContent='Precisas de estar ligado e com sessão iniciada.'; return; }
+  if(out) out.textContent='A gerar…';
+  try{
+    let lines=[]; for(let f=0;f<200000;f+=1000){ const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(f,f+999); if(q.error)break; const b=q.data||[]; lines=lines.concat(b); if(b.length<1000)break; }
+    const imp={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref,segmento'); (qi.data||[]).forEach(r=>{ imp[r.id]={proj:r.projeto_ref,seg:r.segmento}; }); }catch(e){}
+    const orc={}; try{ const qo=await sb.from('orcamento_producao').select('projeto_ref,capitulo_canonico,total_orcado'); (qo.data||[]).forEach(r=>{ const k=vfNorm(r.projeto_ref); (orc[k]=orc[k]||{}); const ck=vfNorm(r.capitulo_canonico); orc[k][ck]=(orc[k][ck]||0)+(Number(r.total_orcado)||0); }); }catch(e){}
+    const realProj={}, realProjCap={}, capTot={}, segOf={};
+    lines.forEach(l=>{ const im=imp[l.import_id]; if(!im||!im.proj) return; const proj=im.proj; if(im.seg) segOf[proj]=im.seg;
+      const c=l.capitulo_canonico||'(sem capítulo)'; const t=Number(l.total)||0;
+      realProj[proj]=(realProj[proj]||0)+t; capTot[c]=(capTot[c]||0)+t;
+      (realProjCap[proj]=realProjCap[proj]||{}); const ck=vfNorm(c); realProjCap[proj][ck]=(realProjCap[proj][ck]||0)+t; });
+    const dim=nome=>{ let gfa=null,fogos=null; try{ const pr=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>vfNorm(x.nome)===vfNorm(nome)); if(pr){gfa=pr.gfa;fogos=pr.fogos;} }catch(e){} if((gfa==null)&&/URBAIN/i.test(nome||'')){ try{gfa=REF.gfa;fogos=REF.fogos;}catch(e){} } return {gfa,fogos}; };
+    const projetos=Object.keys(realProj).map(nome=>{ const d=dim(nome); const real=realProj[nome]; const ob=orc[vfNorm(nome)]||{}; const rc=realProjCap[nome]||{};
+      let cb=0,cr=0; Object.keys(rc).forEach(ck=>{ if(rc[ck]>0 && ob[ck]!=null){ cb+=ob[ck]; cr+=rc[ck]; } });
+      return {nome, seg:segOf[nome]||null, real, abc:d.gfa, fogos:d.fogos, eur_m2:d.gfa?real/d.gfa:null, eur_fogo:d.fogos?real/d.fogos:null, desvioPct:(cb>0)?(cr-cb)/cb:null }; })
+      .sort((a,b)=>b.real-a.real);
+    const totalReal=projetos.reduce((s,p)=>s+p.real,0);
+    const abcSum=projetos.reduce((s,p)=>s+(p.abc||0),0);
+    const avgM2=abcSum?totalReal/abcSum:null;
+    const topCaps=Object.entries(capTot).filter(([c])=>c!=='(sem capítulo)').sort((a,b)=>b[1]-a[1]).slice(0,6).map(([cap,v])=>({cap,valor:v,pct:totalReal?v/totalReal:0}));
+    if(!projetos.length){ if(out)out.textContent='Ainda não há custo real gravado.'; return; }
+    // Leitura rápida (conclusões factuais)
+    const notas=[];
+    const bySeg={}; projetos.forEach(p=>{ if(p.seg&&p.abc){ (bySeg[p.seg]=bySeg[p.seg]||{r:0,a:0}); bySeg[p.seg].r+=p.real; bySeg[p.seg].a+=p.abc; } });
+    const segs=Object.keys(bySeg);
+    if(segs.length){ notas.push('Custo por segmento: '+segs.map(s=>s+' — '+Math.round(bySeg[s].r/bySeg[s].a).toLocaleString('pt-PT')+' €/m2').join(' · ')+'.'); }
+    const dvs=projetos.filter(p=>p.desvioPct!=null).map(p=>Math.abs(p.desvioPct));
+    if(dvs.length){ const md=dvs.reduce((s,x)=>s+x,0)/dvs.length; notas.push('Rigor da orçamentação: desvio médio ±'+(md*100).toFixed(0)+'% (só nos capítulos já executados).'); }
+    if(topCaps.length>=3){ const c3=topCaps.slice(0,3).reduce((s,c)=>s+c.pct,0); notas.push('Concentração: os 3 maiores capítulos valem '+(c3*100).toFixed(0)+'% do custo real total.'); }
+    const model={data:(new Date()).toISOString().slice(0,10), projetos, totalReal, nProj:projetos.length, avgM2, topCaps, notas};
+    await vfEnsureJsPDF();
+    const doc=vfBuildBoardPDF(model, window.jspdf.jsPDF);
+    doc.save('Relatorio_Resumo_Solive_'+model.data+'.pdf');
+    if(out) out.textContent='Relatório gerado ('+model.data+').';
+  }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
+}
 </script>
 </body>
 </html>
