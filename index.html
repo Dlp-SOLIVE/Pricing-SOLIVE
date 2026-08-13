@@ -6905,12 +6905,13 @@ async function vfDvRenderLegendre(){
     (o.data||[]).forEach(r=>{ orc[r.legendre_categoria]=(orc[r.legendre_categoria]||0)+(Number(r.total_transferido)||0); }); }catch(e){}
   if(!Object.keys(orc).length){ out.innerHTML='<div class="note">Sem orçamento Legendre congelado para <b>'+esc(proj)+'</b>. Corre o <b>etapa_legendre.sql</b> no Supabase.</div>'; return; }
   let map={}; try{ const m=await sb.from('mapa_legendre').select('capitulo_solive,legendre_categoria'); (m.data||[]).forEach(r=>{ map[vfNorm(r.capitulo_solive)]=r.legendre_categoria; }); }catch(e){}
+  let sub={}; try{ const sq=await sb.from('mapa_legendre_sub').select('import_id,legendre_categoria'); (sq.data||[]).forEach(r=>{ sub[r.import_id]=r.legendre_categoria; }); }catch(e){}
   const impIds={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) impIds[r.id]=1; }); }catch(e){}
-  let real={}, semMapa=0;
+  let real={}, semMapa=0, nOver=0;
   for(let from=0; from<200000; from+=1000){
     const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(from,from+999);
     if(q.error) break; const batch=q.data||[];
-    batch.forEach(r=>{ if(impIds[r.import_id]){ const lg=map[vfNorm(r.capitulo_canonico)]; const t=Number(r.total)||0; if(lg) real[lg]=(real[lg]||0)+t; else semMapa+=t; } });
+    batch.forEach(r=>{ if(impIds[r.import_id]){ const ov=sub[r.import_id]; const lg=ov||map[vfNorm(r.capitulo_canonico)]; const t=Number(r.total)||0; if(ov) nOver++; if(lg) real[lg]=(real[lg]||0)+t; else semMapa+=t; } });
     if(batch.length<1000) break;
   }
   const keys=[...new Set([...Object.keys(orc),...Object.keys(real)])];
@@ -6934,7 +6935,42 @@ async function vfDvRenderLegendre(){
     +'<table style="font-size:13px"><tr><th>Categoria Legendre</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
     +body
     +'<tr style="font-weight:700;border-top:2px solid #143A67"><td>DESVIO FIÁVEL (categorias com auto)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
-    +'</table>';
+    +'</table>'
+    +'<div style="margin-top:12px"><button class="btn" onclick="vfLegSubToggle()">⚙️ Afinar categorias por subcontrato</button>'
+      +(nOver>0?' <span class="note" style="color:#1c7c46">'+nOver+' linha(s) já afinadas por subcontrato</span>':'')
+    +'</div><div id="dvSubPanel" data-open="0" style="margin-top:10px"></div>';
+}
+/* Lista completa das categorias Legendre (Fondamental 7) para os dropdowns de override. */
+const LEG_CATS=['BLINDS','BLOCKWORKS','CLADDING','CONTAINMENT WORKS','EARTHWORK','EXTERIOR METALWORK','FACADE CLADDING','FIRE PROTECTION','FLOOR FORMWORK/SHORING','FLOORS','HARD FLOORING','HEAVY CURRENT ELECTRICITY','HVAC','INDUSTRIAL FLUIDS','INTERIOR FITTINGS','INTERIOR JOINERY','KITCHENS','LIFT','LOW VOLTAGE ELECTRICITY','METAL FRAMEWORK','METALWORK','PAINTING-WALL COVERING','PARTITIONS','PLUMBING-SANITARY','REINFORCING','ROOFING','SCAFFOLDING','SCREEDS','SIGNAGE','SITE CLEANING','SOFT FLOORING','SOFT LANDSCAPE','VARIOUS SECONDARY','WATERPROOFING'];
+function vfLegSelect(id,cur,def){ let o='<option value="">— (usar capítulo'+(def?': '+esc(def):'')+')</option>'; LEG_CATS.forEach(c=>{ o+='<option value="'+esc(c)+'"'+(c===cur?' selected':'')+'>'+esc(c)+'</option>'; }); return '<select id="'+id+'" style="min-width:210px">'+o+'</select>'; }
+async function vfLegSubToggle(){ const p=document.getElementById('dvSubPanel'); if(!p) return;
+  if(p.getAttribute('data-open')==='1'){ p.innerHTML=''; p.setAttribute('data-open','0'); return; }
+  p.setAttribute('data-open','1'); await vfLegSubRender(); }
+async function vfLegSubRender(){
+  const p=document.getElementById('dvSubPanel'); const proj=(document.getElementById('dvProj')||{}).value||''; if(!p||!proj) return;
+  if(typeof sb==='undefined'||!sb){ p.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
+  p.innerHTML='<div class="note">A carregar subcontratos…</div>';
+  const imps={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref,subempreiteiro,contrato'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) imps[r.id]={sub:r.subempreiteiro||'',contr:r.contrato||'',tot:0,caps:{}}; }); }catch(e){}
+  for(let from=0; from<200000; from+=1000){ const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(from,from+999); if(q.error) break; const b=q.data||[]; b.forEach(r=>{ const im=imps[r.import_id]; if(im){ const t=Number(r.total)||0; im.tot+=t; const k=r.capitulo_canonico||'—'; im.caps[k]=(im.caps[k]||0)+t; } }); if(b.length<1000) break; }
+  let map={}; try{ const m=await sb.from('mapa_legendre').select('capitulo_solive,legendre_categoria'); (m.data||[]).forEach(r=>{ map[vfNorm(r.capitulo_solive)]=r.legendre_categoria; }); }catch(e){}
+  let sub={}; try{ const sq=await sb.from('mapa_legendre_sub').select('import_id,legendre_categoria'); (sq.data||[]).forEach(r=>{ sub[r.import_id]=r.legendre_categoria; }); }catch(e){}
+  const rows=Object.keys(imps).map(id=>{ const im=imps[id]; const domCap=Object.keys(im.caps).sort((a,b)=>im.caps[b]-im.caps[a])[0]||''; const def=map[vfNorm(domCap)]||''; return {id,sub:im.sub,contr:im.contr,tot:im.tot,domCap,def,cur:sub[id]||''}; }).sort((a,b)=>b.tot-a.tot);
+  if(!rows.length){ p.innerHTML='<div class="note">Sem subcontratos gravados para este projeto.</div>'; return; }
+  const body=rows.map(r=>'<tr><td>'+esc(r.sub||'—')+(r.contr?'<div style="font-size:10px;color:#8391a3">'+esc(r.contr)+'</div>':'')+'</td>'
+    +'<td style="font-size:11.5px">'+esc(r.domCap)+'</td>'
+    +'<td style="color:#8391a3;font-size:11.5px">'+esc(r.def||'—')+'</td>'
+    +'<td>'+vfLegSelect('legsub_'+r.id, r.cur, r.def)+'</td>'
+    +'<td class="mono" style="text-align:right">'+vfMoeda(r.tot)+'</td></tr>').join('');
+  p.innerHTML='<div class="note" style="margin:6px 0;padding:8px 10px;background:#f6f8fb;border:1px solid #e1e7ef;border-radius:8px">Atribui cada subcontrato à categoria Legendre certa. Em branco = usa o capítulo por omissão. É aqui que separas os capítulos que se dividem — <b>vãos</b> (caixilharia → Facade Cladding), <b>estabilidade</b> (armadura → Reinforcing), <b>estaleiro</b> (limpeza → Site Cleaning), <b>terras</b> (contenção → Containment Works).</div>'
+    +'<table style="font-size:12.5px"><tr><th>Subempreiteiro</th><th>Capítulo dominante</th><th>Legendre (omissão)</th><th>Override Legendre</th><th style="text-align:right">Total</th></tr>'+body+'</table>'
+    +'<button class="btn navy" style="margin-top:8px" onclick="vfLegSubSave()">Guardar afinação</button> <span id="legSubOut" class="note"></span>';
+}
+async function vfLegSubSave(){ const out=document.getElementById('legSubOut'); const sels=document.querySelectorAll('[id^=legsub_]'); const up=[], del=[];
+  sels.forEach(s=>{ const id=parseInt(s.id.replace('legsub_',''),10); const v=s.value; if(v) up.push({import_id:id,legendre_categoria:v}); else del.push(id); });
+  try{ if(up.length){ const r=await sb.from('mapa_legendre_sub').upsert(up,{onConflict:'import_id'}); if(r.error) throw r.error; }
+    for(const id of del){ await sb.from('mapa_legendre_sub').delete().eq('import_id',id); }
+    if(out) out.textContent='Guardado ✓ a atualizar…'; await vfDvRenderLegendre(); }
+  catch(err){ if(out) out.textContent='Erro: '+esc(err.message||String(err)); }
 }
 (function vfMountDesvios(){
   const host=document.getElementById('view-comparar');
