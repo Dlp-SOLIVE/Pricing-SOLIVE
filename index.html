@@ -6916,25 +6916,36 @@ async function vfDvRenderLegendre(){
   }
   const keys=[...new Set([...Object.keys(orc),...Object.keys(real)])];
   const rows=keys.map(k=>{ const o=orc[k]||0, rr=real[k]||0; const temAuto=rr>0; const dv=temAuto?rr-o:null, pct=(temAuto&&o)?dv/o:null;
-    return {cat:k,o,rr,temAuto,dv,pct}; }).sort((a,b)=>{ if(a.temAuto!==b.temAuto) return a.temAuto?-1:1; return a.temAuto?Math.abs(b.dv)-Math.abs(a.dv):b.o-a.o; });
-  const totO=rows.reduce((s,r)=>s+r.o,0), totR=rows.reduce((s,r)=>s+r.rr,0);
-  const covO=rows.filter(r=>r.temAuto).reduce((s,r)=>s+r.o,0), covR=rows.filter(r=>r.temAuto).reduce((s,r)=>s+r.rr,0), covD=covR-covO;
+    return {cat:k,o,rr,temAuto,dv,pct}; });
+  // com rubrica no Transfert (o>0) vs real sem rubrica (o=0 e há auto) — estes últimos NÃO entram no desvio fiável
+  const withB=rows.filter(r=>r.o>0).sort((a,b)=>{ if(a.temAuto!==b.temAuto) return a.temAuto?-1:1; return a.temAuto?Math.abs(b.dv)-Math.abs(a.dv):b.o-a.o; });
+  const semB=rows.filter(r=>r.o===0&&r.rr>0).sort((a,b)=>b.rr-a.rr);
+  const covRows=withB.filter(r=>r.temAuto);
+  const covO=covRows.reduce((s,r)=>s+r.o,0), covR=covRows.reduce((s,r)=>s+r.rr,0), covD=covR-covO;
+  const totO=rows.reduce((s,r)=>s+r.o,0);
+  const semBtot=semB.reduce((s,r)=>s+r.rr,0);
   const cob=totO?covO/totO:0, cobPct=(cob*100).toFixed(0), cobCol=cob>=0.9?'#1c7c46':(cob>=0.5?'#b26a00':'#E62336');
-  const body=rows.map(r=>{
+  const body=withB.map(r=>{
     if(!r.temAuto){ return '<tr style="color:#8391a3"><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">sem auto</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'; }
     const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
     return '<tr><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td><td class="mono" style="text-align:right;color:'+col+'">'+(r.dv>0?'+':'')+vfMoeda(r.dv)+'</td><td class="mono" style="text-align:right;color:'+col+'">'+(r.pct==null?'—':(r.pct>0?'+':'')+(r.pct*100).toFixed(0)+'%')+'</td></tr>';
   }).join('');
   const dcol=covD>0?'#b26a00':(covD<0?'#1c7c46':'#48566b');
+  const semBody = semB.length ? (
+     '<tr style="background:#fff8ec"><td colspan="5" style="font-weight:700;color:#b26a00;font-size:11px;padding:7px 4px">CUSTO REAL SEM RUBRICA NO TRANSFERT — a alocar a uma categoria oficial ('+vfMoeda(semBtot)+')</td></tr>'
+     + semB.map(r=>'<tr style="background:#fffdf7"><td>'+esc(r.cat)+'</td><td style="text-align:right;color:#b26a00">—</td><td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td><td style="text-align:right"><span style="background:#fce9c9;color:#b26a00;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">a alocar</span></td><td style="text-align:right">—</td></tr>').join('')
+  ) : '';
   out.innerHTML=
     '<div class="note" style="margin-bottom:8px;padding:10px 12px;background:#f0f4fb;border:1px solid #d5e0f0;border-radius:8px">'
      +'<b style="color:#143A67">Lente Legendre (Fondamental 7)</b> — desvios nas categorias oficiais que a obra monitoriza. '
      +'<b style="color:'+cobCol+'">Cobertura: '+cobPct+'%</b> do âmbito subcontratado ('+vfMoeda(covO)+' de '+vfMoeda(totO)+').'
-     +(semMapa>0?' <span style="color:#b26a00">'+vfMoeda(semMapa)+' de real ainda sem categoria Legendre (capítulo por mapear em mapa_legendre).</span>':'')
+     +(semBtot>0?' <span style="color:#b26a00">'+vfMoeda(semBtot)+' de real em categorias sem rubrica no Transfert (ver «a alocar»; usa o painel de subcontratos para as reencaminhar).</span>':'')
+     +(semMapa>0?' <span style="color:#b26a00">'+vfMoeda(semMapa)+' de real ainda sem categoria Legendre (capítulo por mapear).</span>':'')
     +'</div>'
     +'<table style="font-size:13px"><tr><th>Categoria Legendre</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
     +body
-    +'<tr style="font-weight:700;border-top:2px solid #143A67"><td>DESVIO FIÁVEL (categorias com auto)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
+    +'<tr style="font-weight:700;border-top:2px solid #143A67"><td>DESVIO FIÁVEL (categorias com auto e rubrica)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
+    +semBody
     +'</table>'
     +'<div style="margin-top:12px"><button class="btn" onclick="vfLegSubToggle()">⚙️ Afinar categorias por subcontrato</button>'
       +(nOver>0?' <span class="note" style="color:#1c7c46">'+nOver+' linha(s) já afinadas por subcontrato</span>':'')
