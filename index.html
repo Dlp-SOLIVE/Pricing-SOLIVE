@@ -476,7 +476,7 @@ tr.resolved td textarea{text-decoration:line-through}
         <option value="abc">€/m² ABC (uniforme)</option>
         <option value="fogo">€/fogo (uniforme)</option>
         <option value="media">Média ABC + fogo</option></select></div>
-      <div style="grid-column:span 2"><label>Fonte dos rácios</label><select id="estFonte"><option value="real">Preferir Real (auto de medição)</option><option value="contrato">Preferir Contrato</option><option value="orcamento">Preferir Orçamento</option><option value="todas">Todas as fases</option></select></div>
+      <div style="grid-column:span 2"><label>Fonte dos rácios</label><select id="estFonte"><option value="real">Preferir Real (auto de medição)</option><option value="contrato">Preferir Contrato</option><option value="adjudicado">Preferir Adjudicado (portão)</option><option value="orcamento">Preferir Orçamento</option><option value="todas">Todas as fases</option></select></div>
       <div><label>Inflação (%/ano)</label><input type="number" id="estInfl" value="4" step="0.5" title="Pôr 0 para não ajustar"></div>
       <div><label>Ano-alvo</label><input type="number" id="estAno" placeholder="2026"></div>
       <div style="grid-column:span 2"><label>Índice de inflação</label><select id="estInflModo">
@@ -999,7 +999,8 @@ const GX_MOTIVOS=[
   ['PRODUTIVIDADE','Produtividade / execução'],
   ['OUTRO','Outro']
 ];
-let GX_ROWS=[];
+let GX_ROWS=[]; let GX_VARS={};
+const GX_MOTLBL=Object.fromEntries(GX_MOTIVOS);
 function gxProjAtual(){ const s=document.getElementById('gxProj'); return s?s.value:''; }
 async function gxRender(){
   const sel=document.getElementById('gxProj'); if(!sel) return;
@@ -1018,6 +1019,12 @@ async function gxLoad(){
     const {data,error}=await sb.from('v_execucao').select('*').eq('projeto',nome).order('capitulo');
     if(!error && data) GX_ROWS=data;
     else if(error) console.warn('gxLoad',error);
+  }
+  GX_VARS={};
+  if(GX_ROWS.length && sb){
+    const ids=GX_ROWS.map(a=>a.id);
+    const {data:vv}=await sb.from('variacoes').select('*').in('adjudicacao_id',ids).order('data');
+    (vv||[]).forEach(v=>{ (GX_VARS[v.adjudicacao_id]=GX_VARS[v.adjudicacao_id]||[]).push(v); });
   }
   const vs=document.getElementById('gxVarAdj');
   if(vs) vs.innerHTML = GX_ROWS.length? GX_ROWS.map(a=>`<option value="${a.id}">${esc(a.capitulo)}${a.pacote?' — '+esc(a.pacote):''}${a.fornecedor?' ('+esc(a.fornecedor)+')':''}</option>`).join("") : '<option value="">— sem adjudicações —</option>';
@@ -1044,8 +1051,8 @@ function gxPaint(){
       <td style="text-align:right">${gxEUR(real)}</td>
       <td style="text-align:right;${col(dAdj)}">${gxPct(dAdj)}</td>
       <td style="text-align:right;${col(dExe)}">${gxPct(dExe)}</td>
-      <td style="text-align:right"><button class="btn ghost" style="padding:3px 8px" onclick="gxDelAdj(${a.id})" title="Remover">&times;</button></td>
-    </tr>`;
+      <td style="text-align:right"><button class="btn ghost" style="padding:3px 8px" onclick="gxDelAdj(${a.id})" title="Remover adjudicação">&times;</button></td>
+    </tr>`+gxVarRows(a.id);
   }).join("");
   const dA = sE?((sA/sE-1)*100):null, dR=sA?((sR/sA-1)*100):null;
   ft.innerHTML = GX_ROWS.length? `<tr style="font-weight:700;border-top:2px solid var(--navy)">
@@ -1088,6 +1095,33 @@ async function gxAddVar(){
   if(r.error) return;
   ['gxVarVal','gxVarDesc'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';});
   toast("Variação registada com motivo.");
+  await gxLoad();
+}
+function gxVarRows(adjId){
+  const vs=GX_VARS[adjId]||[];
+  if(!vs.length) return '';
+  const linhas=vs.map(v=>{
+    const val=Number(v.valor)||0;
+    const cor=val>0?'var(--red)':(val<0?'var(--teal)':'');
+    const sinal=val>0?'+':'';
+    return `<tr>
+      <td style="padding:2px 6px;color:#888">${v.data||''}</td>
+      <td style="padding:2px 6px">${esc(GX_MOTLBL[v.motivo]||v.motivo||'')}</td>
+      <td style="padding:2px 6px;text-align:right;color:${cor}">${sinal}${gxEUR(val)}</td>
+      <td style="padding:2px 6px;color:#666">${esc(v.descricao||'')}</td>
+      <td style="padding:2px 6px;text-align:right"><button class="btn ghost" style="padding:1px 7px;font-size:11px" onclick="gxDelVar(${v.id})" title="Apagar variação">&times;</button></td>
+    </tr>`;
+  }).join("");
+  return `<tr class="gxvar"><td colspan="8" style="padding:0 12px 10px 26px;background:#fafbfc;border-bottom:1px solid #eef1f5">
+    <div style="font-size:11px;color:#888;margin:4px 0 2px">Variações (${vs.length}):</div>
+    <table style="width:100%;font-size:11.5px;border-collapse:collapse"><tbody>${linhas}</tbody></table>
+  </td></tr>`;
+}
+async function gxDelVar(id){
+  if(!SESSION) return alertx("Inicia sessão para apagar variações.");
+  if(!confirm("Apagar esta variação?")) return;
+  const r=await sbq(sb.from('variacoes').delete().eq('id',id),"Apagar variação");
+  if(r.error) return;
   await gxLoad();
 }
 async function gxDelAdj(id){
@@ -3015,6 +3049,18 @@ function exportOrcamento(){
 async function gatherProjectData(pref){
   // devolve lista de {nome, ano, gfa, fogos, caps:{cap:total}} da biblioteca + L'Urbain embutido
   const data=[];
+  // FONTE "ADJUDICADO" (portão de execução): sinal LIMPO de preço de contrato.
+  // Ramo isolado — só corre quando esta fonte é escolhida; não afeta as outras.
+  if(pref==='adjudicado'){
+    if(!SESSION) return data;
+    for(const p of PROJETOS){
+      const {data:adjs}=await sb.from('adjudicacoes').select('capitulo,adjudicado').eq('projeto',p.nome);
+      if(!adjs||!adjs.length) continue;
+      const capObj={}; adjs.forEach(a=>{ if(+a.adjudicado>0) capObj[a.capitulo]=(capObj[a.capitulo]||0)+ +a.adjudicado; });
+      if(Object.keys(capObj).length) data.push({nome:p.nome+" · Adjudicado", ano:new Date().getFullYear(), gfa:p.gfa, fogos:p.fogos, caps:capObj, fase:'Adjudicado', D:descritoresDe(p)});
+    }
+    return data; // só referências adjudicadas reais; se vazio, o Estimador não inventa
+  }
   const lurbCaps=Object.fromEntries(REF.capitulos.filter(c=>c.total>0).map(c=>[c.cap,c.total]));
   data.push({nome:"L'Urbain",ano:2024,gfa:REF.gfa,fogos:REF.fogos,caps:lurbCaps,fase:"Orçamento",
              D:descritoresRef()});
@@ -7300,5 +7346,70 @@ async function vfBoardReport(){
 }
 
 </script>
+<!-- ====== BOTÃO DE AJUDA (autoexplicativo) ====== -->
+<button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
+  style="position:fixed;right:20px;bottom:20px;z-index:150;width:48px;height:48px;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.28)">?</button>
+<div id="ajudaOverlay" class="overlay hidden" onclick="if(event.target===this)fecharAjuda()">
+  <div style="background:#fff;border-radius:12px;padding:0;width:100%;max-width:760px;max-height:86vh;display:flex;flex-direction:column">
+    <div style="padding:16px 24px;border-bottom:1px solid #e3e8ef;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700;color:var(--navy);font-size:16px">Como usar a plataforma</div>
+      <button onclick="fecharAjuda()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888;line-height:1">&times;</button>
+    </div>
+    <div style="padding:20px 24px;overflow-y:auto;font-size:13px;line-height:1.55;color:#2a3a52">
+      <p style="margin:0 0 14px"><b>Para que serve:</b> é a ferramenta de pre&ccedil;os da Solive &mdash; do primeiro palpite de viabilidade at&eacute; ao custo real da obra. E aprende: cada obra que passa por c&aacute; torna a estimativa seguinte mais certeira.</p>
+      <p style="margin:0 0 16px;padding:10px 12px;background:#fff7e6;border-left:3px solid #D97E00;border-radius:4px"><b>Princ&iacute;pio de ouro:</b> melhor um buraco assumido do que um n&uacute;mero falso. A plataforma mostra sempre <b>de onde vem</b> cada pre&ccedil;o &mdash; proposta real, composi&ccedil;&atilde;o, ou estimativa.</p>
+
+      <h4 style="color:var(--navy);margin:18px 0 8px">O ciclo do projeto</h4>
+      <p style="margin:0 0 8px">Estimar &rarr; Or&ccedil;amentar &rarr; Consultar &rarr; <b>Execu&ccedil;&atilde;o</b> (adjudicar/seguir) &rarr; Custo Real &rarr; <b>a Biblioteca cresce</b>. N&atilde;o tens de fazer tudo de uma vez &mdash; entra no ponto que precisas hoje.</p>
+
+      <h4 style="color:var(--navy);margin:18px 0 8px">Escolhe o que queres fazer</h4>
+
+      <div style="margin:0 0 12px"><b>🎯 Um n&uacute;mero r&aacute;pido para o Business Plan</b> (sem mapa de quantidades)<br>
+      Preenche os <b>descritores</b> no topo (&aacute;rea, fogos) &rarr; <b>Estimar</b> &rarr; deixa "Driver f&iacute;sico" &rarr; <b>Estimar</b>.<br>
+      <span style="color:#a06000">Cuidado: serve para decidir e negociar, n&atilde;o para assinar.</span></div>
+
+      <div style="margin:0 0 12px"><b>🎯 Or&ccedil;amentar a s&eacute;rio</b> (com o Excel do projetista)<br>
+      <b>Or&ccedil;amentar &rarr; Analisar MQ</b> (larga o ficheiro) &rarr; <b>Pre&ccedil;o MQ</b> (aplica pre&ccedil;os) &rarr; <b>Or&ccedil;amenta&ccedil;&atilde;o</b> (revês linha a linha).<br>
+      <span style="color:#a06000">Cuidado: confirma a proveni&ecirc;ncia de cada cap&iacute;tulo &mdash; um total pode parecer firme e ser 90% estimativa.</span></div>
+
+      <div style="margin:0 0 12px"><b>🎯 Consultar o mercado</b><br>
+      <b>Consultas</b> &rarr; cria a consulta do pacote &rarr; regista as propostas &rarr; compara.</div>
+
+      <div style="margin:0 0 12px"><b>🎯 Adjudiquei um pacote &mdash; registar e seguir a obra</b><br>
+      <b>Execu&ccedil;&atilde;o</b> &rarr; <b>Registar adjudica&ccedil;&atilde;o</b> (estimado + adjudicado + fornecedor) &rarr; durante a obra, <b>Registar varia&ccedil;&atilde;o</b> (sempre com um <b>motivo</b>).<br>
+      <span style="color:#0f7b6c">Porqu&ecirc;: o pre&ccedil;o adjudicado &eacute; o sinal limpo que alimenta as estimativas futuras. &Eacute; o que protege a margem.</span></div>
+
+      <div style="margin:0 0 12px"><b>🎯 Ver o custo real / fechar obra</b><br>
+      <b>Custo Real</b> &rarr; compara contrato vs. real &rarr; ao fechar, a biblioteca fica com os pre&ccedil;os reais.</div>
+
+      <div style="margin:0 0 12px"><b>🎯 Gerir ou eliminar um projeto</b><br>
+      <b>Biblioteca &rarr; Gerir projetos</b> &rarr; escolhe &rarr; v&ecirc; as contagens &rarr; escreve o nome para confirmar.<br>
+      <span style="color:#a06000">Cuidado: eliminar &eacute; irrevers&iacute;vel. Faz export (backup) antes.</span></div>
+
+      <h4 style="color:var(--navy);margin:18px 0 8px">Ler os pre&ccedil;os com olhos cr&iacute;ticos</h4>
+      <ul style="margin:0 0 8px;padding-left:18px">
+        <li><b>Proposta Recebida</b> &mdash; or&ccedil;amento real do projeto. O mais firme.</li>
+        <li><b>Composto / R&aacute;cios</b> &mdash; de composi&ccedil;&otilde;es ou de obras de refer&ecirc;ncia. Fundamentado, n&atilde;o fechado.</li>
+        <li><b>Estimado</b> &mdash; palpite informado. O mais fr&aacute;gil.</li>
+      </ul>
+      <p style="margin:0 0 8px">Antes de assinar com base num total, pergunta: <i>"quanto disto &eacute; proposta recebida e quanto &eacute; estimativa?"</i></p>
+
+      <h4 style="color:var(--navy);margin:18px 0 8px">Cuidados importantes</h4>
+      <ul style="margin:0;padding-left:18px">
+        <li>Abre sempre pelo <b>link oficial</b>, n&atilde;o por um ficheiro guardado no PC (fica desatualizado).</li>
+        <li><b>Inicia sess&atilde;o</b> (topo: "Ligado &middot; email"). Sem sess&atilde;o, v&ecirc;s mas n&atilde;o gravas.</li>
+        <li><b>Backup mensal</b>: a base &eacute; gratuita e pode ser pausada. Exporta, sobretudo a biblioteca de pre&ccedil;os reais.</li>
+        <li>N&atilde;o confundas <b>Estimado</b> com <b>Adjudicado</b> &mdash; a plataforma mostra a diferen&ccedil;a; usa-a.</li>
+        <li>A biblioteca <b>s&oacute; melhora se a alimentares</b>: regista as adjudica&ccedil;&otilde;es no port&atilde;o de Execu&ccedil;&atilde;o.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<script>
+function abrirAjuda(){ var o=document.getElementById('ajudaOverlay'); if(o) o.classList.remove('hidden'); }
+function fecharAjuda(){ var o=document.getElementById('ajudaOverlay'); if(o) o.classList.add('hidden'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharAjuda(); });
+</script>
+
 </body>
 </html>
