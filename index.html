@@ -595,6 +595,22 @@ tr.resolved td textarea{text-decoration:line-through}
       <div class="kpi"><div class="v" id="orcKm2">—</div><div class="l">€/m² ABC</div></div>
     </div>
     <div style="margin:14px 0 6px"><div class="consbar" id="orcConsBar"></div></div>
+    <div id="orcConting" style="margin:14px 0;padding:12px 14px;background:#f7f9fc;border:1px solid var(--line);border-radius:8px">
+      <div style="font-weight:700;color:var(--navy);font-size:12px;margin-bottom:8px">Contingência por proveniência</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="color:#8794a8"><th style="text-align:left">Escalão (estado da linha)</th><th class="num">Valor</th><th class="num" style="width:64px">%</th><th class="num">Contingência</th></tr></thead>
+        <tbody>
+          <tr><td>Firme &mdash; proposta firme / compromisso</td><td class="num" id="orcContFirmeV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctFirme" value="1.5" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContFirmeC">&mdash;</td></tr>
+          <tr><td>Intermédio &mdash; em consulta / proposta antiga</td><td class="num" id="orcContInterV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctInter" value="5" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContInterC">&mdash;</td></tr>
+          <tr><td>Estimado &mdash; rácio histórico</td><td class="num" id="orcContEstimV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctEstim" value="12" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContEstimC">&mdash;</td></tr>
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;border-top:1px solid var(--line)"><td>Contingência total (<span id="orcContPct">&mdash;</span> do orçamento)</td><td></td><td></td><td class="num" id="orcContTotal">&mdash;</td></tr>
+          <tr style="font-weight:700"><td style="color:var(--navy)">Total com contingência</td><td></td><td></td><td class="num" id="orcTotalCC" style="color:var(--navy)">&mdash;</td></tr>
+        </tfoot>
+      </table>
+      <div class="hint" style="margin-top:6px">A contingência desce sozinha à medida que firmas linhas (Rácio &rarr; Firme &rarr; Compromisso). As percentagens são editáveis &mdash; calibra ao apetite de risco da Solive.</div>
+    </div>
     <div class="legend" style="margin-bottom:14px">
       <span><i class="dotleg e-racio"></i>Rácio histórico</span>
       <span><i class="dotleg e-consulta"></i>Em consulta</span>
@@ -862,7 +878,7 @@ tr.resolved td textarea{text-decoration:line-through}
 
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <b>v2.3</b> <span class="mono" style="font-size:11px;color:#8794a8" title="Marca de build — confirma que tens a versão mais recente">build 2026-09-02 · v2.3</span> · Dados de referência com origem no pricing sheet L'Urbain (PE). Os ficheiros analisados nunca saem do browser; a biblioteca é guardada no Supabase da Solive. <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" style="font-size:11px;color:#8794a8" title="Versão — confirma que tens a mais recente">v2.4 · 2026-09-03</span> <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -2881,6 +2897,23 @@ function renderOrcKpis(){
       if(v>0){const d=document.createElement('div');d.className=e.cb;d.style.width=(v/total*100)+"%";d.title=e.lbl+": "+fmt(v,0)+" € ("+fmt(v/total*100,0)+"%)";bar.appendChild(d);}
     });
   }
+  renderContingencia(total);
+}
+function orcTier(estado){ const e=ORC_EST[estado]; if(!e) return 'estim'; if(e.solido) return 'firme'; if(estado==='racio') return 'estim'; return 'inter'; }
+function renderContingencia(total){
+  const box=document.getElementById('orcConting'); if(!box) return;
+  const gp=id=>{const el=document.getElementById(id); return el?(parseFloat(el.value)||0):0;};
+  const pf=gp('orcPctFirme'), pi=gp('orcPctInter'), pe=gp('orcPctEstim');
+  let vf=0,vi=0,ve=0;
+  ORC_ROWS.forEach(r=>{ const v=r.valor||0; const t=orcTier(r.estado); if(t==='firme')vf+=v; else if(t==='inter')vi+=v; else ve+=v; });
+  const cf=vf*pf/100, ci=vi*pi/100, ce=ve*pe/100, ct=cf+ci+ce;
+  const set=(id,val)=>{const el=document.getElementById(id); if(el) el.textContent=val;};
+  set('orcContFirmeV',fmt(vf,0)+' €'); set('orcContFirmeC',fmt(cf,0)+' €');
+  set('orcContInterV',fmt(vi,0)+' €'); set('orcContInterC',fmt(ci,0)+' €');
+  set('orcContEstimV',fmt(ve,0)+' €'); set('orcContEstimC',fmt(ce,0)+' €');
+  set('orcContTotal',fmt(ct,0)+' €');
+  set('orcContPct', total?fmt(ct/total*100,1)+'%':'—');
+  set('orcTotalCC', fmt(total+ct,0)+' €');
 }
 // Camadas do selling factor (valores por defeito da folha Legendre L'Urbain)
 const SELLING_LAYERS=[
@@ -5297,7 +5330,7 @@ function MQ_LIMPO(){
     desc:"Fornecimento e montagem de porta interior lisa em MDF lacado a branco, com aro e ferragens"}
   ];
 }
-const BUILD="2026-09-02 · v2.3";
+const BUILD="2026-09-03 · v2.4";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
  ["Escolha contratual/executado","colunasAuto"],
