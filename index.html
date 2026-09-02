@@ -7350,64 +7350,87 @@ async function vfBoardReport(){
 <button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
   style="position:fixed;right:20px;bottom:20px;z-index:150;width:48px;height:48px;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.28)">?</button>
 <div id="ajudaOverlay" class="overlay hidden" onclick="if(event.target===this)fecharAjuda()">
-  <div style="background:#fff;border-radius:12px;padding:0;width:100%;max-width:760px;max-height:86vh;display:flex;flex-direction:column">
-    <div style="padding:16px 24px;border-bottom:1px solid #e3e8ef;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:700;color:var(--navy);font-size:16px">Como usar a plataforma</div>
+  <div style="background:#fff;border-radius:12px;padding:0;width:100%;max-width:780px;max-height:88vh;display:flex;flex-direction:column">
+    <div style="padding:14px 22px;border-bottom:1px solid #e3e8ef;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700;color:var(--navy);font-size:16px">Ajuda &mdash; como usar a plataforma</div>
       <button onclick="fecharAjuda()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888;line-height:1">&times;</button>
     </div>
-    <div style="padding:20px 24px;overflow-y:auto;font-size:13px;line-height:1.55;color:#2a3a52">
-      <p style="margin:0 0 14px"><b>Para que serve:</b> é a ferramenta de pre&ccedil;os da Solive &mdash; do primeiro palpite de viabilidade at&eacute; ao custo real da obra. E aprende: cada obra que passa por c&aacute; torna a estimativa seguinte mais certeira.</p>
-      <p style="margin:0 0 16px;padding:10px 12px;background:#fff7e6;border-left:3px solid #D97E00;border-radius:4px"><b>Princ&iacute;pio de ouro:</b> melhor um buraco assumido do que um n&uacute;mero falso. A plataforma mostra sempre <b>de onde vem</b> cada pre&ccedil;o &mdash; proposta real, composi&ccedil;&atilde;o, ou estimativa.</p>
-
-      <h4 style="color:var(--navy);margin:18px 0 8px">O ciclo do projeto</h4>
-      <p style="margin:0 0 8px">Estimar &rarr; Or&ccedil;amentar &rarr; Consultar &rarr; <b>Execu&ccedil;&atilde;o</b> (adjudicar/seguir) &rarr; Custo Real &rarr; <b>a Biblioteca cresce</b>. N&atilde;o tens de fazer tudo de uma vez &mdash; entra no ponto que precisas hoje.</p>
-
-      <h4 style="color:var(--navy);margin:18px 0 8px">Escolhe o que queres fazer</h4>
-
-      <div style="margin:0 0 12px"><b>🎯 Um n&uacute;mero r&aacute;pido para o Business Plan</b> (sem mapa de quantidades)<br>
-      Preenche os <b>descritores</b> no topo (&aacute;rea, fogos) &rarr; <b>Estimar</b> &rarr; deixa "Driver f&iacute;sico" &rarr; <b>Estimar</b>.<br>
-      <span style="color:#a06000">Cuidado: serve para decidir e negociar, n&atilde;o para assinar.</span></div>
-
-      <div style="margin:0 0 12px"><b>🎯 Or&ccedil;amentar a s&eacute;rio</b> (com o Excel do projetista)<br>
-      <b>Or&ccedil;amentar &rarr; Analisar MQ</b> (larga o ficheiro) &rarr; <b>Pre&ccedil;o MQ</b> (aplica pre&ccedil;os) &rarr; <b>Or&ccedil;amenta&ccedil;&atilde;o</b> (revês linha a linha).<br>
-      <span style="color:#a06000">Cuidado: confirma a proveni&ecirc;ncia de cada cap&iacute;tulo &mdash; um total pode parecer firme e ser 90% estimativa.</span></div>
-
-      <div style="margin:0 0 12px"><b>🎯 Consultar o mercado</b><br>
-      <b>Consultas</b> &rarr; cria a consulta do pacote &rarr; regista as propostas &rarr; compara.</div>
-
-      <div style="margin:0 0 12px"><b>🎯 Adjudiquei um pacote &mdash; registar e seguir a obra</b><br>
-      <b>Execu&ccedil;&atilde;o</b> &rarr; <b>Registar adjudica&ccedil;&atilde;o</b> (estimado + adjudicado + fornecedor) &rarr; durante a obra, <b>Registar varia&ccedil;&atilde;o</b> (sempre com um <b>motivo</b>).<br>
-      <span style="color:#0f7b6c">Porqu&ecirc;: o pre&ccedil;o adjudicado &eacute; o sinal limpo que alimenta as estimativas futuras. &Eacute; o que protege a margem.</span></div>
-
-      <div style="margin:0 0 12px"><b>🎯 Ver o custo real / fechar obra</b><br>
-      <b>Custo Real</b> &rarr; compara contrato vs. real &rarr; ao fechar, a biblioteca fica com os pre&ccedil;os reais.</div>
-
-      <div style="margin:0 0 12px"><b>🎯 Gerir ou eliminar um projeto</b><br>
-      <b>Biblioteca &rarr; Gerir projetos</b> &rarr; escolhe &rarr; v&ecirc; as contagens &rarr; escreve o nome para confirmar.<br>
-      <span style="color:#a06000">Cuidado: eliminar &eacute; irrevers&iacute;vel. Faz export (backup) antes.</span></div>
-
-      <h4 style="color:var(--navy);margin:18px 0 8px">Ler os pre&ccedil;os com olhos cr&iacute;ticos</h4>
-      <ul style="margin:0 0 8px;padding-left:18px">
-        <li><b>Proposta Recebida</b> &mdash; or&ccedil;amento real do projeto. O mais firme.</li>
-        <li><b>Composto / R&aacute;cios</b> &mdash; de composi&ccedil;&otilde;es ou de obras de refer&ecirc;ncia. Fundamentado, n&atilde;o fechado.</li>
-        <li><b>Estimado</b> &mdash; palpite informado. O mais fr&aacute;gil.</li>
-      </ul>
-      <p style="margin:0 0 8px">Antes de assinar com base num total, pergunta: <i>"quanto disto &eacute; proposta recebida e quanto &eacute; estimativa?"</i></p>
-
-      <h4 style="color:var(--navy);margin:18px 0 8px">Cuidados importantes</h4>
-      <ul style="margin:0;padding-left:18px">
-        <li>Abre sempre pelo <b>link oficial</b>, n&atilde;o por um ficheiro guardado no PC (fica desatualizado).</li>
-        <li><b>Inicia sess&atilde;o</b> (topo: "Ligado &middot; email"). Sem sess&atilde;o, v&ecirc;s mas n&atilde;o gravas.</li>
-        <li><b>Backup mensal</b>: a base &eacute; gratuita e pode ser pausada. Exporta, sobretudo a biblioteca de pre&ccedil;os reais.</li>
-        <li>N&atilde;o confundas <b>Estimado</b> com <b>Adjudicado</b> &mdash; a plataforma mostra a diferen&ccedil;a; usa-a.</li>
-        <li>A biblioteca <b>s&oacute; melhora se a alimentares</b>: regista as adjudica&ccedil;&otilde;es no port&atilde;o de Execu&ccedil;&atilde;o.</li>
-      </ul>
+    <div id="ajudaTabs" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 22px;border-bottom:1px solid #eef1f5"></div>
+    <div id="ajudaBody" style="padding:18px 22px;overflow-y:auto;font-size:13px;line-height:1.55;color:#2a3a52">
+<div class="ajuda-sec" data-area="estimar" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Estimar — custo rápido para o Business Plan</h3>
+<p style="margin:0 0 10px">Estimativa <b>top-down</b>, sem precisar do mapa de quantidades. Primeiro preenche os <b>descritores</b> no topo (ABC, fogos, pisos…). Depois, os campos desta vista:</p>
+<ul style="margin:0 0 10px;padding-left:18px">
+<li><b>Budget do BP (€)</b> — opcional; o valor do Business Plan, só para comparares no fim.</li>
+<li><b>Base de cálculo</b> — deixa <b>"Driver físico por capítulo"</b> (recomendado): cada capítulo escala pela grandeza que o comanda. As outras (€/m² ABC, €/fogo, média) são uniformes e mais grosseiras.</li>
+<li><b>Fonte dos rácios</b> — de onde vêm os preços de referência: Real (auto de medição), Contrato, <b>Adjudicado (portão)</b>, Orçamento, ou Todas. "Adjudicado" usa os preços de contrato que registaste na Execução — o sinal mais limpo, e ganha força à medida que adjudicas.</li>
+<li><b>Inflação / Ano-alvo / Índice</b> — atualiza os preços de referência ao ano do teu projeto. "Diferenciado" separa mão-de-obra de materiais.</li>
+<li><b>Preços unitários da biblioteca</b> — "Usar quando houver MQ" aproveita preços por artigo; "Não usar" fica só pelos rácios de capítulo.</li>
+<li><b>Calibração pelo desvio histórico</b> — "Ligada" corrige a estimativa pelo desvio típico orçamento→real de obras passadas (mais realista).</li>
+<li><b>Soft costs</b> — acrescenta (ou não) a camada de custos indiretos.</li>
+</ul>
+<p style="margin:0 0 6px">Carrega em <b>Estimar</b>. Obténs o custo por capítulo, com um intervalo.</p>
+<p style="margin:0;color:#a06000"><b>Cuidado:</b> é uma estimativa top-down — serve para decidir e negociar, <b>não para assinar</b>.</p>
+</div><div class="ajuda-sec" data-area="orcamentar" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Orçamentar — orçamento detalhado (com mapa de quantidades)</h3>
+<p style="margin:0 0 10px">Três passos, nos sub-separadores no topo:</p>
+<ul style="margin:0 0 10px;padding-left:18px">
+<li><b>Analisar MQ</b> — larga o Excel do projetista; a plataforma deteta o formato e organiza por capítulos (se o layout for atípico, há mapeador manual).</li>
+<li><b>Preço MQ</b> — aplica preços da biblioteca a cada artigo.</li>
+<li><b>Orçamentação</b> — revês linha a linha; cada linha tem um estado (de rácio a compromisso) e uma fonte, e fechas o mapa de venda.</li>
+</ul>
+<p style="margin:0;color:#a06000"><b>Cuidado:</b> confirma a proveniência de cada capítulo — um total pode parecer firme e ser sobretudo estimativa.</p>
+</div><div class="ajuda-sec" data-area="consultas" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Consultas — consultar o mercado</h3>
+<p style="margin:0">Cria a consulta de um pacote com os fornecedores, regista as propostas recebidas e compara-as. As propostas recebidas são a fonte de preço mais firme para o orçamento.</p>
+</div><div class="ajuda-sec" data-area="execucao" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Execução — o portão: do estimado ao real</h3>
+<p style="margin:0 0 10px">Escolhe o <b>Projeto</b> no topo da vista. A tabela mostra, por pacote: <b>Estimado → Adjudicado → Real</b>, com os desvios (Δ adjudicação e Δ execução) e o total.</p>
+<ul style="margin:0 0 10px;padding-left:18px">
+<li><b>Registar adjudicação</b> — o momento em que fechas um pacote com um subempreiteiro. Preenche <b>Capítulo</b>, <b>Pacote</b> (opcional), <b>Fornecedor</b>, <b>Estimado</b> (a fotografia do orçamento à data) e <b>Adjudicado</b> (o valor de contrato). O estimado é a base contra a qual se mede o desvio.</li>
+<li><b>Registar variação</b> — cada desvio em obra face ao adjudicado. Escolhe a <b>adjudicação</b>, um <b>motivo</b> (obrigatório: alteração de projeto, erro/omissão, preço de mercado, quantidades, imprevistos, produtividade), o <b>valor</b> (+ ou −) e a descrição. Por baixo de cada adjudicação vês a lista das variações, cada uma com <b>×</b> para apagar.</li>
+</ul>
+<p style="margin:0 0 6px;color:#0f7b6c"><b>Porquê importa:</b> o adjudicado é o preço limpo que alimenta as estimativas futuras (em Estimar, fonte "Adjudicado"); o desvio de execução vira contingência medida. É o mecanismo que protege a margem.</p>
+<p style="margin:0;color:#a06000"><b>Cuidado:</b> precisas de sessão de gestor iniciada para gravar.</p>
+</div><div class="ajuda-sec" data-area="custoreal" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Custo Real — o custo efetivo da obra</h3>
+<p style="margin:0 0 10px">Sub-separadores: <b>Verificar Auto</b> (autos de medição), <b>Rácios</b> e <b>Comparar</b> (contrato vs. real).</p>
+<p style="margin:0">Ao fechar a obra, os preços reais passam a alimentar a biblioteca — e a estimativa da obra seguinte fica mais firme.</p>
+</div><div class="ajuda-sec" data-area="biblioteca" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Biblioteca — o conhecimento acumulado</h3>
+<p style="margin:0 0 10px">Os preços reais e unitários, a taxonomia e as versões. É o que cresce a cada obra e alimenta as estimativas.</p>
+<p style="margin:0;color:#a06000"><b>Gerir projetos:</b> aqui eliminas um projeto e todos os seus dados. É <b>irreversível</b> — faz export (backup) antes, confirma as contagens, e escreve o nome para confirmar.</p>
+</div><div class="ajuda-sec" data-area="geral" style="display:none">
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Cuidados importantes</h3>
+<ul style="margin:0;padding-left:18px">
+<li>Abre sempre pelo <b>link oficial</b>, não por um ficheiro guardado no PC (fica desatualizado).</li>
+<li><b>Inicia sessão</b> (topo: "Ligado · email"). Sem sessão, vês mas não gravas.</li>
+<li><b>Backup</b>: garante que o backup automático está a correr (repositório privado de backups).</li>
+<li>Não confundas <b>Estimado</b> com <b>Adjudicado</b> — a plataforma mostra a diferença; usa-a antes de assinar.</li>
+<li>A biblioteca <b>só melhora se a alimentares</b>: regista as adjudicações no portão de Execução.</li>
+<li><b>Princípio de ouro:</b> melhor um buraco assumido do que um número falso.</li>
+</ul>
+</div>
     </div>
   </div>
 </div>
 <script>
-function abrirAjuda(){ var o=document.getElementById('ajudaOverlay'); if(o) o.classList.remove('hidden'); }
-function fecharAjuda(){ var o=document.getElementById('ajudaOverlay'); if(o) o.classList.add('hidden'); }
+const AJUDA_AREAS=[['estimar','Estimar'],['orcamentar','Orçamentar'],['consultas','Consultas'],['execucao','Execução'],['custoreal','Custo Real'],['biblioteca','Biblioteca'],['geral','Cuidados']];
+const AJUDA_VIEW2AREA={estimador:'estimar',analisador:'orcamentar',precomq:'orcamentar',orcamento:'orcamentar',consultas:'consultas',execucao:'execucao',verificar:'custoreal',racios:'custoreal',comparar:'custoreal',biblioteca:'biblioteca'};
+function ajudaVistaAtiva(){
+  for(const v in AJUDA_VIEW2AREA){ const el=document.getElementById('view-'+v); if(el && !el.classList.contains('hidden')) return AJUDA_VIEW2AREA[v]; }
+  return 'geral';
+}
+function ajudaMostrar(area){
+  document.querySelectorAll('#ajudaBody .ajuda-sec').forEach(s=>{ s.style.display = (s.getAttribute('data-area')===area)?'block':'none'; });
+  document.querySelectorAll('#ajudaTabs button').forEach(b=>{ const on=b.getAttribute('data-a')===area; b.style.background=on?'var(--navy)':'#eef1f5'; b.style.color=on?'#fff':'var(--navy)'; });
+}
+function ajudaBuildTabs(){
+  const bar=document.getElementById('ajudaTabs'); if(!bar||bar.childElementCount) return;
+  bar.innerHTML=AJUDA_AREAS.map(a=>`<button data-a="${a[0]}" onclick="ajudaMostrar('${a[0]}')" style="border:none;border-radius:6px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer;background:#eef1f5;color:var(--navy)">${a[1]}</button>`).join("");
+}
+function abrirAjuda(){ const o=document.getElementById('ajudaOverlay'); if(!o)return; ajudaBuildTabs(); ajudaMostrar(ajudaVistaAtiva()); o.classList.remove('hidden'); }
+function fecharAjuda(){ const o=document.getElementById('ajudaOverlay'); if(o) o.classList.add('hidden'); }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharAjuda(); });
 </script>
 
