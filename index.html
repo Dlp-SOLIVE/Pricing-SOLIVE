@@ -814,6 +814,7 @@ tr.resolved td textarea{text-decoration:line-through}
   <div class="subtabs">
     <button id="lib-tab-tax" class="on" onclick="libTab('tax')">Taxonomia e drivers</button>
     <button id="lib-tab-gerir" onclick="libTab('gerir')">Gerir projetos</button>
+    <button id="lib-tab-ver" onclick="libTab('ver')">Vers&otilde;es e fases</button>
   </div>
 
   <div id="lib-pane-tax">
@@ -872,6 +873,29 @@ tr.resolved td textarea{text-decoration:line-through}
         <div class="hint" style="margin:0">Para confirmar, escreve o nome exato do projeto: <b id="gpNomeEco">&mdash;</b></div>
         <input type="text" id="gpConfirm" placeholder="Escreve o nome do projeto" oninput="gpConfirmCheck()" style="margin-top:6px;max-width:340px">
         <div><button id="gpDelBtn" class="btn" style="margin-top:10px;background:var(--red);color:#fff;opacity:.45;pointer-events:none" onclick="gpDelete()">Eliminar definitivamente</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="lib-pane-ver" class="hidden">
+    <div class="card">
+      <h2>Vers&otilde;es do or&ccedil;amento <span class="badge" id="verTag" style="background:#eef2f8;color:var(--navy);font-weight:500">&mdash;</span></h2>
+      <div class="hint">Cada &quot;Gravar em curso&quot; na Or&ccedil;amenta&ccedil;&atilde;o cria uma vers&atilde;o com o total, a % consolidada e o coment&aacute;rio que escreveste. Aqui v&ecirc;s o hist&oacute;rico, comparas duas vers&otilde;es capítulo a capítulo e repes qualquer uma no quadro de or&ccedil;amenta&ccedil;&atilde;o.</div>
+      <div class="filters">
+        <div style="min-width:280px"><label>Projeto</label><select id="verProj" onchange="renderVersoes()"></select></div>
+        <div style="align-self:end"><button class="btn ghost" onclick="renderVersoes()">Atualizar</button></div>
+      </div>
+      <label style="margin-top:16px">Fases gravadas (Fecho de Obra)</label>
+      <div id="verFases"></div>
+      <label style="margin-top:16px">Vers&otilde;es do or&ccedil;amento</label>
+      <div id="verLista"></div>
+      <div id="verEmpty" class="empty hidden">Sem vers&otilde;es gravadas para este projeto. Grava o or&ccedil;amento em curso para criar a primeira.</div>
+      <div id="verDiffBox" class="hidden" style="margin-top:16px">
+        <label>Diferen&ccedil;as <span class="mono" id="verDiffTag" style="color:#8794a8">&mdash;</span></label>
+        <table>
+          <thead><tr><th>Cap&iacute;tulo</th><th class="num">Vers&atilde;o anterior</th><th class="num">Esta vers&atilde;o</th><th class="num">Varia&ccedil;&atilde;o</th><th>Estado</th></tr></thead>
+          <tbody id="tbVerDiff"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -4784,7 +4808,7 @@ function renderPUreal(){
   });
 }
 function libTab(t){
-  ['tax','gerir'].forEach(x=>{
+  ['tax','gerir','ver'].forEach(x=>{
     document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
     document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
   });
@@ -6692,12 +6716,13 @@ async function vfPriceMQFile(){
       if(/INDICE|ÍNDICE/i.test(sn)) continue;
       const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
       const m=vfReadMQ(rows);
-      if(m&&m.length){ m.forEach(l=>{ if(!l.cap||l.cap==='(sem capítulo)') l.cap=sn; }); mq.push(...m); }
+      if(m&&m.length){ m.forEach(l=>{ l.__sheet=sn; if(!l.cap||l.cap==='(sem capítulo)') l.cap=sn; }); mq.push(...m); }
     }
     if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades neste ficheiro (preciso de colunas Designação / Un. / Quant.).</div>'; return; }
     const results=mq.map(l=>{ const canon=vfCanonMQ(l); l.__canon=canon;
       return {l,m:vfPriceLine(l,libFull,libMat,libLab,uplift,chap,canon)}; });
     window.__mqResults=results;
+    window.__mqScope=projSel||'todos os projetos (combinado)'; window.__mqFileName=f.name||'';
     vfRenderMQ(results,libFull.length,libMat.length,projSel||'todos os projetos (combinado)');
   };
   rd.readAsArrayBuffer(f);
@@ -6833,9 +6858,38 @@ function vfRenderMQ(results, libFullN, libMatN, scope){
   const semNada=results.filter(x=>x.m.rec==null).length;
   out.innerHTML='<div class="note" style="margin-bottom:8px">Base de custo: <b>'+esc(scope||'todos os projetos')+'</b> · '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> com preço fiável (match de texto) · <b>'+comMat+'</b> via material · <b>'+porCap+'</b> via rácio de capítulo · <b>'+semNada+'</b> sem preço (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
     +'<table style="font-size:12.5px">'+th+body+'</table>'
-    +'<div style="margin-top:10px;font-size:15px"><b>Estimativa total: <span id="mqTotal">—</span></b></div>'
+    +'<div style="margin-top:10px;font-size:15px;display:flex;align-items:center;gap:14px"><b>Estimativa total: <span id="mqTotal">—</span></b> <button class="btn navy" onclick="vfExportMQ()">Exportar Excel</button></div>'
     +'<div id="mqDrill" style="margin-top:12px"></div>';
   vfMQTotal();
+}
+/* Exporta o resultado do Preço MQ (inclui os €/un editados à mão) — uma linha por artigo,
+   com folha e linha de origem para permitir cruzar com o orçamento existente. */
+function vfExportMQ(){
+  const results=window.__mqResults||[];
+  if(!results.length){ alertx("Corre primeiro o Orçamentar."); return; }
+  const r2=v=>(v==null||!isFinite(v))?"":Math.round(v*100)/100;
+  const head=[["SOLIVE — PREÇO MQ PELO CUSTO REAL"],
+    ["Ficheiro: "+(window.__mqFileName||"")+"   ·   Base de custo: "+(window.__mqScope||"")+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
+    [],
+    ["Folha","Linha","Item","Designação","Un","Quant.","Origem","€/un recomendado","€/un (final)","Total","Apoio (n)","Mín","Máx","Confiança","Capítulo canónico","Melhor correspondência","Contrato","Score"]];
+  let tot=0;
+  const rows=results.map((x,i)=>{
+    const m=x.m||{}, l=x.l||{};
+    const el=document.getElementById('mqp_'+i); const v=el?parseFloat(el.value):NaN;
+    const fin=isFinite(v)?v:null; const lt=fin!=null?fin*(l.quantidade||0):null; if(lt!=null) tot+=lt;
+    const c0=(m.cands&&m.cands[0])||{};
+    return [l.__sheet||l.cap||"", (l.pos!=null?l.pos+1:""), l.art||"", l.designacao||"", l.unidade||"", l.quantidade,
+      m.kind||"—", r2(m.rec), r2(fin), r2(lt), m.n||"", r2(m.min), r2(m.max), m.conf||"sem",
+      l.__canon||"", c0.desc||"", c0.contrato||"", c0.score!=null?Math.round(c0.score*100)/100:""];
+  });
+  const aoa=head.concat(rows,[[],["","","","TOTAL","","","","","",r2(tot)]]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:22},{wch:6},{wch:8},{wch:60},{wch:6},{wch:10},{wch:14},{wch:12},{wch:12},{wch:14},{wch:8},{wch:10},{wch:10},{wch:10},{wch:26},{wch:50},{wch:24},{wch:7}];
+  ws['!autofilter']={ref:"A4:R"+(4+rows.length)};
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Preço MQ");
+  const base=(window.__mqFileName||"MQ").replace(/\.xlsx?$/i,"");
+  XLSX.writeFile(wb,("PrecoMQ_"+base+"_"+new Date().toISOString().slice(0,10)).replace(/[^\w\-]+/g,"_")+".xlsx");
+  toast("Exportado: "+rows.length+" artigos.");
 }
 function vfMQTotal(){
   const results=window.__mqResults||[]; let tot=0;
