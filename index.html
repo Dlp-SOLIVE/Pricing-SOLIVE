@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
   --red:#E62336; --navy:#143A67; --teal:#298893; --grey:#C4C4C4;
@@ -190,6 +190,110 @@ tr.resolved td textarea{text-decoration:line-through}
 .glossbox dt{font-weight:700;color:var(--navy,#143A67);margin-top:8px}
 .glossbox dd{margin:0 0 3px}
 .glossbox b{color:var(--navy,#143A67)}
+
+/* ═══════════ SOLIVE DS · reorganização UX (fases 1–4) ═══════════ */
+:root{--red:#EF2A42;--navy:#201C1D;--teal:#1F8A5B;--grey:#C9C2BF;--ink:#201C1D;--bg:#F2EFED;--card:#fff;--line:#E6E1DF;--warn:#B9760A;--ok:#1F8A5B;--err:#C81F35;--info:#79726F;--coral-700:#C81F35;--coral-100:#FBE1E5;--ink-500:#79726F;--ink-300:#C9C2BF;--sb-w:248px}
+body{font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased;padding-left:var(--sb-w);font-size:14px}
+h1,h2,h3,.btn,nav button,.kpi .v,.purpose h1{font-family:'Plus Jakarta Sans','Inter',sans-serif}
+table{font-variant-numeric:tabular-nums}
+header{position:fixed;left:0;top:0;bottom:0;width:var(--sb-w);height:auto;flex-direction:column;align-items:stretch;gap:6px;padding:20px 14px 16px;background:#fff;color:var(--ink);border-right:1px solid var(--line);overflow-y:auto;z-index:60}
+header .brand{font-size:20px;letter-spacing:-.01em;padding:0 10px}
+header .sub{border-left:none;padding:0 10px;opacity:1;color:var(--ink-500);font-size:13px;font-weight:400;margin-top:-4px}
+header .badge{align-self:flex-start;margin:6px 10px 8px;background:var(--bg);color:var(--ink-500)}
+header .badge.on{background:#E1F3EA;color:#1F8A5B}
+nav{margin:0;flex-direction:column;gap:2px;flex:1}
+nav button{color:var(--ink);opacity:1;text-align:left;padding:9px 12px;border-radius:8px;font-weight:500;font-size:14px;display:flex;align-items:center;gap:10px}
+nav button:hover{background:var(--bg);opacity:1}
+nav button.on{background:var(--coral-100);color:var(--coral-700);font-weight:600}
+nav .navgrp{font-size:12px;font-weight:600;color:var(--ink-500);padding:14px 12px 4px}
+nav .navsep{flex:1;min-height:12px}
+nav #btnLogout,nav #nav-admin,nav #nav-ajuda{color:var(--ink-500)}
+#ctxbar{background:rgba(255,255,255,.96);color:var(--ink);top:0;height:auto;min-height:56px;padding:8px 28px;border-bottom:1px solid var(--line);backdrop-filter:blur(8px);flex-wrap:wrap}
+#ctxbar .lbl{color:var(--ink-500);font-size:12px;letter-spacing:0;text-transform:none;font-weight:600}
+#ctxbar input{background:#fff;border:1px solid var(--grey);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:600}
+#ctxbar input::placeholder{color:var(--ink-500)}
+#ctxbar input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px var(--coral-100)}
+#ctxbar #ctxSeta{color:var(--ink-500)!important}
+#ctxbar .desc{color:var(--ink-500);font-size:13px}
+#ctxbar .desc b{color:var(--ink);font-family:'Inter',sans-serif}
+#ctxbar .desc span.miss{color:var(--warn)}
+#ctxbar .btnctx{background:#fff;border:1px solid var(--grey);color:var(--ink);border-radius:999px;padding:7px 14px;font-weight:600}
+#ctxbar .newtag{background:var(--coral-100);color:var(--coral-700)}
+main{max-width:1320px}
+.flowbar{display:none!important}
+.purpose{background:none;border:none;border-radius:0;padding:4px 0 0;margin-bottom:20px}
+.purpose .eyebrow{font-size:12px;letter-spacing:.06em;color:var(--coral-700);font-weight:600}
+.purpose h1{font-size:26px;color:var(--ink);letter-spacing:-.02em;margin-bottom:4px}
+.purpose p,.purpose .io{display:none!important}
+.purpose.open p{display:block!important;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:10px;color:var(--ink-500);font-size:14px;line-height:1.55}
+.purpose.open .io{display:flex!important;margin-top:8px}
+.purpose .toggle{position:static!important;float:right;margin:4px 0 8px 16px;border:1px solid var(--grey);border-radius:999px;background:#fff;color:var(--ink);font-weight:600;font-size:13px;padding:7px 14px}
+.purpose .toggle:hover{background:var(--bg);color:var(--ink)}
+.io .in,.io .out,.io .step{background:var(--bg);color:var(--ink)}
+.card{border-color:var(--line);border-radius:16px}
+.card h2{color:var(--ink);font-size:17px}
+[id^="view-"] h2[style*="143A67"]{color:var(--ink)!important;font-size:24px!important;letter-spacing:-.02em}
+.step .n{background:var(--ink)}
+.note{background:var(--bg);border-left:none;border-radius:10px;color:var(--ink)}
+.note.red{background:var(--coral-100);color:var(--coral-700)}
+.btn{border-radius:999px;font-weight:600;padding:9px 18px;transition:background .12s,transform .12s}
+.btn:hover:not(:disabled){transform:translateY(-1px)}
+.btn.red{background:var(--red)}.btn.red:hover{background:#C81F35}
+.btn.navy{background:var(--ink)}.btn.navy:hover{background:#453F3E}
+.btn.teal{background:#1F8A5B}
+.btn.ghost{border-color:var(--grey);color:var(--ink)}.btn.ghost:hover{border-color:var(--ink);background:var(--bg)}
+.subtabs button.on{border-bottom-color:var(--red)!important}
+input,select,textarea{font-family:'Inter',sans-serif}
+.drop.over,.drop:hover{border-color:var(--ink);background:#fff}
+.drop b{color:var(--ink)}
+.e-racio,.cb-racio{background:#C81F35}
+.e-consulta,.cb-consulta{background:#B9760A}
+.e-antiga,.cb-antiga{background:#C9C2BF}
+.e-firme,.cb-firme{background:#7CC4A0}
+.e-compromisso,.e-adjudicado,.cb-compromisso,.cb-adjudicado{background:#1F8A5B}
+#ajudaFab{display:none!important}
+body header nav > button[id^="nav-"]{display:flex!important}
+#vfsubnav,#vfgroupbar{display:none!important}
+[data-uxhide]{display:none!important}
+/* Revisão do MQ — resultados em separadores */
+.uxtabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin:4px 0 18px;padding:0 4px;position:sticky;top:56px;background:var(--bg);z-index:5}
+.uxtabs button{background:none;border:none;padding:12px 2px;margin-bottom:-1px;font:600 15px 'Plus Jakarta Sans',sans-serif;color:var(--ink-500);border-bottom:2px solid transparent;cursor:pointer}
+.uxtabs button.on{color:var(--ink);border-bottom-color:var(--red)}
+.uxtabs button[hidden]{display:none}
+.uxlink{background:none!important;border:none!important;color:var(--coral-700)!important;padding:9px 6px!important;font-weight:600}
+.uxlink:hover{text-decoration:underline;transform:none!important}
+details.uxadv{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+details.uxadv>summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--ink);list-style:none;display:flex;align-items:center;gap:8px}
+details.uxadv>summary::-webkit-details-marker{display:none}
+details.uxadv>summary:before{content:'+';display:inline-flex;width:20px;height:20px;border-radius:999px;border:1px solid var(--grey);align-items:center;justify-content:center;font-size:13px}
+details.uxadv[open]>summary:before{content:'−'}
+details.uxadv .grid{margin-top:12px}
+/* Administração */
+#view-admin #lib-pane-gerir,#view-admin #lib-pane-ver{display:block!important}
+/* Resumo do projeto */
+.rs-stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.rs-st{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:border-color .12s}
+.rs-st:hover{border-color:var(--ink)}
+.rs-st .t{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.rs-st .v{font:700 22px 'Plus Jakarta Sans',sans-serif;letter-spacing:-.01em}
+.rs-st .s{font-size:13px;color:var(--ink-500);line-height:1.45}
+.rs-b{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.rs-ok{background:#E1F3EA;color:#1F8A5B}.rs-warn{background:#FBEDD7;color:#B9760A}.rs-info{background:#E6EEF7;color:#2C68A8}.rs-none{background:var(--bg);color:var(--ink-500)}.rs-err{background:var(--coral-100);color:var(--coral-700)}
+.rs-bar{display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--bg)}
+.rs-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px}
+.rs-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 22px}
+.rs-card h3{font-size:17px;margin-bottom:8px}
+.rs-act{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.rs-act:last-child{border-bottom:none}
+.rs-ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.rs-act .tx{flex:1;display:flex;flex-direction:column}
+.rs-act .tx b{font-size:14px}
+.rs-act .tx span{font-size:13px;color:var(--ink-500)}
+.rs-act a{font-size:13px;font-weight:600;color:var(--coral-700);cursor:pointer;white-space:nowrap}
+.rs-kv{display:flex;justify-content:space-between;font-size:14px;padding:6px 0}
+.rs-kv span:first-child{color:var(--ink-500)}
+@media(max-width:1100px){.rs-stages{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-grid{grid-template-columns:1fr}}
+@media(max-width:900px){body{padding-left:0}header{position:static;width:auto;flex-direction:column}nav{flex-direction:row;flex-wrap:wrap}nav .navgrp,nav .navsep{display:none}#ctxbar{position:static}}
 </style>
 </head>
 <body>
@@ -801,14 +905,14 @@ tr.resolved td textarea{text-decoration:line-through}
 
   <button class="btn ghost" style="margin:2px 0 8px" onclick="toggleGloss()">? O que significam estes termos?</button>
   <div id="glossBox" class="glossbox hidden">
-    <h4>Guia rapido &mdash; grandezas e referencias</h4>
+    <h4>Guia rápido &mdash; grandezas e referências</h4>
     <dl>
-      <dt>Precos unitarios (orcamento)</dt><dd>Mediana historica do preco por familia de artigo, reunida de varios projetos e autos. Serve para <b>estimar</b> quando ainda nao ha custo real.</dd>
-      <dt>Custo real (L&rsquo;Urbain)</dt><dd>O custo <b>efetivamente pago</b> pela construtora neste projeto &mdash; de subempreitadas e fornecimentos. E <b>custo</b>, nao preco de venda.</dd>
-      <dt>Aplicar a MQ</dt><dd>Pegar num mapa de quantidades novo e atribuir-lhe precos (orcamento ou custo real) para obter uma estimativa.</dd>
-      <dt>Ambito: F&amp;A / mao de obra / fornecimento</dt><dd><b>F&amp;A</b> = fornecimento e aplicacao (custo instalado completo). <b>Mao de obra</b> = so aplicacao (material comprado a parte). <b>Fornecimento</b> = so material.</dd>
-      <dt>Composto</dt><dd>Custo instalado montado a partir de componentes: <b>mao de obra + material</b> (ex.: assentamento + ceramica).</dd>
-      <dt>Mediana &middot; P10&ndash;P90 &middot; dispersao</dt><dd>Estatistica dos precos: a <b>mediana</b> e o valor central; <b>P10&ndash;P90</b> a banda habitual; a <b>dispersao</b> indica quao variavel e o preco.</dd>
+      <dt>Preços unitários (orçamento)</dt><dd>Mediana histórica do preço por família de artigo, reunida de vários projetos e autos. Serve para <b>estimar</b> quando ainda não há custo real.</dd>
+      <dt>Custo real (L&rsquo;Urbain)</dt><dd>O custo <b>efetivamente pago</b> pela construtora neste projeto &mdash; de subempreitadas e fornecimentos. É <b>custo</b>, não preço de venda.</dd>
+      <dt>Aplicar a MQ</dt><dd>Pegar num mapa de quantidades novo e atribuir-lhe preços (orçamento ou custo real) para obter uma estimativa.</dd>
+      <dt>Âmbito: F&amp;A / mão de obra / fornecimento</dt><dd><b>F&amp;A</b> = fornecimento e aplicação (custo instalado completo). <b>Mao de obra</b> = só aplicação (material comprado a parte). <b>Fornecimento</b> = só material.</dd>
+      <dt>Composto</dt><dd>Custo instalado montado a partir de componentes: <b>mão de obra + material</b> (ex.: assentamento + ceramica).</dd>
+      <dt>Mediana &middot; P10&ndash;P90 &middot; dispersão</dt><dd>Estatística dos preços: a <b>mediana</b> é o valor central; <b>P10&ndash;P90</b> a banda habitual; a <b>dispersão</b> indica quão variável é o preço.</dd>
     </dl>
   </div>
   <div class="subtabs">
@@ -1017,10 +1121,13 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['analisador','estimador','orcamento','consultas','verificar','racios','precomq','comparar','biblioteca','execucao'].forEach(x=>{
-    document.getElementById('view-'+x).classList.toggle('hidden', v!==x);
-    document.getElementById('nav-'+x).classList.toggle('on', v===x);
+  ['resumo','analisador','estimador','orcamento','consultas','verificar','racios','precomq','comparar','biblioteca','execucao','admin'].forEach(x=>{
+    const ve=document.getElementById('view-'+x); if(ve) ve.classList.toggle('hidden', v!==x);
+    const nb=document.getElementById('nav-'+x); if(nb) nb.classList.toggle('on', v===x);
   });
+  try{ window.scrollTo(0,0); }catch(e){}
+  if(v==='resumo'){ try{ uxRenderResumo(); }catch(e){ console.warn(e); } }
+  if(v==='admin'){ try{ refreshLib(); }catch(e){} }
   if(v==='biblioteca'){ refreshLib(); try{ renderTaxonomia(); }catch(e){} }
   if(v==='consultas') refreshConsultas();
   if(v==='comparar') renderComparar();
@@ -2537,7 +2644,7 @@ async function saveReal(){
 function foFaseChange(){
   const ehReal=((document.querySelector('input[name=foFase]:checked')||{}).value||'Real')==='Real';
   const btn=document.getElementById('foDropBtn'), hint=document.getElementById('foDropHint');
-  if(btn) btn.textContent=ehReal?"📄 Escolher auto / conta final (.xlsx)":"📄 Escolher orçamento de obra (.xlsx)";
+  if(btn) btn.textContent=ehReal?"Escolher auto / conta final (.xlsx)":"Escolher orçamento de obra (.xlsx)";
   if(hint) hint.innerHTML=ehReal?"ou arrasta o <b>auto de medição</b> / conta final":"ou arrasta o <b>orçamento de obra</b> (mapa com preços)";
 }
 async function renderDesvios(proj,linhas){
@@ -7251,7 +7358,7 @@ async function vfDvRenderLegendre(){
     +'<tr style="font-weight:700;border-top:2px solid #143A67"><td>DESVIO FIÁVEL (categorias com auto e rubrica)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
     +semBody
     +'</table>'
-    +'<div style="margin-top:12px"><button class="btn" onclick="vfLegSubToggle()">⚙️ Afinar categorias por subcontrato</button>'
+    +'<div style="margin-top:12px"><button class="btn" onclick="vfLegSubToggle()">Afinar categorias por subcontrato</button>'
       +(nOver>0?' <span class="note" style="color:#1c7c46">'+nOver+' linha(s) já afinadas por subcontrato</span>':'')
     +'</div><div id="dvSubPanel" data-open="0" style="margin-top:10px"></div>';
 }
@@ -7294,7 +7401,7 @@ async function vfLegSubSave(){ const out=document.getElementById('legSubOut'); c
   const rb=document.createElement('div'); rb.id='vfBoardCard'; rb.className='card'; rb.style.marginTop='14px';
   rb.innerHTML='<h2 style="color:#143A67">Relatório resumo</h2>'
    +'<div class="note">Um resumo de <b>uma página (PDF)</b> com os dados mais relevantes: custo real por projeto, rácios €/m² e €/fogo, rigor dos orçamentos (desvios) e a estrutura de custo. Gerado a partir dos dados atuais.</div>'
-   +'<button class="btn navy" style="margin-top:8px" onclick="vfBoardReport()">📄 Gerar relatório (PDF)</button> <span id="rbOut" class="note"></span>';
+   +'<button class="btn navy" style="margin-top:8px" onclick="vfBoardReport()">Gerar relatório (PDF)</button> <span id="rbOut" class="note"></span>';
   host.appendChild(rb);
   const div=document.createElement('div'); div.id='vfDvCard'; div.className='card'; div.style.marginTop='14px';
   div.innerHTML='<h2 style="color:#143A67">Desvios — Orçamento transferido vs Real</h2>'
@@ -7521,5 +7628,199 @@ function fecharAjuda(){ const o=document.getElementById('ajudaOverlay'); if(o) o
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharAjuda(); });
 </script>
 
+
+<script>
+/* ═══════════ SOLIVE · reorganização UX ═══════════ */
+function uxEl(tag,attrs,html){const e=document.createElement(tag);Object.entries(attrs||{}).forEach(([k,v])=>e.setAttribute(k,v));if(html!=null)e.innerHTML=html;return e;}
+function uxFmtEur(n){return (Math.round(n||0)).toLocaleString('pt-PT')+' €';}
+function uxFmtM(n){return ((n||0)/1e6).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' M€';}
+function uxPurpose(eyebrow,title,text){return '<div class="purpose" data-ux><button class="toggle" onclick="foldPurpose(this)">Como funciona</button><div class="eyebrow">'+eyebrow+'</div><h1>'+title+'</h1><p>'+text+'</p></div>';}
+/* «Como funciona» em vez de esconder/mostrar */
+function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classList.toggle('open');btn.textContent=on?'Fechar':'Como funciona';}
+
+(function uxMount(){
+  const nav=document.querySelector('header nav'); if(!nav) return;
+  // novos ecrãs
+  const main=document.querySelector('main');
+  if(main && !document.getElementById('view-resumo')){
+    const vr=uxEl('div',{id:'view-resumo',class:'hidden'}, uxPurpose('Projeto ativo','Resumo do projeto','Em que ponto está o projeto ativo em cada fase do ciclo e o que falta fazer. Os números vêm do que já foi gravado: análises do MQ, orçamento em curso, consultas e adjudicações.')+'<div id="rsBody"></div>');
+    main.insertBefore(vr, main.firstChild);
+    const va=uxEl('div',{id:'view-admin',class:'hidden'}, uxPurpose('Administração','Projetos, versões e fases','Eliminar projetos e consultar as versões gravadas do orçamento. Separado da Biblioteca para evitar ações irreversíveis por engano.'));
+    main.appendChild(va);
+    ['lib-pane-gerir','lib-pane-ver'].forEach(id=>{const p=document.getElementById(id); if(p) va.appendChild(p);});
+    ['lib-tab-gerir','lib-tab-ver'].forEach(id=>{const b=document.getElementById(id); if(b) b.setAttribute('data-uxhide','');});
+  }
+  // barra lateral agrupada pelo ciclo
+  const B=id=>document.getElementById(id);
+  const mk=(id,v,label)=>{let b=B(id); if(!b){b=uxEl('button',{id:id}); b.onclick=()=>showView(v);} b.textContent=label; return b;};
+  const grp=t=>uxEl('div',{class:'navgrp'},t);
+  const items=[
+    mk('nav-resumo','resumo','Resumo do projeto'),
+    grp('1 · Estimar'), mk('nav-estimador','estimador','Estimativa para o BP'),
+    grp('2 · Rever projeto'), mk('nav-analisador','analisador','Revisão do MQ'),
+    grp('3 · Orçamentar'), mk('nav-orcamento','orcamento','Orçamento'), mk('nav-consultas','consultas','Consultas ao mercado'), mk('nav-precomq','precomq','Orçamentar MQ'),
+    grp('4 · Executar'), mk('nav-execucao','execucao','Adjudicações e desvios'), mk('nav-verificar','verificar','Autos de medição'),
+    grp('Conhecimento'), mk('nav-comparar','comparar','Benchmark'), mk('nav-racios','racios','Rácios de custo real'), mk('nav-biblioteca','biblioteca','Biblioteca'),
+    uxEl('div',{class:'navsep'}),
+    mk('nav-admin','admin','Administração')
+  ];
+  const aj=uxEl('button',{id:'nav-ajuda'}); aj.textContent='Ajuda'; aj.onclick=()=>{try{abrirAjuda()}catch(e){}};
+  items.push(aj);
+  const out=B('btnLogout');
+  nav.innerHTML=''; items.forEach(i=>nav.appendChild(i)); if(out) nav.appendChild(out);
+  // eyebrows por fase
+  const EB={estimador:'1 · Estimar',analisador:'2 · Rever projeto',orcamento:'3 · Orçamentar',consultas:'3 · Orçamentar',execucao:'4 · Executar',comparar:'Conhecimento',biblioteca:'Conhecimento'};
+  Object.entries(EB).forEach(([v,t])=>{const e=document.querySelector('#view-'+v+' .purpose .eyebrow'); if(e) e.textContent=t;});
+  document.querySelectorAll('.purpose .toggle').forEach(b=>{b.textContent='Como funciona';});
+  document.querySelectorAll('.purpose').forEach(p=>p.classList.remove('folded'));
+  // Desvios → Executar; Relatório para o topo do Benchmark
+  const dv=B('vfDvCard'), ex=B('view-execucao'); if(dv&&ex) ex.appendChild(dv);
+  const rb=B('vfBoardCard'), cp=B('view-comparar'); if(rb&&cp){const pu=cp.querySelector('.purpose'); if(pu&&pu.nextSibling) cp.insertBefore(rb,pu.nextSibling); else cp.insertBefore(rb,cp.firstChild);}
+  // botões: uma ação principal, restantes secundárias; sem .json
+  document.querySelectorAll('button').forEach(b=>{
+    const t=(b.textContent||'').trim();
+    if(/\(\.json\)/.test(t)) b.setAttribute('data-uxhide','');
+    if(t==='Mapear colunas manualmente'||t==='Analisar pricing sheet completo'){b.classList.remove('navy','red','teal');b.classList.add('uxlink');}
+    if(t==='Analisar mapa de quantidades') t && (b.textContent='Analisar ficheiro');
+    if(t==='Gravar na biblioteca') b.textContent='Gravar análise';
+  });
+  // Estimador: opções avançadas recolhidas
+  const eb=[...document.querySelectorAll('#view-estimador button')].find(b=>(b.getAttribute('onclick')||'').indexOf('runEstimador')===0);
+  if(eb){
+    const grid=eb.closest('.grid'); const card=grid&&grid.closest('.card');
+    if(grid&&card&&!card.querySelector('details.uxadv')){
+      const det=uxEl('details',{class:'uxadv'},'<summary>Opções avançadas <span style="font-weight:400;color:var(--ink-500)">— base de cálculo, fonte dos rácios, inflação, calibração, soft costs</span></summary>');
+      const g2=uxEl('div',{class:'grid g6'});
+      [...grid.children].forEach(ch=>{ if(!ch.contains(eb)) g2.appendChild(ch); });
+      det.appendChild(g2);
+      const assum=card.querySelector('.assum'); if(assum) det.appendChild(assum);
+      grid.style.gridTemplateColumns='repeat(6,minmax(0,1fr))';
+      card.appendChild(det);
+      const h2=card.querySelector('.step h2'); if(h2) h2.textContent='Calcular';
+      const hint=uxEl('div',{class:'hint'},'Os valores por omissão são os recomendados. Abre as opções avançadas só se precisares de outro método.');
+      grid.parentNode.insertBefore(hint,grid);
+    }
+  }
+  // Revisão do MQ: resultados em separadores
+  uxMountTabs();
+  // começar no Resumo
+  try{ showView('resumo'); }catch(e){}
+})();
+
+function uxMountTabs(){
+  const res=document.getElementById('results'); if(!res||res.querySelector('.uxtabs')) return;
+  const cards=[...res.children].filter(c=>c.classList&&c.classList.contains('card'));
+  if(cards.length<3) return;
+  const pick=re=>cards.find(c=>re.test((c.querySelector('h2')||{}).textContent||''));
+  const T=[['Alertas',pick(/Alertas/)],['Custos',pick(/Custos por cap/)],['Quantidades',pick(/Quantidades f/)],['Rácios',pick(/rácio vs/i)],['Alterações',pick(/Track changes/)]].filter(x=>x[1]);
+  const bar=uxEl('div',{class:'uxtabs'});
+  T.forEach(([lbl,card],i)=>{
+    const b=uxEl('button',{},lbl); b.onclick=()=>uxTab(i);
+    bar.appendChild(b);
+    const h2=card.querySelector('h2'); if(h2 && /Track changes/.test(h2.textContent)) h2.firstChild && (h2.firstChild.nodeType===3) && (h2.firstChild.textContent=h2.firstChild.textContent.replace('Track changes vs. revisão anterior','Alterações face à revisão anterior'));
+  });
+  cards[0].after(bar);
+  window.__uxTabs=T; window.__uxTabBar=bar; window.__uxTabCur=0;
+  uxTab(0);
+  new MutationObserver(()=>uxTabSync()).observe(res,{attributes:true,subtree:true,attributeFilter:['class']});
+}
+function uxTabSync(){
+  const T=window.__uxTabs, bar=window.__uxTabBar; if(!T||!bar) return;
+  T.forEach(([l,c],i)=>{ const b=bar.children[i]; const off=c.classList.contains('hidden'); if(b) b.hidden=off; });
+  if(T[window.__uxTabCur] && T[window.__uxTabCur][1].classList.contains('hidden')) uxTab(0);
+}
+function uxTab(i){
+  const T=window.__uxTabs, bar=window.__uxTabBar; if(!T) return;
+  window.__uxTabCur=i;
+  T.forEach(([l,c],k)=>{ if(k===i) c.removeAttribute('data-uxhide'); else c.setAttribute('data-uxhide',''); if(bar.children[k]) bar.children[k].classList.toggle('on',k===i); });
+  uxTabSync();
+}
+
+/* contexto único: seletores de projeto seguem o projeto ativo */
+(function(){
+  const _sv=window.showView||showView;
+  window.showView=function(v){
+    _sv(v);
+    const map={execucao:['gxProj','dvProj'],racios:['rxProj'],precomq:['mqProj'],consultas:['mcProj']};
+    (map[v]||[]).forEach(id=>{
+      const el=document.getElementById(id); if(!el||typeof CTX==='undefined'||!CTX.nome) return;
+      if(id==='dvProj'){ try{ vfDvFillProjects(); }catch(e){} }
+      setTimeout(()=>{
+        if(el.tagName==='SELECT'){ const o=[...el.options].find(x=>norm(x.text)===norm(CTX.nome)||norm(x.value)===norm(CTX.nome)); if(o&&el.value!==o.value){ el.value=o.value; el.dispatchEvent(new Event('change',{bubbles:true})); } }
+        else if(el.value!==CTX.nome){ el.value=CTX.nome; el.dispatchEvent(new Event('change',{bubbles:true})); el.dispatchEvent(new Event('input',{bubbles:true})); }
+      },120);
+    });
+  };
+})();
+
+/* Resumo do projeto */
+async function uxRenderResumo(){
+  const box=document.getElementById('rsBody'); if(!box) return;
+  const nome=(typeof CTX!=='undefined'&&CTX.nome)||'';
+  const h1=document.querySelector('#view-resumo .purpose h1'); if(h1) h1.textContent=nome?('Resumo do projeto · '+nome):'Resumo do projeto';
+  if(!nome){ box.innerHTML='<div class="rs-card"><h3>Escolhe o projeto ativo</h3><div class="hint">Escreve ou escolhe um projeto em «Projeto ativo», na barra de topo. Para um projeto novo, escreve o nome e preenche os descritores.</div></div>'; return; }
+  box.innerHTML='<div class="hint">A carregar…</div>';
+  const online=(typeof SESSION!=='undefined'&&SESSION&&typeof sb!=='undefined'&&sb);
+  const D=CTX.D||{};
+  const faltam=[['abc','ABC'],['fogos','nº de fogos'],['implantacao','área de implantação'],['pisosA','pisos acima do solo']].filter(([k])=>!(D[k]>0)).map(x=>x[1]);
+  let an=null, orc=null, cons=[], adj=[], ver=null;
+  if(online){
+    const proj=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(p=>norm(p.nome)===norm(nome));
+    try{ if(proj){ const r=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('id',{ascending:false}).limit(1); an=(r.data&&r.data[0])||null; } }catch(e){}
+    try{ const r=await sb.from('orcamentos').select('*').eq('projeto_nome',nome).maybeSingle(); orc=r.data||null; }catch(e){}
+    try{ if(!CONSULTAS||!CONSULTAS.length) await loadConsultas(); cons=(CONSULTAS||[]).filter(c=>norm(c.projeto)===norm(nome)); }catch(e){}
+    try{ const r=await sb.from('adjudicacoes').select('*').eq('projeto',nome); adj=r.data||[]; }catch(e){}
+    try{ const r=await sb.from('orcamento_versoes').select('*').eq('projeto_nome',nome).order('versao',{ascending:false}).limit(1); ver=(r.data&&r.data[0])||null; }catch(e){}
+  }
+  // orçamento
+  const linhas=(orc&&orc.linhas)||[];
+  const EST={}; (typeof ORC_ESTADOS!=='undefined'?ORC_ESTADOS:[]).forEach(e=>EST[e.k]=e);
+  const mig=e=>{try{return migrarEstado(e)}catch(x){return e}};
+  const total=linhas.reduce((s,r)=>s+(+r.valor||0),0);
+  const porEst={}; linhas.forEach(r=>{const k=mig(r.estado)||'racio'; porEst[k]=(porEst[k]||0)+(+r.valor||0);});
+  const solido=linhas.filter(r=>EST[mig(r.estado)]&&EST[mig(r.estado)].solido).reduce((s,r)=>s+(+r.valor||0),0);
+  const pctSol=total?Math.round(solido/total*100):0;
+  const racioLin=linhas.filter(r=>mig(r.estado)==='racio');
+  const racioVal=racioLin.reduce((s,r)=>s+(+r.valor||0),0);
+  const cores={racio:'#C81F35',consulta:'#B9760A',antiga:'#C9C2BF',firme:'#7CC4A0',compromisso:'#1F8A5B',adjudicado:'#1F8A5B'};
+  const bar=total?'<div class="rs-bar">'+Object.keys(cores).filter(k=>porEst[k]).map(k=>'<span style="width:'+(porEst[k]/total*100)+'%;background:'+cores[k]+'"></span>').join('')+'</div>':'';
+  // análise
+  const al=(an&&an.payload&&an.payload.alertas)||[];
+  const nErr=al.filter(a=>/err/i.test(a.sev)).length, nAv=al.filter(a=>/av|warn/i.test(a.sev)).length;
+  // consultas
+  const ec=c=>{try{return estadoConsulta(c).k}catch(e){return ''}};
+  const cAtr=cons.filter(c=>ec(c)==='atraso'), cAg=cons.filter(c=>ec(c)==='aguarda'), cRec=cons.filter(c=>ec(c)==='recebida');
+  // execução
+  const adjTot=adj.reduce((s,a)=>s+(+a.adjudicado||0),0);
+  const dt=d=>d?new Date(d).toLocaleDateString('pt-PT'):'';
+  const st=(v,n,badge,cls,val,sub)=>'<div class="rs-st" onclick="showView(\''+v+'\')"><div class="t"><span>'+n+'</span><span class="rs-b '+cls+'">'+badge+'</span></div><div class="v">'+val+'</div>'+(sub||'')+'</div>';
+  let html='<div class="rs-stages">';
+  html+=st('estimador','1 · Estimar', faltam.length?'Descritores':'Pronto', faltam.length?'rs-warn':'rs-ok', D.abc>0?(Math.round(D.abc).toLocaleString('pt-PT')+' m² ABC'):'Sem ABC', '<div class="s">'+(D.fogos>0?D.fogos+' fogos · ':'')+(faltam.length?'Falta: '+faltam.join(', '):'Descritores completos')+'</div>');
+  html+=st('analisador','2 · Rever projeto', an?(nErr+nAv?'A rever':'Sem alertas'):'Por fazer', an?(nErr+nAv?'rs-warn':'rs-ok'):'rs-none', an?esc(an.ficheiro||an.nome||'MQ analisado'):'—', '<div class="s">'+(an?(al.length+' alertas · '+nErr+' erros · '+nAv+' avisos'):'Ainda sem análise do MQ gravada')+'</div>');
+  html+=st('orcamento','3 · Orçamentar', total?(pctSol>=90?'Consolidado':'Em curso'):'Por iniciar', total?(pctSol>=90?'rs-ok':'rs-info'):'rs-none', total?(pctSol+'% consolidado'):'—', total?(bar+'<div class="s">'+uxFmtM(total)+(D.abc>0?' · '+Math.round(total/D.abc).toLocaleString('pt-PT')+' €/m²':'')+'</div>'):'<div class="s">Sem orçamento em curso gravado</div>');
+  html+=st('execucao','4 · Executar', adj.length?'Em curso':'Por iniciar', adj.length?'rs-info':'rs-none', adj.length?uxFmtM(adjTot):'—', '<div class="s">'+(adj.length?adj.length+' pacote(s) adjudicado(s)':'Começa depois da transferência para a Produção')+'</div>');
+  html+='</div>';
+  // próximas ações
+  const acts=[];
+  if(cAtr.length) acts.push(['!','#FBE1E5','#C81F35',cAtr.length+' consulta(s) sem resposta fora do prazo',[...new Set(cAtr.map(c=>c.cap))].slice(0,4).join(' · '),'consultas','Abrir consultas']);
+  if(an&&(nErr+nAv)) acts.push(['!','#FBEDD7','#B9760A',(nErr+nAv)+' alertas na última análise do MQ',nErr+' erros · '+nAv+' avisos · '+esc(an.ficheiro||''),'analisador','Rever MQ']);
+  if(racioLin.length) acts.push(['€','#F2EFED','#201C1D',racioLin.length+' capítulo(s) ainda estimados por rácio',uxFmtEur(racioVal)+(total?' · '+Math.round(racioVal/total*100)+'% do orçamento':''),'consultas','Abrir consulta']);
+  if(cAg.length) acts.push(['…','#F2EFED','#201C1D',cAg.length+' consulta(s) a aguardar resposta','Dentro do prazo','consultas','Ver']);
+  if(faltam.length) acts.push(['m²','#F2EFED','#201C1D','Descritores em falta: '+faltam.join(', '),'Sem eles, alguns rácios usam m² de ABC como aproximação',null,'Completar']);
+  if(!total) acts.push(['+','#F2EFED','#201C1D','Arrancar o orçamento','A partir da estimativa por rácios ou de um resumo em Excel','orcamento','Abrir orçamento']);
+  const actHtml=acts.length?acts.map(a=>'<div class="rs-act"><span class="rs-ic" style="background:'+a[1]+';color:'+a[2]+'">'+a[0]+'</span><div class="tx"><b>'+a[3]+'</b><span>'+a[4]+'</span></div><a onclick="'+(a[5]?'showView(\''+a[5]+'\')':'abrirDescritores()')+'">'+a[6]+'</a></div>').join(''):'<div class="hint">Nada pendente neste momento.</div>';
+  // orçamento face ao BP
+  const bp=+(document.getElementById('estBudget')||{}).value||0;
+  let right='<div class="rs-card"><h3>Orçamento</h3>';
+  right+='<div class="rs-kv"><span>Orçamento em curso</span><b>'+(total?uxFmtEur(total):'—')+'</b></div>';
+  right+='<div class="rs-kv"><span>Valor consolidado</span><b>'+(total?uxFmtEur(solido)+' ('+pctSol+'%)':'—')+'</b></div>';
+  if(bp) right+='<div class="rs-kv"><span>Budget do BP (hard costs)</span><b>'+uxFmtEur(bp)+'</b></div><div class="rs-kv" style="border-top:1px solid var(--line);margin-top:4px;padding-top:10px"><span style="color:var(--ink);font-weight:600">Folga face ao BP</span><b style="color:'+(bp-total<0?'#C81F35':'#1F8A5B')+'">'+uxFmtEur(bp-total)+'</b></div>';
+  right+='<div class="rs-kv"><span>Consultas</span><b>'+cons.length+' ('+cRec.length+' com proposta)</b></div>';
+  right+='<div class="hint" style="margin-top:8px">'+(ver?('Última versão gravada: rev. '+ver.versao+(ver.criado_em||ver.created_at?' · '+dt(ver.criado_em||ver.created_at):'')):'Sem versões gravadas')+(orc&&orc.atualizado?' · orçamento atualizado a '+dt(orc.atualizado):'')+'</div></div>';
+  html+='<div class="rs-grid"><div class="rs-card"><h3>Próximas ações</h3>'+actHtml+'</div>'+right+'</div>';
+  if(!online) html='<div class="note" style="margin-bottom:14px">Modo local: inicia sessão para ver os dados gravados deste projeto.</div>'+html;
+  box.innerHTML=html;
+}
+</script>
 </body>
 </html>
