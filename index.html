@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/lucide.css">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -17,7 +18,7 @@ header{display:flex}
 header .brand{font-weight:700}
 header .brand span{color:var(--red)}
 header .sub{padding-left:18px}
-.badge{font-size:11px;font-weight:500;padding:4px 10px;border-radius:12px;background:rgba(255,255,255,.15);letter-spacing:.3px}
+.badge{font-size:12px;font-weight:500;padding:4px 10px;border-radius:12px;background:rgba(255,255,255,.15);letter-spacing:.3px}
 .badge.on{background:var(--teal)}
 nav{margin-left:auto;display:flex}
 nav button{background:none;border:none;font:inherit;cursor:pointer}
@@ -25,10 +26,10 @@ nav button.on{opacity:1}
 main{margin:0 auto;padding:26px 28px 80px}
 .card{background:var(--card);border:1px solid var(--line);padding:20px 22px;margin-bottom:18px}
 .card h2{font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
-.card .hint{color:#79726F;font-size:12.5px;margin-bottom:14px}
+.card .hint{color:#79726F;font-size:13px;margin-bottom:14px}
 .grid{display:grid;gap:14px}
 .g6{grid-template-columns:repeat(6,1fr)}
-label{display:block;font-size:11.5px;font-weight:500;color:#79726F;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+label{display:block;font-size:12px;font-weight:500;color:#79726F;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
 input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;background:#fff;color:var(--ink)}
 select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 32px 8px 10px;font:inherit;background:#fff;color:var(--ink)}
 input:focus,select:focus,textarea:focus{outline:2px solid rgba(32,28,29,.35);outline-offset:0}
@@ -38,21 +39,21 @@ input:focus,select:focus,textarea:focus{outline:2px solid rgba(32,28,29,.35);out
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .drop{border:2px dashed var(--grey);border-radius:8px;padding:34px;text-align:center;color:#79726F;cursor:pointer;transition:.15s}
 .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.pill{border:1px solid var(--line);border-radius:12px;padding:5px 13px;font-size:12.5px;background:#fff;cursor:pointer;color:var(--ink)}
+.pill{border:1px solid var(--line);border-radius:12px;padding:5px 13px;font-size:13px;background:#fff;cursor:pointer;color:var(--ink)}
 .pill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:6px 0 4px}
 .kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
 .kpi .v{font-size:24px;font-weight:700;color:var(--navy);font-family:'Roboto Mono',monospace}
-.kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#79726F;margin-top:3px}
+.kpi .l{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#79726F;margin-top:3px}
 .kpi.err .v{color:var(--err)}
 .kpi.warn .v{color:var(--warn)}
 .kpi.ok .v{color:var(--ok)}
-.sevchip{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.3px}
+.sevchip{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.3px}
 .sev-erro{background:#fbe5e8;color:var(--err)}
 .sev-aviso{background:#fdf1df;color:var(--warn)}
 .sev-info{background:#e9eef6;color:var(--info)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:#F2EFED;color:var(--navy);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:2px solid var(--line)}
+th{background:#F2EFED;color:var(--navy);text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:2px solid var(--line)}
 .stickyhead th{position:sticky;top:60px;z-index:2}
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 tr:hover td{background:#f8fafc}
@@ -65,17 +66,17 @@ td.num{text-align:right;font-family:'Roboto Mono',monospace}
 .rb-bad{background:var(--red)}
 .legend{display:flex;gap:16px;font-size:12px;color:#79726F;margin:8px 0 14px;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:8px;margin-right:5px;vertical-align:-1px}
-.fcomment{width:100%;border:1px solid transparent;background:transparent;font:inherit;font-size:12.5px;padding:4px 6px;border-radius:8px;resize:vertical;min-height:28px}
+.fcomment{width:100%;border:1px solid transparent;background:transparent;font:inherit;font-size:13px;padding:4px 6px;border-radius:8px;resize:vertical;min-height:28px}
 .fcomment:hover{border-color:var(--line);background:#fff}
 .fcomment:focus{border-color:var(--navy);background:#fff}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
 .filters>div{min-width:160px}
 .empty{padding:40px;text-align:center;color:#8794a8}
-.tag{font-size:11px;background:#eef1f6;color:var(--navy);border-radius:8px;padding:2px 7px;margin-left:6px;font-weight:500}
+.tag{font-size:12px;background:#eef1f6;color:var(--navy);border-radius:8px;padding:2px 7px;margin-left:6px;font-weight:500}
 .step{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .step .n{width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
 .hidden{display:none !important}
-.note{padding:10px 14px;font-size:12.5px;margin-top:12px}
+.note{padding:10px 14px;font-size:13px;margin-top:12px}
 .note.red{border-left-color:var(--red)}
 /* painel de propósito de cada separador */
 .purpose{border-left:4px solid var(--navy)}
@@ -86,12 +87,12 @@ td.num{text-align:right;font-family:'Roboto Mono',monospace}
 .purpose h1{font-weight:700}
 .purpose p{font-size:13px;color:#48566b;max-width:820px;margin-bottom:10px}
 .purpose .io{display:flex;gap:8px;flex-wrap:wrap}
-.purpose .io span{font-size:11.5px;padding:4px 11px;border-radius:12px;font-weight:500}
+.purpose .io span{font-size:12px;padding:4px 11px;border-radius:12px;font-weight:500}
 .io .in{background:#eef1f6;color:var(--navy)}
 .io .out{background:#eef6f7;color:var(--teal)}
 .io .step{background:#fdf0f1;color:var(--red)}
 .flowbar{align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:8px;padding:11px 16px;margin-bottom:18px;font-size:12px}
-.flowbar b{color:#8794a8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;margin-right:6px}
+.flowbar b{color:#8794a8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:12px;margin-right:6px}
 .flowbar .fstep{padding:4px 10px;border-radius:8px;background:#F2EFED;color:var(--navy);font-weight:500}
 .flowbar .fstep.cur{background:var(--navy);color:#fff}
 .flowbar .arr{color:#c4ccd8}
@@ -115,28 +116,28 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 .modal{background:#fff;border-radius:12px;padding:28px;width:100%;max-width:460px}
 .modal.wide{max-width:1000px;max-height:88vh;overflow:auto}
 .modal h3{color:var(--navy);font-size:17px;margin-bottom:4px}
-.modal .hint{color:#79726F;font-size:12.5px;margin-bottom:16px}
+.modal .hint{color:#79726F;font-size:13px;margin-bottom:16px}
 .preview{overflow:auto;border:1px solid var(--line);border-radius:8px;margin:12px 0;max-height:280px}
-.preview table{font-size:11.5px}
+.preview table{font-size:12px}
 .preview th{position:static;padding:5px 8px}
 .preview td{padding:4px 8px;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
 .preview tr.hl td{background:#fdf3f4}
-.err-line{color:var(--err);font-size:12.5px;margin-top:10px;min-height:16px}
+.err-line{color:var(--err);font-size:13px;margin-top:10px;min-height:16px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 22px;border-radius:8px;font-size:13px;z-index:300;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 /* ===== v2.1 ===== */
 .subtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:10px}
-.subtabs button{background:#fff;border:1px solid var(--line);color:var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-weight:500;font-size:12.5px;cursor:pointer}
+.subtabs button{background:#fff;border:1px solid var(--line);color:var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-weight:500;font-size:13px;cursor:pointer}
 .subtabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
-.drvchip{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:8px;background:#eef1f6;color:var(--navy);letter-spacing:.2px;white-space:nowrap}
+.drvchip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:8px;background:#eef1f6;color:var(--navy);letter-spacing:.2px;white-space:nowrap}
 .drvchip.exp{background:#fdf1df;color:var(--warn)}
-.srcchip{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;letter-spacing:.3px}
+.srcchip{display:inline-block;font-size:12px;font-weight:700;padding:2px 7px;border-radius:8px;letter-spacing:.3px}
 .src-qt{background:#e4f1ec;color:#1d6b52}
 .src-drv{background:#e9eef6;color:var(--navy)}
 .src-lin{background:#f2f0e6;color:#7a6a24}
 .matrix td.best{background:#e4f1ec;font-weight:700;color:#1d6b52}
 .matrix td.worst{color:#a33}
-.matrix th.sup{writing-mode:horizontal-tb;font-size:10.5px;max-width:120px}
-.vrow{display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:7px;background:#fff;font-size:12.5px}
+.matrix th.sup{writing-mode:horizontal-tb;font-size:12px;max-width:120px}
+.vrow{display:flex;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:7px;background:#fff;font-size:13px}
 .vrow .vn{font-weight:700;color:var(--navy);font-family:'Roboto Mono',monospace;min-width:38px}
 .vrow .vc{flex:1;color:#48566b}
 .vrow.cur{border-color:var(--teal);background:#f4fbfb}
@@ -145,16 +146,16 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 .mf-warn{background:var(--warn)}
 .mf-err{background:var(--err)}
 .mf-none{background:#c4ccd8}
-.banner{position:fixed;top:70px;right:20px;max-width:420px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--err);border-radius:8px;padding:13px 16px;box-shadow:0 8px 30px rgba(32,28,29,.18);z-index:310;font-size:12.5px;color:var(--ink)}
+.banner{position:fixed;top:70px;right:20px;max-width:420px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--err);border-radius:8px;padding:13px 16px;box-shadow:0 8px 30px rgba(32,28,29,.18);z-index:310;font-size:13px;color:var(--ink)}
 .banner b{display:block;color:var(--err);margin-bottom:3px;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
 .banner .x{position:absolute;top:8px;right:11px;cursor:pointer;color:#8794a8;font-size:15px;line-height:1}
 .banner.ok{border-left-color:var(--teal)}
 .banner.ok b{color:var(--teal)}
 .assum{background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:12px;color:#48566b;margin-top:12px}
-.assum b{color:var(--navy);display:block;margin-bottom:5px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.assum b{color:var(--navy);display:block;margin-bottom:5px;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
 .assum ul{margin:0 0 0 16px}
 .assum li{margin-bottom:3px}
-.autosave{font-size:11px;color:#8794a8;margin-left:10px;font-weight:400}
+.autosave{font-size:12px;color:#8794a8;margin-left:10px;font-weight:400}
 /* ===== v2.2 ===== */
 #ctxbar{display:flex;align-items:center;gap:14px;position:sticky;z-index:49}
 #ctxbar input{width:230px;font:inherit}
@@ -163,8 +164,8 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 #ctxbar .desc span.miss{font-style:italic}
 #ctxbar .btnctx{font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
 #ctxbar .btnctx:hover{background:rgba(255,255,255,.22)}
-#ctxbar .newtag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;letter-spacing:.4px}
-.ctxecho{background:#F0F3F8;border:1px solid var(--line);border-radius:8px;padding:11px 15px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:#48566b}
+#ctxbar .newtag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:8px;letter-spacing:.4px}
+.ctxecho{background:#F0F3F8;border:1px solid var(--line);border-radius:8px;padding:11px 15px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:13px;color:#48566b}
 .ctxecho b{color:var(--navy);font-family:'Roboto Mono',monospace}
 .ctxecho .pn{font-family:'Inter',sans-serif;font-weight:700;font-size:14px;color:var(--navy);margin-right:4px}
 .purpose .toggle{top:13px;right:16px;font:inherit;cursor:pointer}
@@ -178,7 +179,7 @@ footer{max-width:1280px;margin:0 auto;padding:0 28px 30px;color:#8794a8;font-siz
 #busy.done{width:100%;opacity:0;transition:width .2s,opacity .4s .2s}
 .busytxt{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12px;padding:6px 16px;border-radius:12px;z-index:401;box-shadow:0 4px 16px rgba(0,0,0,.2)}
 .jump{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.jump a{font-size:11.5px;color:var(--navy);background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px 12px;text-decoration:none}
+.jump a{font-size:12px;color:var(--navy);background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px 12px;text-decoration:none}
 .jump a:hover{border-color:var(--navy)}
 tr.resolved td{opacity:.42}
 tr.resolved td textarea{text-decoration:line-through}
@@ -198,7 +199,7 @@ tr.resolved td textarea{text-decoration:line-through}
   main{padding:16px}
   header .sub{display:none}
   nav{gap:2px}
-  nav button{padding:7px 9px;font-size:12.5px}
+  nav button{padding:7px 9px;font-size:13px}
 }
 @media(max-width:640px){
   .g6{grid-template-columns:1fr}
@@ -210,10 +211,10 @@ tr.resolved td textarea{text-decoration:line-through}
   table{font-size:12px}
   td,th{padding:6px 7px}
 }
-.infodot{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--navy,#201C1D);color:#fff;font-size:10px;font-weight:700;font-style:normal;cursor:help;margin-left:5px;position:relative;vertical-align:middle}
-.infodot::after{content:attr(data-tip);position:absolute;left:50%;top:135%;transform:translateX(-50%);background:#201C1D;color:#fff;padding:8px 11px;border-radius:8px;font-size:11.5px;font-weight:400;line-height:1.45;width:260px;z-index:60;opacity:0;pointer-events:none;transition:opacity .12s;box-shadow:0 4px 14px rgba(0,0,0,.28);text-align:left}
+.infodot{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--navy,#201C1D);color:#fff;font-size:12px;font-weight:700;font-style:normal;cursor:help;margin-left:5px;position:relative;vertical-align:middle}
+.infodot::after{content:attr(data-tip);position:absolute;left:50%;top:135%;transform:translateX(-50%);background:#201C1D;color:#fff;padding:8px 11px;border-radius:8px;font-size:12px;font-weight:400;line-height:1.45;width:260px;z-index:60;opacity:0;pointer-events:none;transition:opacity .12s;box-shadow:0 4px 14px rgba(0,0,0,.28);text-align:left}
 .infodot:hover::after{opacity:1}
-.glossbox{background:#f5f7fa;border:1px solid #d8e0ea;border-radius:8px;padding:12px 16px;margin:6px 0 2px;font-size:12.5px;line-height:1.55;color:#2a3a52}
+.glossbox{background:#f5f7fa;border:1px solid #d8e0ea;border-radius:8px;padding:12px 16px;margin:6px 0 2px;font-size:13px;line-height:1.55;color:#2a3a52}
 .glossbox h4{margin:0 0 6px;color:var(--navy,#201C1D);font-size:13px}
 .glossbox dt{font-weight:700;color:var(--navy,#201C1D);margin-top:8px}
 .glossbox dd{margin:0 0 3px}
@@ -307,7 +308,7 @@ details.uxadv .grid{margin-top:12px}
 .rs-st .t{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:600}
 .rs-st .v{font:700 22px 'Plus Jakarta Sans',sans-serif;letter-spacing:-.01em}
 .rs-st .s{font-size:13px;color:var(--ink-500);line-height:1.45}
-.rs-b{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.rs-b{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 10px;border-radius:999px;white-space:nowrap}
 .rs-ok{background:#E1F3EA;color:#1F8A5B}
 .rs-warn{background:#FBEDD7;color:#B9760A}
 .rs-info{background:#E6EEF7;color:#2C68A8}
@@ -361,6 +362,44 @@ th{font-size:12px;font-weight:600;color:#79726F;text-transform:none;letter-spaci
 /* Ajudas: menos peso visual */
 .hint{color:#79726F;font-size:13px;line-height:1.5}
 
+
+/* ═══════════════════════════════════════════════════════════════
+   Entrega 2 · ícones, títulos, zona de ficheiros e estado vazio
+   Escala: 12 · 13 · 14 · 16 · 18 · 26 px. Pesos: 400 texto · 500 etiquetas/menu · 600 botões/valores · 700 títulos
+   ═══════════════════════════════════════════════════════════════ */
+b,strong{font-weight:600}
+[class^="icon-"],[class*=" icon-"]{font-size:17px;line-height:1;flex:none}
+.btn [class^="icon-"],.btnctx [class^="icon-"]{font-size:16px}
+/* menu */
+nav button{font-size:14px;font-weight:500;gap:10px}
+nav button.on{font-weight:600}
+nav button [class^="icon-"]{color:#79726F}
+nav button.on [class^="icon-"]{color:inherit}
+.navgrp{font-size:11px!important;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#79726F;padding:14px 12px 4px}
+/* títulos de página: curtos, uma linha, com subtítulo */
+.purpose .eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em}
+.purpose h1{font-size:26px!important;line-height:1.2;margin-bottom:2px}
+.purpose .subtitle{font-size:14px;color:#79726F;margin:0 0 4px;max-width:720px}
+.purpose .toggle{display:inline-flex;align-items:center;gap:6px}
+/* blocos */
+.card h2{font-size:16px!important}
+.step .n{width:22px;height:22px;font-size:12px}
+.hint{font-size:13px}
+/* zona de ficheiros */
+.drop{display:flex;align-items:center;gap:14px;text-align:left;padding:18px 20px;border:1.5px dashed #C9C2BF;border-radius:12px;background:#FAF9F8;color:#453F3E;font-size:14px}
+.drop:hover,.drop.over{border-color:var(--red);background:#FDF3F4}
+.drop .drop-ic{width:40px;height:40px;border-radius:10px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:none}
+.drop .drop-ic [class^="icon-"]{font-size:20px;color:var(--ink)}
+/* estado vazio (sem projeto ativo) */
+.ux-empty{display:none;align-items:center;gap:18px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin-bottom:18px}
+.ux-empty .ux-empty-ic{width:48px;height:48px;border-radius:12px;background:#FBE1E5;color:#C81F35;display:flex;align-items:center;justify-content:center;flex:none}
+.ux-empty .ux-empty-ic [class^="icon-"]{font-size:24px}
+.ux-empty h3{font-size:16px;margin:0 0 2px}
+.ux-empty p{margin:0;color:#79726F;font-size:14px}
+.ux-empty .btn{margin-left:auto}
+body.no-project .ux-empty{display:flex}
+body.no-project .needs-project > :not(.purpose):not(.ux-empty){opacity:.45}
+body.no-project .miss{display:none}
 </style>
 </head>
 <body>
@@ -424,7 +463,7 @@ th{font-size:12px;font-weight:600;color:#79726F;text-transform:none;letter-spaci
     <input type="text" id="ctxNome" list="ctxList" placeholder="Escolhe ou escreve um nome" autocomplete="off">
     <datalist id="ctxList"></datalist>
     <button id="ctxSeta" onclick="toggleCtxLista(event)" title="Ver projetos existentes"
-      style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#C9C2BF;cursor:pointer;font-size:11px;padding:3px 5px;line-height:1">&#9662;</button>
+      style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#C9C2BF;cursor:pointer;font-size:12px;padding:3px 5px;line-height:1">&#9662;</button>
     <div id="ctxLista" class="hidden" style="position:absolute;top:calc(100% + 5px);left:0;min-width:250px;max-height:290px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 26px rgba(32,28,29,.22);z-index:320;padding:5px"></div>
   </div>
   <span id="ctxNew" class="newtag hidden">NOVO</span>
@@ -767,7 +806,7 @@ th{font-size:12px;font-weight:600;color:#79726F;text-transform:none;letter-spaci
     </div>
     <div style="margin:14px 0 6px"><div class="consbar" id="orcConsBar"></div></div>
     <div id="orcConting" style="margin:14px 0;padding:12px 14px;background:#f7f9fc;border:1px solid var(--line);border-radius:8px">
-      <div style="font-weight:700;color:var(--navy);font-size:12px;margin-bottom:8px">Contingência por proveniência</div>
+      <div style="font-weight:600;color:var(--navy);font-size:12px;margin-bottom:8px">Contingência por proveniência</div>
       <table style="width:100%;font-size:12px;border-collapse:collapse">
         <thead><tr style="color:#8794a8"><th style="text-align:left">Escalão (estado da linha)</th><th class="num">Valor</th><th class="num" style="width:64px">%</th><th class="num">Contingência</th></tr></thead>
         <tbody>
@@ -776,8 +815,8 @@ th{font-size:12px;font-weight:600;color:#79726F;text-transform:none;letter-spaci
           <tr><td>Estimado &mdash; rácio histórico</td><td class="num" id="orcContEstimV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctEstim" value="12" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContEstimC">&mdash;</td></tr>
         </tbody>
         <tfoot>
-          <tr style="font-weight:700;border-top:1px solid var(--line)"><td>Contingência total (<span id="orcContPct">&mdash;</span> do orçamento)</td><td></td><td></td><td class="num" id="orcContTotal">&mdash;</td></tr>
-          <tr style="font-weight:700"><td style="color:var(--navy)">Total com contingência</td><td></td><td></td><td class="num" id="orcTotalCC" style="color:var(--navy)">&mdash;</td></tr>
+          <tr style="font-weight:600;border-top:1px solid var(--line)"><td>Contingência total (<span id="orcContPct">&mdash;</span> do orçamento)</td><td></td><td></td><td class="num" id="orcContTotal">&mdash;</td></tr>
+          <tr style="font-weight:600"><td style="color:var(--navy)">Total com contingência</td><td></td><td></td><td class="num" id="orcTotalCC" style="color:var(--navy)">&mdash;</td></tr>
         </tfoot>
       </table>
       <div class="hint" style="margin-top:6px">A contingência desce sozinha à medida que firmas linhas (Rácio &rarr; Firme &rarr; Compromisso). As percentagens são editáveis &mdash; calibra ao apetite de risco da Solive.</div>
@@ -1040,7 +1079,7 @@ th{font-size:12px;font-weight:600;color:#79726F;text-transform:none;letter-spaci
       <div id="gpCounts" class="hint" style="margin-top:6px">Escolhe um projeto para ver o que ser&aacute; eliminado.</div>
       <label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:12px"><input type="checkbox" id="gpIncReais"> Remover tamb&eacute;m as linhas deste projeto da <b>biblioteca de custos reais</b> (precos_reais) &mdash; pode afetar r&aacute;cios de outros projetos.</label>
       <div style="background:#fff4f4;border:1px solid var(--red);border-radius:8px;padding:12px;margin-top:8px">
-        <div style="font-weight:700;color:var(--red);margin-bottom:6px">Confirma&ccedil;&atilde;o</div>
+        <div style="font-weight:600;color:var(--red);margin-bottom:6px">Confirma&ccedil;&atilde;o</div>
         <div class="hint" style="margin:0">Para confirmar, escreve o nome exato do projeto: <b id="gpNomeEco">&mdash;</b></div>
         <input type="text" id="gpConfirm" placeholder="Escreve o nome do projeto" oninput="gpConfirmCheck()" style="margin-top:6px;max-width:340px">
         <div><button id="gpDelBtn" class="btn" style="margin-top:10px;background:var(--red);color:#fff;opacity:.45;pointer-events:none" onclick="gpDelete()">Eliminar definitivamente</button></div>
@@ -1073,7 +1112,7 @@ th{font-size:12px;font-weight:600;color:#79726F;text-transform:none;letter-spaci
 
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <span class="mono" style="font-size:11px;color:#8794a8" title="Versão — confirma que tens a mais recente">v2.4 · 2026-09-03</span> <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v2.4 · 2026-09-03</span> <span id="selfTestFooter"></span></footer>
 
 <script>
 /* ================= CONFIGURAÇÃO SUPABASE =================
@@ -1258,7 +1297,7 @@ function gxPaint(){
     const dAdj = est? (adj/est-1)*100 : null;
     const dExe = adj? (real/adj-1)*100 : null;
     return `<tr>
-      <td><b>${esc(a.capitulo)}</b>${a.pacote?'<br><span style="color:#888;font-size:11px">'+esc(a.pacote)+'</span>':''}</td>
+      <td><b>${esc(a.capitulo)}</b>${a.pacote?'<br><span style="color:#888;font-size:12px">'+esc(a.pacote)+'</span>':''}</td>
       <td>${esc(a.fornecedor||'')}</td>
       <td style="text-align:right">${gxEUR(est)}</td>
       <td style="text-align:right"><b>${gxEUR(adj)}</b></td>
@@ -1269,7 +1308,7 @@ function gxPaint(){
     </tr>`+gxVarRows(a.id);
   }).join("");
   const dA = sE?((sA/sE-1)*100):null, dR=sA?((sR/sA-1)*100):null;
-  ft.innerHTML = GX_ROWS.length? `<tr style="font-weight:700;border-top:2px solid var(--navy)">
+  ft.innerHTML = GX_ROWS.length? `<tr style="font-weight:600;border-top:2px solid var(--navy)">
     <td>TOTAL</td><td></td>
     <td style="text-align:right">${gxEUR(sE)}</td>
     <td style="text-align:right">${gxEUR(sA)}</td>
@@ -1323,12 +1362,12 @@ function gxVarRows(adjId){
       <td style="padding:2px 6px">${esc(GX_MOTLBL[v.motivo]||v.motivo||'')}</td>
       <td style="padding:2px 6px;text-align:right;color:${cor}">${sinal}${gxEUR(val)}</td>
       <td style="padding:2px 6px;color:#666">${esc(v.descricao||'')}</td>
-      <td style="padding:2px 6px;text-align:right"><button class="btn ghost" style="padding:1px 7px;font-size:11px" onclick="gxDelVar(${v.id})" title="Apagar variação">&times;</button></td>
+      <td style="padding:2px 6px;text-align:right"><button class="btn ghost" style="padding:1px 7px;font-size:12px" onclick="gxDelVar(${v.id})" title="Apagar variação">&times;</button></td>
     </tr>`;
   }).join("");
   return `<tr class="gxvar"><td colspan="8" style="padding:0 12px 10px 26px;background:#fafbfc;border-bottom:1px solid #eef1f5">
-    <div style="font-size:11px;color:#888;margin:4px 0 2px">Variações (${vs.length}):</div>
-    <table style="width:100%;font-size:11.5px;border-collapse:collapse"><tbody>${linhas}</tbody></table>
+    <div style="font-size:12px;color:#888;margin:4px 0 2px">Variações (${vs.length}):</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse"><tbody>${linhas}</tbody></table>
   </td></tr>`;
 }
 async function gxDelVar(id){
@@ -2105,7 +2144,7 @@ function renderFindings(){
     if(f.resolvido) tr.className='resolved';
     tr.innerHTML=`<td><input type="checkbox" class="rescb" data-r="${i}" ${f.resolvido?'checked':''} title="Marcar como tratado"></td>
       <td class="mono">${esc(f.it.code||"—")}</td>
-      <td>${esc((f.it.desc||"").slice(0,140))}<div style="color:#8794a8;font-size:11.5px;margin-top:2px">${esc(f.msg)}</div></td>
+      <td>${esc((f.it.desc||"").slice(0,140))}<div style="color:#8794a8;font-size:12px;margin-top:2px">${esc(f.msg)}</div></td>
       <td class="mono">${esc(f.it.un||"—")}</td>
       <td class="num">${f.it.qt==null?"—":fmt(f.it.qt)}</td>
       <td style="font-size:12px">${esc(f.it.cap||f.it.capRaw||"—")}</td>
@@ -2128,7 +2167,7 @@ function renderRatios(){
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${esc(r.cap)}</td><td class="mono">${esc(r.u)}</td>
       <td class="num">${fmt(r.q)}</td><td class="num">${fmt(r.rMQ,3)}</td><td class="num">${fmt(r.rRef,3)}</td>
-      <td class="num" style="color:${c};font-weight:700">${r.desvio>0?"+":""}${fmt(r.desvio*100,0)}%</td>`;
+      <td class="num" style="color:${c};font-weight:600">${r.desvio>0?"+":""}${fmt(r.desvio*100,0)}%</td>`;
     tb.appendChild(tr);
   });
 }
@@ -2583,7 +2622,7 @@ function renderFoPreview(){
       <td><select data-i="${i}" class="foStd">${opts}</select></td>
       <td class="num"><input type="number" step="0.01" data-i="${i}" class="foTot" value="${r.total==null?'':r.total}" style="text-align:right"></td>
       <td class="num"><input type="number" step="0.01" data-i="${i}" class="foAd" value="${ad||''}" placeholder="0" style="text-align:right;color:var(--warn)"></td>
-      <td class="num" style="font-weight:700">${fmt((r.total||0)+ad,0)}</td>
+      <td class="num" style="font-weight:600">${fmt((r.total||0)+ad,0)}</td>
       <td>${esc(r.com)}</td>`;
     tb.appendChild(tr);
   });
@@ -2762,20 +2801,20 @@ async function renderDesvios(proj,linhas){
       <td class="num" style="color:${rAdic?'var(--warn)':'#c4ccd8'}">${rAdic?fmt(rAdic,0):"—"}</td>
       <td class="num" style="font-weight:600">${rTot==null?"—":fmt(rTot,0)}</td>
       <td class="num" style="color:${c}">${(orc==null||rTot==null)?"—":(rTot-orc>0?"+":"")+fmt(rTot-orc,0)}</td>
-      <td class="num" style="color:${c};font-weight:700">${dv==null?"—":(dv>0?"+":"")+fmt(dv*100,1)+"%"}</td>
+      <td class="num" style="color:${c};font-weight:600">${dv==null?"—":(dv>0?"+":"")+fmt(dv*100,1)+"%"}</td>
       <td class="num">${(gfa&&rTot!=null)?fmt(rTot/gfa,2):"—"}</td>`;
     tb.appendChild(tr);
   });
   const dvT=tOrc>0?(tReal-tOrc)/tOrc:null;
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td style="font-weight:700">TOTAL</td>
-    <td class="num" style="font-weight:700">${fmt(tOrc,0)}</td>
-    <td class="num" style="font-weight:700">${fmt(tReal-tAdic,0)}</td>
-    <td class="num" style="font-weight:700;color:var(--warn)">${tAdic?fmt(tAdic,0):"—"}</td>
-    <td class="num" style="font-weight:700">${fmt(tReal,0)}</td>
-    <td class="num" style="font-weight:700">${(tReal-tOrc>0?"+":"")+fmt(tReal-tOrc,0)}</td>
-    <td class="num" style="font-weight:700;color:${dvT!=null&&dvT>0.05?'var(--err)':'var(--ok)'}">${dvT==null?"—":(dvT>0?"+":"")+fmt(dvT*100,1)+"%"}</td>
-    <td class="num" style="font-weight:700">${gfa?fmt(tReal/gfa,2):"—"}</td>`;
+  tr.innerHTML=`<td style="font-weight:600">TOTAL</td>
+    <td class="num" style="font-weight:600">${fmt(tOrc,0)}</td>
+    <td class="num" style="font-weight:600">${fmt(tReal-tAdic,0)}</td>
+    <td class="num" style="font-weight:600;color:var(--warn)">${tAdic?fmt(tAdic,0):"—"}</td>
+    <td class="num" style="font-weight:600">${fmt(tReal,0)}</td>
+    <td class="num" style="font-weight:600">${(tReal-tOrc>0?"+":"")+fmt(tReal-tOrc,0)}</td>
+    <td class="num" style="font-weight:600;color:${dvT!=null&&dvT>0.05?'var(--err)':'var(--ok)'}">${dvT==null?"—":(dvT>0?"+":"")+fmt(dvT*100,1)+"%"}</td>
+    <td class="num" style="font-weight:600">${gfa?fmt(tReal/gfa,2):"—"}</td>`;
   tb.appendChild(tr);
   DESV_LAST={nome:proj.nome,baseTag,gfa,linhas:linhas.map(r=>({cap:r.std,orc:base[r.std]!=null?base[r.std]:null,real:r.total})),tOrc,tReal};
   document.getElementById('foDesvCard').classList.remove('hidden');
@@ -3032,7 +3071,7 @@ function processOrcProp(sheet,fname){
   box.className="note";
   box.innerHTML="<b>"+forn+"</b> cobre <b>"+cobertos.length+" capítulo(s)</b> ("+fmt(totalProp,0)+" €), marcados como proposta recebida: "+
     cobertos.map(esc).join(", ")+".<br><span style='color:#8794a8'>Não abrangidos por esta proposta (confirmar se são exclusões ou de outro fornecedor): "+
-    naoCobertos.slice(0,12).map(esc).join(", ")+(naoCobertos.length>12?"…":"")+".</span><br><span style='color:#8794a8;font-size:11px'>Exclusões e condições escritas em texto livre não são extraídas automaticamente — regista-as na nota de cada capítulo.</span>";
+    naoCobertos.slice(0,12).map(esc).join(", ")+(naoCobertos.length>12?"…":"")+".</span><br><span style='color:#8794a8;font-size:12px'>Exclusões e condições escritas em texto livre não são extraídas automaticamente — regista-as na nota de cada capítulo.</span>";
   document.getElementById('orcBoard').scrollIntoView({behavior:'smooth'});
   ORC_DIRTY=true;
 }
@@ -3063,7 +3102,7 @@ function renderOrc(){
   ORC_ROWS.forEach((r,i)=>{
     const opts=ORC_ESTADOS.map(e=>`<option value="${e.k}" ${r.estado===e.k?'selected':''}>${e.lbl}</option>`).join("");
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(r.cap)}<div style="color:#8794a8;font-size:11px">origem: ${esc(r.origem)}</div></td>
+    tr.innerHTML=`<td>${esc(r.cap)}<div style="color:#8794a8;font-size:12px">origem: ${esc(r.origem)}</div></td>
       <td class="num"><input type="number" step="1" class="orcVal" data-i="${i}" value="${r.valor||0}" style="text-align:right"></td>
       <td><select class="estado-sel ${ORC_EST[r.estado].cls} orcEst" data-i="${i}">${opts}</select></td>
       <td class="num">${abc&&r.valor?fmt(r.valor/abc,0):"—"}</td>
@@ -3128,11 +3167,11 @@ function renderSellingLayers(){
   initSelling();
   const box=document.getElementById('sellingLayers'); if(!box)return; box.innerHTML="";
   SELLING_LAYERS.forEach(gr=>{
-    const h=document.createElement('div'); h.style.cssText="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin:8px 0 4px";
+    const h=document.createElement('div'); h.style.cssText="font-size:12px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin:8px 0 4px";
     h.textContent=gr.g; box.appendChild(h);
     gr.itens.forEach(([k,lbl])=>{
       const row=document.createElement('div'); row.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0";
-      row.innerHTML=`<span style="font-size:12.5px;color:var(--ink)">${lbl}</span><span><input type="number" step="0.5" value="${ORC_SELLING[k]}" data-k="${k}" class="sfLayer" style="width:64px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:4px 6px">%</span>`;
+      row.innerHTML=`<span style="font-size:13px;color:var(--ink)">${lbl}</span><span><input type="number" step="0.5" value="${ORC_SELLING[k]}" data-k="${k}" class="sfLayer" style="width:64px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:4px 6px">%</span>`;
       box.appendChild(row);
     });
   });
@@ -3210,7 +3249,7 @@ function renderWrapVivo(f){
   });
   const site=custoCat['Site costs']||0, siteV=vendaCat['Site costs']||0;
   if(site||siteV){tC+=site;tV+=siteV;const tr=document.createElement('tr');tr.innerHTML=`<td>Site costs (Estaleiro)</td><td class="num">${fmt(site,0)}</td><td class="num" style="font-weight:600">${fmt(siteV,0)}</td><td class="num">${site?fmt((siteV-site)/site*100,1)+'%':'—'}</td>`;tb.appendChild(tr);}
-  const trT=document.createElement('tr'); trT.style.cssText="font-weight:700;background:#eef2f7";
+  const trT=document.createElement('tr'); trT.style.cssText="font-weight:600;background:#eef2f7";
   trT.innerHTML=`<td>TOTAL</td><td class="num">${fmt(tC,0)}</td><td class="num">${fmt(tV,0)}</td><td class="num">${tC?fmt((tV-tC)/tC*100,1)+'%':'—'}</td>`;
   tb.appendChild(trT);
 }
@@ -3421,16 +3460,16 @@ async function runEstimador(){
       <td>${chip}</td>
       <td class="num">${fmt(r.rc,2)}</td>
       <td class="num" style="color:${r.kf!==1?'var(--warn)':'#c4ccd8'}">${r.kf!==1?"×"+fmt(r.kf,2):"—"}</td>
-      <td class="num" style="font-weight:700">${fmt(r.central,0)}</td>
+      <td class="num" style="font-weight:600">${fmt(r.central,0)}</td>
       <td class="num" style="color:#8794a8">${fmt(r.lo,0)}</td>
       <td class="num" style="color:#8794a8">${fmt(r.hi,0)}</td>`;
     tb.appendChild(tr);
   });
   const trT=document.createElement('tr');
-  trT.innerHTML=`<td style="font-weight:700">TOTAL HARD COSTS</td><td class="num">—</td><td></td><td></td><td class="num">—</td><td class="num">—</td>
-    <td class="num" style="font-weight:700">${fmt(tC,0)}</td>
-    <td class="num" style="font-weight:700;color:#8794a8">${fmt(tLo,0)}</td>
-    <td class="num" style="font-weight:700;color:#8794a8">${fmt(tHi,0)}</td>`;
+  trT.innerHTML=`<td style="font-weight:600">TOTAL HARD COSTS</td><td class="num">—</td><td></td><td></td><td class="num">—</td><td class="num">—</td>
+    <td class="num" style="font-weight:600">${fmt(tC,0)}</td>
+    <td class="num" style="font-weight:600;color:#8794a8">${fmt(tLo,0)}</td>
+    <td class="num" style="font-weight:600;color:#8794a8">${fmt(tHi,0)}</td>`;
   tb.appendChild(trT);
 
   EST_LAST={nome:document.getElementById('estNome').value||"Projeto",base:baseLbl,pref,infl,inflModo,alvo,
@@ -3570,12 +3609,12 @@ async function renderComparar(){
     [null,"Rev. pavimentos / fogo",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.fogos?x/c.fogos:null},1]
   ];
 
-  document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}${c._fonte&&c._fonte!=="referência"?`<div style="font-weight:400;font-size:10px;color:#8794a8">custo: ${esc(c._fonte)}</div>`:""}</th>`).join("");
+  document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}${c._fonte&&c._fonte!=="referência"?`<div style="font-weight:400;font-size:12px;color:#8794a8">custo: ${esc(c._fonte)}</div>`:""}</th>`).join("");
   const body=document.getElementById('cmpBody');body.innerHTML="";
   rows.forEach(([sec,label,fn,d])=>{
     if(sec){
       const trs=document.createElement('tr');
-      trs.innerHTML=`<td colspan="${cols.length+1}" style="background:#F2EFED;font-weight:700;color:var(--navy);font-size:11px;letter-spacing:.5px;text-transform:uppercase">${esc(sec)}</td>`;
+      trs.innerHTML=`<td colspan="${cols.length+1}" style="background:#F2EFED;font-weight:600;color:var(--navy);font-size:12px;letter-spacing:.5px;text-transform:uppercase">${esc(sec)}</td>`;
       body.appendChild(trs);
     }
     const tr=document.createElement('tr');
@@ -4297,7 +4336,7 @@ function renderSoftCosts(hard){
     tb.appendChild(tr);
   });
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td style="font-weight:700">TOTAL SOFT COSTS</td><td class="num" style="font-weight:700">${fmt(tot/hard*100,1)}%</td><td class="num" style="font-weight:700">${fmt(tot,0)}</td><td></td>`;
+  tr.innerHTML=`<td style="font-weight:600">TOTAL SOFT COSTS</td><td class="num" style="font-weight:600">${fmt(tot/hard*100,1)}%</td><td class="num" style="font-weight:600">${fmt(tot,0)}</td><td></td>`;
   tb.appendChild(tr);
   return tot;
 }
@@ -4420,21 +4459,21 @@ function renderMapaComp(){
     const amp=(mn&&mx&&mn>0)?(mx-mn)/mn:null;
     const dv=(est&&mn)?(mn-est)/est:null;
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-size:12.5px">${esc(cap)}</td>`+
+    tr.innerHTML=`<td style="font-size:13px">${esc(cap)}</td>`+
       forns.map(f=>{const v=linha[f];
         const cls=v==null?"":(v===mn?"best":(v===mx&&vals.length>1?"worst":""));
         return `<td class="num ${cls}">${v==null?"—":fmt(v,0)}</td>`}).join("")+
-      `<td class="num" style="font-weight:700">${mn==null?"—":fmt(mn,0)}</td>
+      `<td class="num" style="font-weight:600">${mn==null?"—":fmt(mn,0)}</td>
        <td class="num" style="color:${amp>0.25?'var(--err)':'#8794a8'}">${amp==null?"—":fmt(amp*100,0)+"%"}</td>
        <td class="num" style="color:#8794a8">${est==null?"—":fmt(est,0)}</td>
        <td class="num" style="color:${dv==null?'#8794a8':(dv>0.1?'var(--err)':dv<-0.1?'var(--ok)':'#8794a8')}">${dv==null?"—":(dv>0?"+":"")+fmt(dv*100,0)+"%"}</td>`;
     body.appendChild(tr);
   });
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td style="font-weight:700">TOTAL CONSULTADO</td>`+forns.map(()=>'<td></td>').join("")+
-    `<td class="num" style="font-weight:700">${fmt(tMelhor,0)}</td><td></td>
-     <td class="num" style="font-weight:700;color:#8794a8">${tEst?fmt(tEst,0):"—"}</td>
-     <td class="num" style="font-weight:700">${tEst?((tMelhor-tEst)/tEst>0?"+":"")+fmt((tMelhor-tEst)/tEst*100,0)+"%":"—"}</td>`;
+  tr.innerHTML=`<td style="font-weight:600">TOTAL CONSULTADO</td>`+forns.map(()=>'<td></td>').join("")+
+    `<td class="num" style="font-weight:600">${fmt(tMelhor,0)}</td><td></td>
+     <td class="num" style="font-weight:600;color:#8794a8">${tEst?fmt(tEst,0):"—"}</td>
+     <td class="num" style="font-weight:600">${tEst?((tMelhor-tEst)/tEst>0?"+":"")+fmt((tMelhor-tEst)/tEst*100,0)+"%":"—"}</td>`;
   body.appendChild(tr);
   const grandes=capList.filter(cap=>{const v=forns.map(f=>caps[cap][f]).filter(x=>x!=null);
     return v.length>1&&(Math.max(...v)-Math.min(...v))/Math.min(...v)>0.30});
@@ -4503,7 +4542,7 @@ function renderFornHist(){
       <td class="num">${r.vals.length}</td><td class="num">${fmt(r.ult,0)}</td>
       <td class="num">${m==null?"—":fmt(m,1)}</td>
       <td class="num" style="color:#8794a8">${r.rac.length>1?fmt(Math.min(...r.rac),1)+" – "+fmt(Math.max(...r.rac),1):"—"}</td>
-      <td style="font-size:11.5px;color:#79726F">${esc([...r.projs].join(", "))}</td>`;
+      <td style="font-size:12px;color:#79726F">${esc([...r.projs].join(", "))}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -4547,7 +4586,7 @@ async function renderVersoes(){
       <span class="mono" style="min-width:150px">${fmt(v.total,0)} €</span>
       <span style="min-width:110px;color:${v.consolidado>=70?'var(--ok)':v.consolidado>=40?'var(--warn)':'var(--err)'}">${v.consolidado}% consolidado</span>
       <span class="vc">${esc(v.comentario||"(sem comentário)")}</span>
-      <span style="color:#8794a8;font-size:11.5px">${new Date(v.criado).toLocaleString('pt-PT')}</span>
+      <span style="color:#8794a8;font-size:12px">${new Date(v.criado).toLocaleString('pt-PT')}</span>
       <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="verDiff(${v.versao})">Diferenças</button>
       <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="verRepor(${v.versao})">Repor</button>`;
     box.appendChild(d);
@@ -4579,7 +4618,7 @@ async function renderFasesProjeto(nome){
       <span style="min-width:120px;color:${o.a?'var(--warn)':'#c4ccd8'};font-size:12px">${o.a?'adic. '+fmt(o.a,0)+' €':'sem adicionais'}</span>
       <span style="min-width:78px;color:#8794a8;font-size:12px">${o.n} cap.</span>
       <span class="vc">${esc(f.etiqueta||"")}</span>
-      <span style="color:#8794a8;font-size:11.5px;white-space:nowrap">${esc(f.data||"")}</span>`;
+      <span style="color:#8794a8;font-size:12px;white-space:nowrap">${esc(f.data||"")}</span>`;
     box.appendChild(d);
   });
   const t=document.getElementById('verTag');
@@ -4606,7 +4645,7 @@ function verDiff(n){
     tb.appendChild(tr);
   });
   const tr=document.createElement('tr');
-  tr.innerHTML=`<td style="font-weight:700">VARIAÇÃO TOTAL</td><td></td><td></td><td class="num" style="font-weight:700;color:${td>0?'var(--err)':'var(--ok)'}">${td>0?"+":""}${fmt(td,0)}</td><td></td>`;
+  tr.innerHTML=`<td style="font-weight:600">VARIAÇÃO TOTAL</td><td></td><td></td><td class="num" style="font-weight:600;color:${td>0?'var(--err)':'var(--ok)'}">${td>0?"+":""}${fmt(td,0)}</td><td></td>`;
   tb.appendChild(tr);
 }
 function verRepor(n){
@@ -4653,7 +4692,7 @@ function renderTaxonomia(){
     const base=TAXO_BASE[cap]||TAXO_DEFAULT;
     const alterado=base.driver!==t.driver||base.exp!==t.exp;
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-size:12.5px;font-weight:500">${esc(cap)}</td>
+    tr.innerHTML=`<td style="font-size:13px;font-weight:500">${esc(cap)}</td>
       <td><select style="padding:5px 7px;font-size:12px" onchange="TAXO['${cap.replace(/'/g,"\\'")}'].driver=this.value">
         ${Object.entries(DRIVER_LBL).map(([k,l])=>`<option value="${k}" ${t.driver===k?'selected':''}>${esc(l)}</option>`).join("")}
       </select></td>
@@ -4664,10 +4703,10 @@ function renderTaxonomia(){
         <option value="mep" ${t.idx==='mep'?'selected':''}>MEP / equipamento</option>
       </select></td>
       <td style="max-width:320px"><textarea data-r="${esc(cap)}" class="taxRac" rows="2"
-        style="width:100%;font-size:11.5px;color:#79726F;padding:5px 7px;min-height:0"
+        style="width:100%;font-size:12px;color:#79726F;padding:5px 7px;min-height:0"
         placeholder="Porque é que este capítulo escala assim">${esc(t.racional||"")}</textarea>
-        ${alterado?'<div style="font-size:10.5px;color:var(--warn);margin-top:3px">Driver alterado face ao standard ('+esc(DRIVER_LBL[base.driver]||base.driver)+')</div>':''}</td>
-      <td>${CAPS_BASE.includes(cap)?'<span style="color:#c4ccd8;font-size:11px" title="Capítulo do standard">std</span>':`<button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarCapitulo('${cap.replace(/'/g,"\\'")}')">✕</button>`}</td>`;
+        ${alterado?'<div style="font-size:12px;color:var(--warn);margin-top:3px">Driver alterado face ao standard ('+esc(DRIVER_LBL[base.driver]||base.driver)+')</div>':''}</td>
+      <td>${CAPS_BASE.includes(cap)?'<span style="color:#c4ccd8;font-size:12px" title="Capítulo do standard">std</span>':`<button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarCapitulo('${cap.replace(/'/g,"\\'")}')">✕</button>`}</td>`;
     tb.appendChild(tr);
   });
   tb.querySelectorAll('.taxRac').forEach(t=>t.addEventListener('input',e=>{
@@ -4925,7 +4964,7 @@ function impSheetChange(){
   }
   const tb=document.getElementById('impPreview'); tb.innerHTML='';
   const hdr=document.createElement('tr');
-  for(let c=0;c<nc;c++){const th=document.createElement('td');th.textContent=impColLetter(c);th.style.cssText='background:#e8edf3;font-weight:700;padding:2px 5px;border:1px solid #d8e0ea';hdr.appendChild(th);}
+  for(let c=0;c<nc;c++){const th=document.createElement('td');th.textContent=impColLetter(c);th.style.cssText='background:#e8edf3;font-weight:600;padding:2px 5px;border:1px solid #d8e0ea';hdr.appendChild(th);}
   tb.appendChild(hdr);
   IMP_SHEETROWS.slice(0,12).forEach(row=>{const tr=document.createElement('tr');
     for(let c=0;c<nc;c++){const td=document.createElement('td');td.textContent=(row&&row[c]!=null)?String(row[c]).slice(0,22):'';td.style.cssText='padding:2px 5px;border:1px solid #eef1f5';tr.appendChild(td);}
@@ -4972,12 +5011,12 @@ function renderPUreal(){
   const re=document.getElementById('puRealEmpty'); if(re){ re.classList.toggle('hidden',fr.length>0); if(active) re.textContent='Sem preços de custo real para o projeto ativo. Importe-os em "Importar custo real" ou carregue os SQL.'; }
   fr.sort((a,b)=>String(a.desc).localeCompare(String(b.desc))).forEach(r=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-size:12.5px">${esc(r.desc)}</td><td class="mono">${esc(r.un)}</td>`+
-      `<td class="num" style="font-weight:700">${r.preco==null?"—":fmt(r.preco,2)}</td>`+
-      `<td style="font-size:11.5px">${esc(r.amb)}</td>`+
-      `<td style="font-size:11.5px;color:#79726F">${esc(r.forn)}</td>`+
-      `<td style="font-size:11.5px;color:#79726F">${esc(r.fonte)}</td>`+
-      `<td style="font-size:11px;color:#48566b">${esc(r.excl||'')}</td>`;
+    tr.innerHTML=`<td style="font-size:13px">${esc(r.desc)}</td><td class="mono">${esc(r.un)}</td>`+
+      `<td class="num" style="font-weight:600">${r.preco==null?"—":fmt(r.preco,2)}</td>`+
+      `<td style="font-size:12px">${esc(r.amb)}</td>`+
+      `<td style="font-size:12px;color:#79726F">${esc(r.forn)}</td>`+
+      `<td style="font-size:12px;color:#79726F">${esc(r.fonte)}</td>`+
+      `<td style="font-size:12px;color:#48566b">${esc(r.excl||'')}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -5210,7 +5249,7 @@ function renderAplicacao(arts){
     else if(/incompleto/.test(g)){bg="#fff4e5";fg="#a15c00";}
     else if(/Semelhante/.test(g)){bg="#e8eefc";fg="#201C1D";}
     else if(/Parcial/.test(g)){bg="#fff4e5";fg="#a15c00";}
-    return "<span style=\"background:"+bg+";color:"+fg+";padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600\">"+esc(g)+"</span>";
+    return "<span style=\"background:"+bg+";color:"+fg+";padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600\">"+esc(g)+"</span>";
   };
   let full=0,total=0,parcial=0;
   arts.forEach(a=>{
@@ -5219,14 +5258,14 @@ function renderAplicacao(arts){
     if(isFull){ full++; total+=(m.preco*(a.qt||0)); }
     else if(m.preco!=null && /Parcial|incompleto/.test(m.grau)) parcial++;
     body.insertAdjacentHTML("beforeend",
-      "<tr><td style=\"font-size:11px;color:#8794a8\">"+esc(a.cap||"")+"</td>"+
+      "<tr><td style=\"font-size:12px;color:#8794a8\">"+esc(a.cap||"")+"</td>"+
       "<td>"+esc(String(a.desc).slice(0,120))+"</td>"+
       "<td>"+esc(a.un||"")+"</td>"+
       "<td style=\"text-align:right\">"+eur(a.qt)+"</td>"+
       "<td style=\"text-align:right\">"+(m.preco!=null?eur(m.preco):"—")+"</td>"+
       "<td style=\"text-align:right\">"+(isFull?eur(m.preco*(a.qt||0)):"—")+"</td>"+
-      "<td style=\"font-size:11px\">"+esc(m.fonte||"")+"</td>"+
-      "<td style=\"font-size:11px\">"+esc(m.data||"—")+"</td>"+
+      "<td style=\"font-size:12px\">"+esc(m.fonte||"")+"</td>"+
+      "<td style=\"font-size:12px\">"+esc(m.data||"—")+"</td>"+
       "<td>"+badge(m.grau)+"</td></tr>");
   });
   const cob=arts.length?Math.round(100*full/arts.length):0;
@@ -5400,11 +5439,11 @@ function renderPU(){
   rows.forEach(r=>{
     const disp=r.mediana?(r.p90-r.p10)/r.mediana:null;
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-size:12.5px">${esc(r.fam)}</td><td class="mono">${esc(r.un)}</td>
-      <td class="num">${r.n}</td><td class="num" style="font-weight:700">${fmt(r.mediana,2)}</td>
+    tr.innerHTML=`<td style="font-size:13px">${esc(r.fam)}</td><td class="mono">${esc(r.un)}</td>
+      <td class="num">${r.n}</td><td class="num" style="font-weight:600">${fmt(r.mediana,2)}</td>
       <td class="num" style="color:#8794a8">${fmt(r.p10,2)}</td><td class="num" style="color:#8794a8">${fmt(r.p90,2)}</td>
       <td class="num" style="color:${disp>0.6?'var(--err)':disp>0.3?'var(--warn)':'var(--ok)'}">${disp==null?"—":fmt(disp*100,0)+"%"}</td>
-      <td style="font-size:11.5px;color:#79726F">${esc(r.projs.join(", "))}</td>`;
+      <td style="font-size:12px;color:#79726F">${esc(r.projs.join(", "))}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -5531,7 +5570,7 @@ function MQ_LIMPO(){
 const BUILD="2026-09-03 · v2.4";
 const FUNCIONALIDADES=[
  ["Leitor de autos de medição","detectaAuto"],
- ["Escolha contratual/executado","colunasAuto"],
+ ["Escolhe contratual/executado","colunasAuto"],
  ["Trabalhos adicionais separados","classificaTrabalho"],
  ["Equivalências de capítulo","normalizaCap"],
  ["Contexto de projeto único","ctxDefinir"],
@@ -5709,13 +5748,13 @@ function toggleCtxLista(ev){
   if(!box.classList.contains('hidden')){ box.classList.add('hidden'); return; }
   box.innerHTML="";
   if(!PROJETOS.length){
-    box.innerHTML='<div style="padding:10px 12px;font-size:12.5px;color:#8794a8">Ainda não há projetos gravados. Escreve um nome para criar.</div>';
+    box.innerHTML='<div style="padding:10px 12px;font-size:13px;color:#8794a8">Ainda não há projetos gravados. Escreve um nome para criar.</div>';
   } else {
     PROJETOS.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(p=>{
       const d=document.createElement('div');
       d.style.cssText="padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-radius:6px";
       d.onmouseover=()=>d.style.background='#F0F3F8'; d.onmouseout=()=>d.style.background='';
-      d.innerHTML=esc(p.nome)+(p.segmento?'<span style="color:var(--teal);font-size:11px"> · '+esc(segLabel(p.segmento))+'</span>':'')+(p.gfa?'<span style="color:#8794a8;font-size:11.5px"> · '+fmt(p.gfa,0)+' m²</span>':'');
+      d.innerHTML=esc(p.nome)+(p.segmento?'<span style="color:var(--teal);font-size:12px"> · '+esc(segLabel(p.segmento))+'</span>':'')+(p.gfa?'<span style="color:#8794a8;font-size:12px"> · '+fmt(p.gfa,0)+' m²</span>':'');
       d.onclick=()=>{ box.classList.add('hidden'); document.getElementById('ctxNome').value=p.nome; ctxDefinir(p.nome); };
       box.appendChild(d);
     });
@@ -6065,7 +6104,7 @@ function parseAutoMedicao(rows){
   }
   return {caps,aditItens,aditTot,totContrato,totGlobal,totContratoExec,totGlobalExec,artigos};
 }
-/* classificação de um trabalho adicional pela sua descrição.
+/* classificação de um trabalho adicional pela tua descrição.
    ~95% de acerto no auto nº29 do Parque Atlântico; o resto vai para
    alocação manual, que é o comportamento correto — não inventar. */
 const REGRAS_TRAB=[
@@ -6563,8 +6602,8 @@ function vfVerificarFile(){
       window.__vfState[sn]=v;
       const key=sn.replace(/\W/g,'');
       const badge = v.reconcilia
-        ? '<span style="background:#1c7c46;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px">RECONCILIA ✓</span>'
-        : '<span style="background:#E62336;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700;font-size:12px">NÃO RECONCILIA ✗</span>';
+        ? '<span style="background:#1c7c46;color:#fff;padding:2px 10px;border-radius:20px;font-weight:600;font-size:12px">RECONCILIA ✓</span>'
+        : '<span style="background:#E62336;color:#fff;padding:2px 10px;border-radius:20px;font-weight:600;font-size:12px">NÃO RECONCILIA ✗</span>';
       const dif=Math.round((v.sumLeaf-v.declared)*100)/100;
       const avisos=[];
       if(v.dupCodes.length) avisos.push('Códigos de artigo repetidos: <b>'+esc(v.dupCodes.join(', '))+'</b>');
@@ -6588,11 +6627,11 @@ function vfVerificarFile(){
         '<div class="card" style="border-left:5px solid '+(v.reconcilia?'#1c7c46':'#E62336')+'">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
         +'<div><b>'+esc(sn)+'</b> &middot; <span class="mono">'+esc(v.contrato||'—')+'</span><br>'
-        +'<span style="font-size:12.5px;color:#48566b">'+esc((v.subemp||'').toString().slice(0,48))+'</span></div>'+badge+'</div>'
+        +'<span style="font-size:13px;color:#48566b">'+esc((v.subemp||'').toString().slice(0,48))+'</span></div>'+badge+'</div>'
         +'<table style="margin-top:10px;font-size:13px"><tr><th>Linhas</th><th>Soma das linhas</th><th>Total declarado</th><th>Diferença</th></tr>'
         +'<tr><td class="mono">'+v.nLinhas+'</td><td class="mono">'+vfMoeda(v.sumLeaf)+'</td><td class="mono">'+vfMoeda(v.declared)+'</td>'
         +'<td class="mono" style="color:'+(Math.abs(dif)<0.005?'#1c7c46':'#E62336')+'">'+vfMoeda(dif)+'</td></tr></table>'
-        +'<div style="margin-top:8px;font-size:12.5px;color:#48566b">Capítulos detetados: '+(v.chapters.length?esc(v.chapters.join(' · ')):'—')+'</div>'
+        +'<div style="margin-top:8px;font-size:13px;color:#48566b">Capítulos detetados: '+(v.chapters.length?esc(v.chapters.join(' · ')):'—')+'</div>'
         +avHtml+mapHtml+'</div>');
     });
     out.innerHTML = cards.length
@@ -6700,7 +6739,7 @@ async function vfLoadRatios(){
 }
 function vfRenderRatios(rows, abc, fogos, seg, proj){
   const out=document.getElementById('rxOut');
-  const natB=n=>{ const m={full:['#1c7c46','completo'],material:['#b26a00','material'],labour:['#298893','mão de obra']}[n]||['#8391a3',n]; return '<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700">'+m[1]+'</span>'; };
+  const natB=n=>{ const m={full:['#1c7c46','completo'],material:['#b26a00','material'],labour:['#298893','mão de obra']}[n]||['#8391a3',n]; return '<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:12px;font-weight:600">'+m[1]+'</span>'; };
   const th='<tr><th>Capítulo (elemento)</th><th>Natureza</th><th style="text-align:right">Custo (€)</th><th>Un.</th><th style="text-align:right">€/unidade</th><th style="text-align:right">€/m² ABC</th><th style="text-align:right">€/fogo</th><th style="text-align:right">Ref €/m²</th><th style="text-align:right">Δ</th><th style="text-align:right">Contr.</th></tr>';
   const body=rows.map(r=>{
     const dpct=r.delta==null?'—':(r.delta>0?'+':'')+(r.delta*100).toFixed(0)+'%';
@@ -6718,9 +6757,9 @@ function vfRenderRatios(rows, abc, fogos, seg, proj){
       +'<td class="mono" style="text-align:right">'+r.nContratos+'</td></tr>';
   }).join('');
   const totCusto=rows.reduce((s,r)=>s+r.custo,0);
-  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na sua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Projeto: <b>'+(proj?esc(proj):'todos')+'</b> · Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.<br><span style="font-size:11px;color:#8391a3">'+(window.__rxDiag||'motor rácios r4')+'</span></div>'
+  out.innerHTML='<div class="note" style="margin-bottom:8px"><b>€/unidade</b> é o rácio do elemento na tua grandeza natural (ex.: vãos €/un, rodapé €/ml, pavimento €/m²) — o driver de cada capítulo. €/m² ABC e €/fogo normalizam ao edifício. Projeto: <b>'+(proj?esc(proj):'todos')+'</b> · Segmento: <b>'+(seg?esc(seg):'todos')+'</b> · ABC '+(abc?fmt(abc,0)+' m²':'—')+' · '+(fogos?fmt(fogos,0)+' fogos':'—')+'. Clica numa linha para ver a origem (com a especificação de cada artigo). Enquanto nem todos os subcontratos estiverem importados, os rácios são parciais.<br><span style="font-size:12px;color:#8391a3">'+(window.__rxDiag||'motor rácios r4')+'</span></div>'
     +'<table style="font-size:13px">'+th+body
-    +'<tr style="font-weight:700"><td>TOTAL</td><td></td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
+    +'<tr style="font-weight:600"><td>TOTAL</td><td></td><td class="mono" style="text-align:right">'+vfMoeda(totCusto)+'</td><td colspan="7"></td></tr></table>'
     +'<div id="rxDrill" style="margin-top:12px"></div>';
 }
 function vfDrill(cap){
@@ -6730,7 +6769,7 @@ function vfDrill(cap){
   const body=lines.map(l=>'<tr><td class="mono">'+esc(l.contrato||'')+'</td><td>'+esc(String(l.designacao||'').slice(0,70))+'</td>'
     +'<td>'+esc(l.unidade||'')+'</td><td class="mono" style="text-align:right">'+fmt(l.quantidade,2)+'</td>'
     +'<td class="mono" style="text-align:right">'+fmt(l.preco_unit,2)+'</td><td class="mono" style="text-align:right">'+vfMoeda(l.total)+'</td></tr>').join('');
-  d.innerHTML='<div class="card"><b>'+esc(cap)+'</b> — '+lines.length+' linhas de origem<table style="margin-top:8px;font-size:12.5px">'+th+body+'</table></div>';
+  d.innerHTML='<div class="card"><b>'+esc(cap)+'</b> — '+lines.length+' linhas de origem<table style="margin-top:8px;font-size:13px">'+th+body+'</table></div>';
 }
 (function vfMountRacios(){
   if(document.getElementById('nav-racios')) return;
@@ -7004,11 +7043,11 @@ async function vfImportComprasFile(){
 function vfConfBadge(c){
   const map={alta:['#1c7c46','alta'],'média':['#298893','média'],baixa:['#b26a00','baixa'],sem:['#E62336','sem match']};
   const m=map[c]||map.sem;
-  return '<span style="background:'+m[0]+';color:#fff;padding:1px 8px;border-radius:20px;font-size:11px;font-weight:700">'+m[1]+'</span>';
+  return '<span style="background:'+m[0]+';color:#fff;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600">'+m[1]+'</span>';
 }
 function vfKindBadge(k){
   const m={completo:['#1c7c46','completo'],composto:['#298893','mat+inst'],'só material':['#b26a00','só material'],'material+inst.%':['#b26a00','mat+inst %'],'rácio cap.':['#2E6DB0','rácio cap.']}[k];
-  return m?'<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700">'+m[1]+'</span>':'—';
+  return m?'<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:12px;font-weight:600">'+m[1]+'</span>':'—';
 }
 function vfRenderMQ(results, libFullN, libMatN, scope){
   const out=document.getElementById('mqOut');
@@ -7031,8 +7070,8 @@ function vfRenderMQ(results, libFullN, libMatN, scope){
   const porCap=results.filter(x=>x.m.kind==='rácio cap.').length;
   const semNada=results.filter(x=>x.m.rec==null).length;
   out.innerHTML='<div class="note" style="margin-bottom:8px">Base de custo: <b>'+esc(scope||'todos os projetos')+'</b> · '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> com preço fiável (match de texto) · <b>'+comMat+'</b> via material · <b>'+porCap+'</b> via rácio de capítulo · <b>'+semNada+'</b> sem preço (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
-    +'<table style="font-size:12.5px">'+th+body+'</table>'
-    +'<div style="margin-top:10px;font-size:15px;display:flex;align-items:center;gap:14px"><b>Estimativa total: <span id="mqTotal">—</span></b> <button class="btn navy" onclick="vfExportMQ()">Exportar Excel</button></div>'
+    +'<table style="font-size:13px">'+th+body+'</table>'
+    +'<div style="margin-top:10px;font-size:14px;display:flex;align-items:center;gap:14px"><b>Estimativa total: <span id="mqTotal">—</span></b> <button class="btn navy" onclick="vfExportMQ()">Exportar Excel</button></div>'
     +'<div id="mqDrill" style="margin-top:12px"></div>';
   vfMQTotal();
 }
@@ -7081,7 +7120,7 @@ function vfMQDrill(i){
   const th='<tr><th>Registo de custo</th><th>Contrato</th><th style="text-align:right">€/un</th><th style="text-align:right">Semelhança</th></tr>';
   const body=c.length?c.map(k=>'<tr><td>'+esc(String(k.desc).slice(0,64))+'</td><td class="mono">'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score*100).toFixed(0)+'%</td></tr>').join(''):'<tr><td colspan="4">Sem registos comparáveis por texto.</td></tr>';
   const capNota=x.m.viaCap?'<div class="note" style="margin:6px 0">Preço por <b>rácio de capítulo</b>: '+esc(x.m.cap||'')+' · €/'+esc(x.l.unidade)+' médio do custo real ('+(x.m.n||0)+' registos). Usado por não haver correspondência de texto fiável — confirma antes de fechar.</div>':'';
-  d.innerHTML='<div class="card"><b>'+esc(String(x.l.designacao).slice(0,80))+'</b> · '+esc(x.l.unidade)+capNota+'<table style="margin-top:8px;font-size:12.5px">'+th+body+'</table></div>';
+  d.innerHTML='<div class="card"><b>'+esc(String(x.l.designacao).slice(0,80))+'</b> · '+esc(x.l.unidade)+capNota+'<table style="margin-top:8px;font-size:13px">'+th+body+'</table></div>';
 }
 (function vfMountMQ(){
   if(document.getElementById('nav-precomq')) return;
@@ -7345,7 +7384,7 @@ async function vfDvRender(){
   const body=rows.map(r=>{
     if(!r.temAuto){ return '<tr style="color:#8391a3"><td>'+esc(r.cap)+'</td>'
       +'<td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td>'
-      +'<td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">sem auto</span></td>'
+      +'<td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600">sem auto</span></td>'
       +'<td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'; }
     const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
     return '<tr><td>'+esc(r.cap)+'</td>'
@@ -7363,12 +7402,12 @@ async function vfDvRender(){
     +'<div class="note" style="margin-bottom:8px"><span style="color:#1c7c46">Verde</span> = abaixo do orçamento; <span style="color:#b26a00">laranja</span> = acima; <b>sem auto</b> = capítulo orçamentado ainda sem medição (não é poupança).</div>'
     +'<table style="font-size:13px"><tr><th>Capítulo</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
     +body
-    +'<tr style="font-weight:700;border-top:2px solid #201C1D"><td>DESVIO FIÁVEL (só capítulos com auto)</td>'
+    +'<tr style="font-weight:600;border-top:2px solid #201C1D"><td>DESVIO FIÁVEL (só capítulos com auto)</td>'
       +'<td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td>'
       +'<td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td>'
       +'<td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td>'
       +'<td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
-    +'<tr style="color:#5b6b7f"><td>Orçamento total (âmbito completo)</td><td class="mono" style="text-align:right">'+vfMoeda(totO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(totR)+' <span style="font-size:10px">(real parcial · '+cobPct+'%)</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'
+    +'<tr style="color:#5b6b7f"><td>Orçamento total (âmbito completo)</td><td class="mono" style="text-align:right">'+vfMoeda(totO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(totR)+' <span style="font-size:12px">(real parcial · '+cobPct+'%)</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'
     +'</table>';
 }
 /* LENTE LEGENDRE — desvios nas categorias oficiais (Transfert), para a monitorização
@@ -7404,14 +7443,14 @@ async function vfDvRenderLegendre(){
   const semBtot=semB.reduce((s,r)=>s+r.rr,0);
   const cob=totO?covO/totO:0, cobPct=(cob*100).toFixed(0), cobCol=cob>=0.9?'#1c7c46':(cob>=0.5?'#b26a00':'#E62336');
   const body=withB.map(r=>{
-    if(!r.temAuto){ return '<tr style="color:#8391a3"><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">sem auto</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'; }
+    if(!r.temAuto){ return '<tr style="color:#8391a3"><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td style="text-align:right"><span style="background:#eef1f5;color:#8391a3;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600">sem auto</span></td><td style="text-align:right">—</td><td style="text-align:right">—</td></tr>'; }
     const col=r.dv>0?'#b26a00':(r.dv<0?'#1c7c46':'#48566b');
     return '<tr><td>'+esc(r.cat)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.o)+'</td><td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td><td class="mono" style="text-align:right;color:'+col+'">'+(r.dv>0?'+':'')+vfMoeda(r.dv)+'</td><td class="mono" style="text-align:right;color:'+col+'">'+(r.pct==null?'—':(r.pct>0?'+':'')+(r.pct*100).toFixed(0)+'%')+'</td></tr>';
   }).join('');
   const dcol=covD>0?'#b26a00':(covD<0?'#1c7c46':'#48566b');
   const semBody = semB.length ? (
-     '<tr style="background:#fff8ec"><td colspan="5" style="font-weight:700;color:#b26a00;font-size:11px;padding:7px 4px">CUSTO REAL SEM RUBRICA NO TRANSFERT — a alocar a uma categoria oficial ('+vfMoeda(semBtot)+')</td></tr>'
-     + semB.map(r=>'<tr style="background:#fffdf7"><td>'+esc(r.cat)+'</td><td style="text-align:right;color:#b26a00">—</td><td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td><td style="text-align:right"><span style="background:#fce9c9;color:#b26a00;padding:1px 8px;border-radius:20px;font-size:10.5px;font-weight:700">a alocar</span></td><td style="text-align:right">—</td></tr>').join('')
+     '<tr style="background:#fff8ec"><td colspan="5" style="font-weight:600;color:#b26a00;font-size:12px;padding:7px 4px">CUSTO REAL SEM RUBRICA NO TRANSFERT — a alocar a uma categoria oficial ('+vfMoeda(semBtot)+')</td></tr>'
+     + semB.map(r=>'<tr style="background:#fffdf7"><td>'+esc(r.cat)+'</td><td style="text-align:right;color:#b26a00">—</td><td class="mono" style="text-align:right">'+vfMoeda(r.rr)+'</td><td style="text-align:right"><span style="background:#fce9c9;color:#b26a00;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600">a alocar</span></td><td style="text-align:right">—</td></tr>').join('')
   ) : '';
   out.innerHTML=
     '<div class="note" style="margin-bottom:8px;padding:10px 12px;background:#f0f4fb;border:1px solid #d5e0f0;border-radius:8px">'
@@ -7422,7 +7461,7 @@ async function vfDvRenderLegendre(){
     +'</div>'
     +'<table style="font-size:13px"><tr><th>Categoria Legendre</th><th style="text-align:right">Orçamento transferido</th><th style="text-align:right">Real executado</th><th style="text-align:right">Δ €</th><th style="text-align:right">Δ %</th></tr>'
     +body
-    +'<tr style="font-weight:700;border-top:2px solid #201C1D"><td>DESVIO FIÁVEL (categorias com auto e rubrica)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
+    +'<tr style="font-weight:600;border-top:2px solid #201C1D"><td>DESVIO FIÁVEL (categorias com auto e rubrica)</td><td class="mono" style="text-align:right">'+vfMoeda(covO)+'</td><td class="mono" style="text-align:right">'+vfMoeda(covR)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covD>0?'+':'')+vfMoeda(covD)+'</td><td class="mono" style="text-align:right;color:'+dcol+'">'+(covO?((covD/covO>0?'+':'')+(covD/covO*100).toFixed(0)+'%'):'—')+'</td></tr>'
     +semBody
     +'</table>'
     +'<div style="margin-top:12px"><button class="btn" onclick="vfLegSubToggle()">Afinar categorias por subcontrato</button>'
@@ -7445,13 +7484,13 @@ async function vfLegSubRender(){
   let sub={}; try{ const sq=await sb.from('mapa_legendre_sub').select('import_id,legendre_categoria'); (sq.data||[]).forEach(r=>{ sub[r.import_id]=r.legendre_categoria; }); }catch(e){}
   const rows=Object.keys(imps).map(id=>{ const im=imps[id]; const domCap=Object.keys(im.caps).sort((a,b)=>im.caps[b]-im.caps[a])[0]||''; const def=map[vfNorm(domCap)]||''; return {id,sub:im.sub,contr:im.contr,tot:im.tot,domCap,def,cur:sub[id]||''}; }).sort((a,b)=>b.tot-a.tot);
   if(!rows.length){ p.innerHTML='<div class="note">Sem subcontratos gravados para este projeto.</div>'; return; }
-  const body=rows.map(r=>'<tr><td>'+esc(r.sub||'—')+(r.contr?'<div style="font-size:10px;color:#8391a3">'+esc(r.contr)+'</div>':'')+'</td>'
-    +'<td style="font-size:11.5px">'+esc(r.domCap)+'</td>'
-    +'<td style="color:#8391a3;font-size:11.5px">'+esc(r.def||'—')+'</td>'
+  const body=rows.map(r=>'<tr><td>'+esc(r.sub||'—')+(r.contr?'<div style="font-size:12px;color:#8391a3">'+esc(r.contr)+'</div>':'')+'</td>'
+    +'<td style="font-size:12px">'+esc(r.domCap)+'</td>'
+    +'<td style="color:#8391a3;font-size:12px">'+esc(r.def||'—')+'</td>'
     +'<td>'+vfLegSelect('legsub_'+r.id, r.cur, r.def)+'</td>'
     +'<td class="mono" style="text-align:right">'+vfMoeda(r.tot)+'</td></tr>').join('');
   p.innerHTML='<div class="note" style="margin:6px 0;padding:8px 10px;background:#f6f8fb;border:1px solid #e1e7ef;border-radius:8px">Atribui cada subcontrato à categoria Legendre certa. Em branco = usa o capítulo por omissão. É aqui que separas os capítulos que se dividem — <b>vãos</b> (caixilharia → Facade Cladding), <b>estabilidade</b> (armadura → Reinforcing), <b>estaleiro</b> (limpeza → Site Cleaning), <b>terras</b> (contenção → Containment Works).</div>'
-    +'<table style="font-size:12.5px"><tr><th>Subempreiteiro</th><th>Capítulo dominante</th><th>Legendre (omissão)</th><th>Override Legendre</th><th style="text-align:right">Total</th></tr>'+body+'</table>'
+    +'<table style="font-size:13px"><tr><th>Subempreiteiro</th><th>Capítulo dominante</th><th>Legendre (omissão)</th><th>Override Legendre</th><th style="text-align:right">Total</th></tr>'+body+'</table>'
     +'<button class="btn navy" style="margin-top:8px" onclick="vfLegSubSave()">Guardar afinação</button> <span id="legSubOut" class="note"></span>';
 }
 async function vfLegSubSave(){ const out=document.getElementById('legSubOut'); const sels=document.querySelectorAll('[id^=legsub_]'); const up=[], del=[];
@@ -7609,17 +7648,17 @@ async function vfBoardReport(){
 </script>
 <!-- ====== BOTÃO DE AJUDA (autoexplicativo) ====== -->
 <button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
-  style="position:fixed;right:20px;bottom:20px;z-index:150;width:48px;height:48px;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:22px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.28)">?</button>
+  style="position:fixed;right:20px;bottom:20px;z-index:150;width:48px;height:48px;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:24px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.28)">?</button>
 <div id="ajudaOverlay" class="overlay hidden" onclick="if(event.target===this)fecharAjuda()">
   <div style="background:#fff;border-radius:12px;padding:0;width:100%;max-width:780px;max-height:88vh;display:flex;flex-direction:column">
     <div style="padding:14px 22px;border-bottom:1px solid #e3e8ef;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:700;color:var(--navy);font-size:16px">Ajuda &mdash; como usar a plataforma</div>
+      <div style="font-weight:600;color:var(--navy);font-size:16px">Ajuda &mdash; como usar a plataforma</div>
       <button onclick="fecharAjuda()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888;line-height:1">&times;</button>
     </div>
     <div id="ajudaTabs" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 22px;border-bottom:1px solid #eef1f5"></div>
     <div id="ajudaBody" style="padding:18px 22px;overflow-y:auto;font-size:13px;line-height:1.55;color:#2a3a52">
 <div class="ajuda-sec" data-area="estimar" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Estimar — custo rápido para o Business Plan</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Estimar — custo rápido para o Business Plan</h3>
 <p style="margin:0 0 10px">Estimativa <b>top-down</b>, sem precisar do mapa de quantidades. Primeiro preenche os <b>descritores</b> no topo (ABC, fogos, pisos…). Depois, os campos desta vista:</p>
 <ul style="margin:0 0 10px;padding-left:18px">
 <li><b>Budget do BP (€)</b> — opcional; o valor do Business Plan, só para comparares no fim.</li>
@@ -7633,7 +7672,7 @@ async function vfBoardReport(){
 <p style="margin:0 0 6px">Carrega em <b>Estimar</b>. Obténs o custo por capítulo, com um intervalo.</p>
 <p style="margin:0;color:#a06000"><b>Cuidado:</b> é uma estimativa top-down — serve para decidir e negociar, <b>não para assinar</b>.</p>
 </div><div class="ajuda-sec" data-area="orcamentar" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Orçamentar — orçamento detalhado (com mapa de quantidades)</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Orçamentar — orçamento detalhado (com mapa de quantidades)</h3>
 <p style="margin:0 0 10px">Três passos, nos sub-separadores no topo:</p>
 <ul style="margin:0 0 10px;padding-left:18px">
 <li><b>Analisar MQ</b> — larga o Excel do projetista; a plataforma deteta o formato e organiza por capítulos (se o layout for atípico, há mapeador manual).</li>
@@ -7642,10 +7681,10 @@ async function vfBoardReport(){
 </ul>
 <p style="margin:0;color:#a06000"><b>Cuidado:</b> confirma a proveniência de cada capítulo — um total pode parecer firme e ser sobretudo estimativa.</p>
 </div><div class="ajuda-sec" data-area="consultas" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Consultas — consultar o mercado</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Consultas — consultar o mercado</h3>
 <p style="margin:0">Cria a consulta de um pacote com os fornecedores, regista as propostas recebidas e compara-as. As propostas recebidas são a fonte de preço mais firme para o orçamento.</p>
 </div><div class="ajuda-sec" data-area="execucao" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Execução — o portão: do estimado ao real</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Execução — o portão: do estimado ao real</h3>
 <p style="margin:0 0 10px">Escolhe o <b>Projeto</b> no topo da vista. A tabela mostra, por pacote: <b>Estimado → Adjudicado → Real</b>, com os desvios (Δ adjudicação e Δ execução) e o total.</p>
 <ul style="margin:0 0 10px;padding-left:18px">
 <li><b>Registar adjudicação</b> — o momento em que fechas um pacote com um subempreiteiro. Preenche <b>Capítulo</b>, <b>Pacote</b> (opcional), <b>Fornecedor</b>, <b>Estimado</b> (a fotografia do orçamento à data) e <b>Adjudicado</b> (o valor de contrato). O estimado é a base contra a qual se mede o desvio.</li>
@@ -7654,15 +7693,15 @@ async function vfBoardReport(){
 <p style="margin:0 0 6px;color:#0f7b6c"><b>Porquê importa:</b> o adjudicado é o preço limpo que alimenta as estimativas futuras (em Estimar, fonte "Adjudicado"); o desvio de execução vira contingência medida. É o mecanismo que protege a margem.</p>
 <p style="margin:0;color:#a06000"><b>Cuidado:</b> precisas de sessão de gestor iniciada para gravar.</p>
 </div><div class="ajuda-sec" data-area="custoreal" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Custo Real — o custo efetivo da obra</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Custo Real — o custo efetivo da obra</h3>
 <p style="margin:0 0 10px">Sub-separadores: <b>Verificar Auto</b> (autos de medição), <b>Rácios</b> e <b>Comparar</b> (contrato vs. real).</p>
 <p style="margin:0">Ao fechar a obra, os preços reais passam a alimentar a biblioteca — e a estimativa da obra seguinte fica mais firme.</p>
 </div><div class="ajuda-sec" data-area="biblioteca" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Biblioteca — o conhecimento acumulado</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Biblioteca — o conhecimento acumulado</h3>
 <p style="margin:0 0 10px">Os preços reais e unitários, a taxonomia e as versões. É o que cresce a cada obra e alimenta as estimativas.</p>
 <p style="margin:0;color:#a06000"><b>Gerir projetos:</b> aqui eliminas um projeto e todos os seus dados. É <b>irreversível</b> — faz export (backup) antes, confirma as contagens, e escreve o nome para confirmar.</p>
 </div><div class="ajuda-sec" data-area="geral" style="display:none">
-<h3 style="color:var(--navy);margin:0 0 6px;font-size:15px">Cuidados importantes</h3>
+<h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Cuidados importantes</h3>
 <ul style="margin:0;padding-left:18px">
 <li>Abre sempre pelo <b>link oficial</b>, não por um ficheiro guardado no PC (fica desatualizado).</li>
 <li><b>Inicia sessão</b> (topo: "Ligado · email"). Sem sessão, vês mas não gravas.</li>
@@ -7888,6 +7927,62 @@ async function uxRenderResumo(){
   if(!online) html='<div class="note" style="margin-bottom:14px">Modo local: inicia sessão para ver os dados gravados deste projeto.</div>'+html;
   box.innerHTML=html;
 }
+</script>
+
+<script>
+/* ═══════════ Entrega 2 · ícones, títulos curtos, zona de ficheiros, estado vazio ═══════════ */
+(function uxE2(){
+  const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
+  const addIc=(el,n)=>{ if(!el||el.querySelector('[class^="icon-"]')) return; el.insertAdjacentHTML('afterbegin',ic(n)); };
+  // menu
+  const NAV={resumo:'layout-dashboard',estimador:'calculator',analisador:'file-search',orcamento:'wallet',consultas:'send',precomq:'list-checks',execucao:'hard-hat',verificar:'clipboard-check',comparar:'git-compare',racios:'chart-column',biblioteca:'library',admin:'settings',ajuda:'circle-help'};
+  Object.entries(NAV).forEach(([k,n])=>addIc(document.getElementById('nav-'+k),n));
+  addIc(document.getElementById('btnLogout'),'log-out');
+  // títulos curtos + subtítulo (a explicação longa fica em «Como funciona»)
+  const T={
+    resumo:['Resumo do projeto','Em que ponto está cada fase do projeto ativo'],
+    estimador:['Estimativa para o BP','Custo estimado a partir dos descritores e da biblioteca'],
+    analisador:['Revisão do MQ','Validar o mapa de quantidades contra o histórico da Solive'],
+    orcamento:['Orçamento','Consolidação por capítulo, com semáforo de fonte do preço'],
+    consultas:['Consultas ao mercado','Registo de consultas e mapa comparativo de propostas'],
+    execucao:['Adjudicações e desvios','Do estimado ao real, capítulo a capítulo'],
+    comparar:['Benchmark','Comparar projetos lado a lado'],
+    biblioteca:['Biblioteca','Rácios e taxonomia acumulados pela Solive'],
+    admin:['Administração','Projetos, versões e fases']
+  };
+  Object.entries(T).forEach(([v,[t,s]])=>{
+    const p=document.querySelector('#view-'+v+' .purpose'); if(!p) return;
+    const h1=p.querySelector('h1'); if(h1) h1.textContent=t;
+    if(!p.querySelector('.subtitle') && h1) h1.insertAdjacentHTML('afterend','<p class="subtitle">'+s+'</p>');
+  });
+  document.querySelectorAll('.purpose .toggle').forEach(b=>addIc(b,'circle-help'));
+  // ícones nos botões, pelo texto
+  const RULES=[[/^exportar|excel|descarregar/i,'download'],[/^gravar|^guardar/i,'save'],[/^importar|^carregar|^largar/i,'upload'],[/arrancar/i,'sparkles'],[/^registar|^adicionar|^novo|^nova|^abrir/i,'plus'],[/^editar/i,'pencil'],[/^eliminar|^apagar/i,'trash-2'],[/^comparar/i,'git-compare'],[/^repor/i,'rotate-ccw'],[/^aplicar/i,'check'],[/^cancelar|^fechar/i,'x'],[/^o que significam/i,'book-open']];
+  const iconize=root=>root.querySelectorAll('.btn,.btnctx').forEach(b=>{
+    const t=(b.textContent||'').trim(); const r=RULES.find(([re])=>re.test(t)); if(r) addIc(b,r[1]);
+    const first=b.firstChild; if(first&&first.nodeType===3&&/^\s*\?\s*/.test(first.nodeValue)&&/\?/.test(first.nodeValue)) first.nodeValue=first.nodeValue.replace(/^\s*\?\s*/,'');
+  });
+  iconize(document);
+  // zona de ficheiros
+  document.querySelectorAll('.drop').forEach(d=>{ if(!d.querySelector('.drop-ic')) d.insertAdjacentHTML('afterbegin','<span class="drop-ic">'+ic('upload')+'</span>'); });
+  // estado vazio: um só aviso ao centro em vez de repetir em cada bloco
+  const NEED=['resumo','estimador','analisador','orcamento','consultas','precomq','execucao','verificar'];
+  NEED.forEach(v=>{
+    const view=document.getElementById('view-'+v); if(!view||view.querySelector('.ux-empty')) return;
+    view.classList.add('needs-project');
+    const box=document.createElement('div'); box.className='ux-empty';
+    box.innerHTML='<span class="ux-empty-ic">'+ic('folder-open')+'</span><div><h3>Escolhe um projeto para começar</h3><p>Escolhe um projeto existente na barra do topo ou escreve o nome de um novo.</p></div><button class="btn red" type="button">'+ic('folder-search')+'Escolher projeto</button>';
+    box.querySelector('button').onclick=e=>{ const i=document.getElementById('ctxNome'); if(i){ i.focus(); } try{ toggleCtxLista(e); }catch(err){} };
+    const pu=view.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',box); else view.prepend(box);
+  });
+  const sync=()=>{ let has=false; try{ has=!!(CTX&&CTX.nome); }catch(e){} document.body.classList.toggle('no-project',!has); };
+  try{ const _r=ctxRender; ctxRender=function(){ const out=_r.apply(this,arguments); sync(); return out; }; }catch(e){}
+  sync();
+  // conteúdo desenhado depois (tabelas, modais): voltar a pôr ícones
+  let pend=false; const target=document.querySelector('main')||document.body;
+  const mo=new MutationObserver(()=>{ if(pend) return; pend=true; requestAnimationFrame(()=>{ mo.disconnect(); iconize(document); pend=false; mo.observe(target,{childList:true,subtree:true}); }); });
+  mo.observe(target,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>
