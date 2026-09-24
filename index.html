@@ -444,6 +444,32 @@ nav button [class^="icon-"]{font-size:16px}
 .purpose .subtitle{font-size:14px}
 .kpi .v{font-size:22px}
 td{font-size:13px}
+
+/* ═══ Explicações de cada separador: para que serve, passos, resultado e ciclo ═══ */
+.purpose .howto{display:none}
+.purpose.open .howto{display:block;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:10px;font-size:14px;line-height:1.55;color:var(--ink);max-width:860px}
+.howto ol{margin:6px 0 10px;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.howto li::marker{font-weight:700;color:var(--red)}
+.howto .ht-lbl{font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#6B6461;margin:10px 0 2px}
+.howto .ht-lbl:first-child{margin-top:0}
+.howto p{display:block!important;margin:0;background:none!important;border:0!important;padding:0!important;font-size:14px!important;color:var(--ink)!important}
+.cycle{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 2px;font-size:13px}
+.cycle .cy{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;color:#6B6461;cursor:pointer;font-weight:500}
+.cycle .cy.on{background:#FBE1E5;border-color:#F4B9C1;color:#C81F35;font-weight:600}
+.cycle .cy-sep{color:#C9C2BF}
+.cycle .next{margin-left:8px;display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--ink);cursor:pointer;border:0;background:none;padding:4px 2px}
+.cycle .next:hover{color:var(--red)}
+.guide{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+.guide h3{font-size:16px;margin:0 0 10px}
+.guide .g-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.guide .g-step{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;cursor:pointer;background:#FAF9F8}
+.guide .g-step:hover{border-color:var(--red)}
+.guide .g-n{font-size:12px;font-weight:700;color:#C81F35;letter-spacing:.05em;text-transform:uppercase}
+.guide .g-t{font-weight:700;font-size:14px}
+.guide .g-d{font-size:13px;color:#6B6461}
+@media(max-width:900px){.guide .g-steps{grid-template-columns:1fr 1fr}}
+
+.purpose p.subtitle,.purpose.open p.subtitle{display:block!important;background:none!important;border:0!important;padding:0!important;margin:0 0 4px!important;font-size:14px!important;color:#6B6461!important}
 </style>
 </head>
 <body>
@@ -7786,7 +7812,7 @@ function uxFmtEur(n){return (Math.round(n||0)).toLocaleString('pt-PT')+' €';}
 function uxFmtM(n){return ((n||0)/1e6).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' M€';}
 function uxPurpose(eyebrow,title,text){return '<div class="purpose" data-ux><button class="toggle" onclick="foldPurpose(this)">Como funciona</button><div class="eyebrow">'+eyebrow+'</div><h1>'+title+'</h1><p>'+text+'</p></div>';}
 /* «Como funciona» em vez de esconder/mostrar */
-function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classList.toggle('open');btn.textContent=on?'Fechar':'Como funciona';}
+function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classList.toggle('open');btn.innerHTML='<i class="icon-'+(on?'x':'circle-help')+'" aria-hidden="true"></i>'+(on?'Fechar':'Como funciona');}
 
 (function uxMount(){
   const nav=document.querySelector('header nav'); if(!nav) return;
@@ -8026,6 +8052,62 @@ async function uxRenderResumo(){
   let pend=false; const target=document.querySelector('main')||document.body;
   const mo=new MutationObserver(()=>{ if(pend) return; pend=true; requestAnimationFrame(()=>{ mo.disconnect(); iconize(document); pend=false; mo.observe(target,{childList:true,subtree:true}); }); });
   mo.observe(target,{childList:true,subtree:true});
+})();
+</script>
+
+<script>
+/* ═══════════ Explicações por separador (para que serve · passos · resultado · ciclo) ═══════════ */
+(function uxHowTo(){
+  const TX={"resumo":{"s":"O ponto de situação do projeto ativo e o que falta fazer","p":"Ver, num só ecrã, em que fase está o projeto e qual é o passo seguinte.","st":["Escolhe o projeto na barra do topo (ou escreve o nome de um novo).","Vê o estado de cada fase: estimativa, revisão do MQ, orçamento, consultas e execução.","Segue para o separador da fase que ainda não está concluída."],"r":"Sabes o que já está feito e o que falta."},"estimador":{"s":"Uma primeira estimativa de custo, só com os descritores do projeto","p":"Estimar o custo de construção antes de haver projeto de execução, para validar o budget do Business Plan.","st":["Confirma os descritores do projeto (ABC, fogos, pisos…) em «Editar descritores», no topo.","Ajusta os parâmetros do cálculo (segmento e projetos de referência).","Lê a estimativa por capítulo e compara o total com o budget do BP."],"r":"Custo estimado por capítulo, com o intervalo que os projetos históricos implicam.","w":"Na fase de Business Plan, antes de receberes o mapa de quantidades.","n":"analisador"},"analisador":{"s":"Validar o mapa de quantidades do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços.","st":["Confirma os descritores do projeto: são eles que tornam a comparação rigorosa.","Carrega o MQ (.xlsx). Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"orcamento"},"orcamento":{"s":"Construir o orçamento capítulo a capítulo e ver quanto já é preço firme","p":"Passar de uma estimativa por rácio a um orçamento suportado por preços de mercado.","st":["Arranca dos rácios da biblioteca, ou larga o resumo do orçamento em Excel.","À medida que tens preços, atualiza o estado de cada capítulo: rácio → em consulta → proposta → adjudicado.","Acompanha o semáforo: a percentagem consolidada mostra quanto do orçamento já é sólido."],"r":"Orçamento por capítulo, com a fonte de cada preço à vista.","w":"Depois de revisto o MQ e durante as consultas ao mercado.","n":"consultas"},"consultas":{"s":"Pedir preços ao mercado e escolher a melhor proposta","p":"Registar as consultas aos fornecedores e comparar as propostas lado a lado.","st":["Abre uma consulta por capítulo ou pacote e indica os fornecedores consultados.","Regista as propostas à medida que chegam.","Compara-as no mapa comparativo.","Escolhe a proposta: o preço passa para o Orçamento e fica no histórico do fornecedor."],"r":"Capítulos do orçamento com preço de mercado e histórico de preços por fornecedor.","w":"Quando um capítulo do orçamento ainda está em rácio ou com proposta antiga.","n":"execucao"},"precomq":{"s":"Preencher um mapa de quantidades vazio com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Importa o ficheiro de Compras (.xlsm) — basta uma vez, ou quando houver novas adjudicações.","Define o uplift de instalação e a base de custo (todas as obras ou só uma).","Carrega o MQ vazio e clica em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"},"execucao":{"s":"Registar o que foi adjudicado e as variações em obra","p":"Guardar o preço de contrato de cada pacote e os desvios de execução, com o motivo de cada um.","st":["Quando fechas com um subempreiteiro, regista a adjudicação do pacote.","Durante a obra, regista cada variação e o respetivo motivo.","Acompanha o desvio face ao orçado, capítulo a capítulo."],"r":"Desvios medidos (e não estimados) e uma Biblioteca que aprende com o preço de contrato.","w":"A partir da primeira adjudicação e durante toda a obra.","n":"verificar"},"verificar":{"s":"Conferir os autos de medição com o adjudicado","p":"Confirmar que o que o subempreiteiro mede em cada auto está de acordo com o contrato.","st":["Escolhe o projeto e o pacote.","Carrega ou regista o auto de medição.","Revê as diferenças assinaladas face ao adjudicado antes de aprovar."],"r":"Autos conferidos e diferenças identificadas antes do pagamento.","w":"Todos os meses, quando chegam os autos."},"comparar":{"s":"Comparar projetos entre si, normalizados por m², fogo ou implantação","p":"Perceber onde um projeto se afasta do histórico, em descritores, custos e quantidades.","st":["Escolhe os projetos a comparar — o L’Urbain entra sempre como referência.","Escolhe a normalização (por m² de ABC, por fogo ou por implantação).","Lê as diferenças e usa-as para calibrar a estimativa."],"r":"Comparação lado a lado, pronta a usar num relatório.","w":"Para calibrar uma estimativa ou justificar um desvio."},"racios":{"s":"Os rácios de custo real por capítulo, a partir das obras fechadas","p":"Consultar quanto custou, de facto, cada capítulo nas obras da Solive.","st":["Filtra por segmento ou por projeto.","Consulta o €/m² e o €/unidade de cada capítulo."],"r":"Os rácios que alimentam a Estimativa e o Orçamentar MQ."},"biblioteca":{"s":"O conhecimento acumulado da Solive: rácios, quantidades e taxonomia","p":"Ter num só sítio os rácios de custo e de quantidades de todos os projetos, por capítulo e por fase.","st":["Não se preenche à mão: cada projeto entra ao gravares uma análise na Revisão do MQ e no fecho de obra.","Consulta os rácios por capítulo, projeto e fase.","Mantém a taxonomia de capítulos atualizada (quem administra a plataforma)."],"r":"Estimativas mais rigorosas a cada projeto que fechas."},"admin":{"s":"Gerir projetos, versões gravadas e fases","p":"Tarefas de manutenção, separadas das restantes para evitar ações irreversíveis por engano.","st":["Consulta as versões gravadas do orçamento de cada projeto.","Elimina projetos que já não são precisos — esta ação não se pode anular."],"r":"Uma lista de projetos limpa e o histórico de versões à mão."}};
+  const G={"estimador":"Estimar","analisador":"Rever projeto","orcamento":"Orçamentar","consultas":"Orçamentar","precomq":"Orçamentar","execucao":"Executar","verificar":"Executar"};
+  const NAMES={"estimador":"Estimativa para o BP","analisador":"Revisão do MQ","orcamento":"Orçamento","consultas":"Consultas ao mercado","precomq":"Orçamentar MQ","execucao":"Adjudicações e desvios","verificar":"Autos de medição"};
+  const CYCLE=[['Estimar','estimador'],['Rever projeto','analisador'],['Orçamentar','orcamento'],['Executar','execucao']];
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
+  function build(v){
+    const view=document.getElementById('view-'+v); const t=TX[v]; if(!view||!t) return;
+    let pu=view.querySelector('.purpose');
+    if(!pu){ pu=document.createElement('div'); pu.className='purpose'; pu.innerHTML='<div class="eyebrow">'+(G[v]||'')+'</div><h1>'+(NAMES[v]||'')+'</h1>'; view.prepend(pu); }
+    if(pu.dataset.howto) return; pu.dataset.howto='1';
+    pu.classList.remove('folded');
+    let tg=pu.querySelector('.toggle');
+    if(!tg){ tg=document.createElement('button'); tg.className='toggle'; tg.type='button'; tg.onclick=function(){foldPurpose(this)}; pu.prepend(tg); }
+    tg.innerHTML=ic('circle-help')+'Como funciona';
+    let sub=pu.querySelector('.subtitle'); const h1=pu.querySelector('h1');
+    if(!sub&&h1){ h1.insertAdjacentHTML('afterend','<p class="subtitle"></p>'); sub=pu.querySelector('.subtitle'); }
+    if(sub) sub.textContent=t.s;
+    pu.querySelectorAll('p:not(.subtitle)').forEach(p=>p.remove());
+    let html='<div class="ht-lbl">Para que serve</div><p>'+esc(t.p)+'</p><div class="ht-lbl">Passos</div><ol>'+t.st.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>';
+    if(t.r) html+='<div class="ht-lbl">Resultado</div><p>'+esc(t.r)+'</p>';
+    if(t.w) html+='<div class="ht-lbl">Quando usar</div><p>'+esc(t.w)+'</p>';
+    const box=document.createElement('div'); box.className='howto'; box.innerHTML=html;
+    (sub||h1||pu.lastChild).insertAdjacentElement('afterend',box);
+    if(G[v]){
+      const cy=document.createElement('div'); cy.className='cycle';
+      cy.innerHTML=CYCLE.map(([lbl,to],i)=>(i?'<span class="cy-sep">›</span>':'')+'<button type="button" class="cy'+(G[v]===lbl?' on':'')+'" data-to="'+to+'">'+(i+1)+' · '+lbl+'</button>').join('')
+        +(t.n?'<button type="button" class="next" data-to="'+t.n+'">A seguir: '+esc(NAMES[t.n]||t.n)+' '+ic('arrow-right')+'</button>':'');
+      cy.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
+      box.insertAdjacentElement('beforebegin',cy);
+    }
+  }
+  function guide(){
+    const vr=document.getElementById('view-resumo'); if(!vr||vr.querySelector('.guide')) return;
+    const g=document.createElement('div'); g.className='guide';
+    const S=[['1 · Estimar','Estimativa para o BP','Custo estimado a partir dos descritores.','estimador'],['2 · Rever projeto','Revisão do MQ','Validar o mapa de quantidades do projetista.','analisador'],['3 · Orçamentar','Orçamento e consultas','Trocar rácios por preços de mercado.','orcamento'],['4 · Executar','Adjudicações e autos','Registar o contrato e os desvios em obra.','execucao']];
+    g.innerHTML='<h3>Como usar a plataforma</h3><div class="g-steps">'+S.map(s=>'<div class="g-step" data-to="'+s[3]+'"><span class="g-n">'+s[0]+'</span><span class="g-t">'+s[1]+'</span><span class="g-d">'+s[2]+'</span></div>').join('')+'</div>';
+    g.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
+    const pu=vr.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',g); else vr.prepend(g);
+  }
+  function all(){ Object.keys(TX).forEach(build); guide(); }
+  all();
+  // abrir «Como funciona» automaticamente na primeira visita a cada separador
+  try{
+    const _sv=window.showView||showView;
+    window.showView=function(v){ const r=_sv.apply(this,arguments); try{ build(v); guide();
+      const k='pr_howto_'+v; if(TX[v]&&!localStorage.getItem(k)){ const pu=document.querySelector('#view-'+v+' .purpose'); const tg=pu&&pu.querySelector('.toggle'); if(pu&&!pu.classList.contains('open')&&tg){ foldPurpose(tg); } localStorage.setItem(k,'1'); }
+    }catch(e){} return r; };
+    showView=window.showView;
+  }catch(e){}
 })();
 </script>
 </body>
