@@ -400,6 +400,50 @@ nav button.on [class^="icon-"]{color:inherit}
 body.no-project .ux-empty{display:flex}
 body.no-project .needs-project > :not(.purpose):not(.ux-empty){opacity:.45}
 body.no-project .miss{display:none}
+
+/* ═══ Entrega 2 · correções de layout (captura de 24 set) ═══ */
+/* página mais larga do que o ecrã: a linha de descritores do projeto não quebrava */
+main{min-width:0;box-sizing:border-box}
+#ctxbar{min-width:0}
+#ctxbar .desc{white-space:normal;min-width:0;flex:1 1 320px;font-size:13px;line-height:1.4}
+.card{max-width:100%;box-sizing:border-box}
+.card table{max-width:100%}
+.card:has(> table), .card .tblwrap{overflow-x:auto}
+/* selo de ligação: numa linha */
+header .badge{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(var(--sb-w) - 28px);border-radius:999px;background:#E1F3EA;color:#1F8A5B;font-weight:600}
+/* menu: sem caixa preta ao clicar */
+nav button:focus{outline:none}
+nav button:focus-visible{outline:2px solid var(--red);outline-offset:-2px}
+/* seletor de ficheiro nativo com o aspeto dos botões secundários */
+input[type=file]{font:inherit;font-size:13px;color:#79726F;max-width:100%}
+input[type=file]::file-selector-button{font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:#fff;border:1px solid var(--grey);border-radius:999px;padding:8px 16px;margin-right:10px;cursor:pointer}
+input[type=file]::file-selector-button:hover{background:#F2EFED}
+/* notas de ajuda: texto simples por baixo, não caixas cinzentas ao lado dos campos */
+.card .note,#view-precomq > .note{display:block;background:none;border:0;padding:0;margin:4px 0 12px;color:#79726F;font-size:13px;line-height:1.5}
+.note:empty{display:none}
+.card > b:first-child{display:block;font-family:'Plus Jakarta Sans','Inter',sans-serif;font-size:16px;font-weight:700;margin-bottom:2px}
+.card > label:first-child{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:8px}
+.card input[type=number],.card select{vertical-align:middle}
+
+.purpose .subtitle{display:block!important}
+.ux-empty .btn,.btn{white-space:nowrap}
+.btnctx{display:inline-flex;align-items:center;gap:6px}
+header .badge:empty{display:none}
+
+/* ═══ Afinação final de tamanhos (letra e ícones) ═══
+   Texto 14 · ajudas 13 · etiquetas de grupo 12 (mínimo) · títulos 16/26.
+   Ícones: 16 px junto a texto de 14 px, 20–24 px em estados vazios e zonas de ficheiro. */
+.navgrp{font-size:12px!important;letter-spacing:.05em}
+nav button{font-size:14px;line-height:1.3;padding:8px 12px}
+nav button [class^="icon-"]{font-size:16px}
+.btn [class^="icon-"],.btnctx [class^="icon-"],.purpose .toggle [class^="icon-"]{font-size:16px}
+#ctxbar .lbl{font-size:12px;font-weight:600;color:#6B6461}
+#ctxNome{font-size:14px}
+/* ajudas com contraste suficiente (antes #79726F sobre fundo creme ≈ 4,1:1) */
+.hint,.note,.card .note,.purpose .subtitle,.ux-empty p,input[type=file]{color:#6B6461}
+.purpose .subtitle{font-size:14px}
+.kpi .v{font-size:22px}
+td{font-size:13px}
 </style>
 </head>
 <body>
@@ -7129,7 +7173,7 @@ function vfMQDrill(i){
   const host=document.getElementById('view-racios')||document.getElementById('view-verificar');
   if(host){
     const mv=document.createElement('div'); mv.id='view-precomq'; mv.className='hidden';
-    mv.innerHTML='<h2 style="color:#201C1D">Orçamentar MQ pelo custo real</h2>'
+    mv.innerHTML='<div class="purpose"><div class="eyebrow">3 · Orçamentar</div><h1>Orçamentar MQ</h1><p class="subtitle">Preencher um mapa de quantidades vazio com o custo real gravado</p></div>'
       +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante). Onde não há correspondência de texto fiável, usa o <b>rácio do capítulo</b> (€/unidade médio do elemento no custo real). Preenche o seguro; confirma os que vêm por rácio. Nada é inventado — só custo real.</div>'
       +'<div class="card" style="margin-top:10px"><b>Biblioteca de compras (fornecedores)</b><div class="note">Importa o ficheiro de Compras (.xlsm) — uma vez, ou sempre que houver novas adjudicações. Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato. Alimenta a composição material + instalação.</div><input type="file" id="cmFile" accept=".xlsm,.xlsx"> <button class="btn navy" onclick="vfImportComprasFile()">Importar compras</button> <span id="cmOut" class="note"></span></div>'
       +'<div class="card" style="margin-top:10px"><label>Uplift de instalação sobre material (%)</label> <input type="number" id="mqUplift" value="0" style="width:80px"> <span class="note">Aplica-se às linhas onde só há preço de material (sem mão de obra registada).</span></div>'
