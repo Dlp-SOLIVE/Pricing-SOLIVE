@@ -417,6 +417,49 @@ function vfMatchLine(line, lib){
           cands:pool.slice(0,6).map(x=>({desc:x.r.designacao,pu:Number(x.r.preco_unit),contrato:x.r.contrato,score:x.score}))};
 }
 /* leitor de MQ vazio (mesma família de template; não exige colunas de preço) */
+/* Quando não há cabeçalho reconhecível: deduz as colunas pelo CONTEÚDO.
+   unidade = coluna com mais valores tipo m², m, un, vg, kg…; quantidade = coluna numérica
+   mais próxima à direita da unidade; descrição = coluna com mais textos longos. */
+const VF_RE_UNID=/^(M2|M²|M3|M³|M|ML|UN|UND|UNID|U|VG|KG|TON|T|L|LT|CJ|CONJ|PC|PÇ|PCS|H|HR|DIA|MES|MÊS|SEM|M\.L\.|M\/L)\.?$/;
+function vfInferirColunas(rows){
+  const N=Math.min(rows.length,600); let nc=0;
+  for(let i=0;i<N;i++) nc=Math.max(nc,(rows[i]||[]).length);
+  if(!nc) return null;
+  const st=Array.from({length:nc},()=>({un:0,num:0,txt:0,first:-1}));
+  for(let i=0;i<N;i++){ const r=rows[i]||[];
+    for(let j=0;j<nc;j++){ const v=r[j]; if(v==null||v==='') continue;
+      const s=String(v).trim(), sn=vfNorm(s);
+      if(VF_RE_UNID.test(sn)){ st[j].un++; if(st[j].first<0) st[j].first=i; }
+      else if(typeof v==='number'||vfNum(s)!=null) st[j].num++;
+      else if(s.length>15) st[j].txt++;
+    } }
+  let un=-1; st.forEach((s,j)=>{ if(s.un>=3&&(un<0||s.un>st[un].un)) un=j; });
+  if(un<0) return null;
+  let qty=-1; for(let k=1;k<=4&&qty<0;k++){ const j=un+k; if(j<nc&&st[j].num>=3) qty=j; }
+  if(qty<0) for(let k=1;k<=3&&qty<0;k++){ const j=un-k; if(j>=0&&st[j].num>=3) qty=j; }
+  if(qty<0) return null;
+  let des=-1; st.forEach((s,j)=>{ if(j!==un&&j!==qty&&s.txt>=3&&(des<0||s.txt>st[des].txt)) des=j; });
+  if(des<0) return null;
+  /* sem cabeçalho fiável: lê desde o início (as linhas sem unidade viram títulos de capítulo) */
+  return {row:-1, des, un, qty, code: des>0?des-1:-1, inferido:true};
+}
+/* Colunas escolhidas à mão (painel "Definir colunas à mão") */
+function vfReadMQComMapa(rows, m){
+  const out=[]; let secao=null;
+  for(let i=Math.max(0,m.inicio);i<rows.length;i++){
+    const r=rows[i]||[];
+    const a=m.code>=0?String(r[m.code]==null?"":r[m.code]).trim():"";
+    const d=String(r[m.des]==null?"":r[m.des]).trim();
+    const un=String(r[m.un]==null?"":r[m.un]).trim();
+    const q=vfNum(r[m.qty]);
+    if(!d) continue;
+    const dn=vfNorm(d);
+    if(RE_SOMA.test(dn)) continue;
+    if(un!==""&&q!=null) out.push({pos:i,art:a,designacao:d,unidade:un,quantidade:q,cap:secao||null});
+    else if(un==="") secao=d;
+  }
+  return out;
+}
 function vfReadMQ(rows){
   /* Cabeçalho: primeiro o detetor do Analisador (aceita Designação/Descrição/Artigo,
      Un./Unid./Unidade, Quant./Quantidade/Qt./Qtd. e cabeçalhos em duas linhas);
@@ -433,6 +476,7 @@ function vfReadMQ(rows){
       if(des>=0&&un>=0&&qt>=0){ H={row:i,des,un,qty:qt,code:0}; break; }
     }
   }
+  if(!H) H=vfInferirColunas(rows);
   if(!H) return null;
   /* cabeçalho a dois níveis ("Quantidades" por cima de "Un." e "Quant."): a unidade e a
      quantidade não podem ser a mesma coluna — procurar a quantidade na linha do cabeçalho */
@@ -446,7 +490,7 @@ function vfReadMQ(rows){
   const out=[]; let secao=null;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
-    const a=String(r[H.code]==null?"":r[H.code]).trim();
+    const a=H.code>=0?String(r[H.code]==null?"":r[H.code]).trim():"";
     const d=String(r[H.des]==null?"":r[H.des]).trim();
     const un=String(r[H.un]==null?"":r[H.un]).trim();
     const q=vfNum(r[H.qty]);
@@ -519,10 +563,12 @@ async function vfPriceMQFile(){
     for(const sn of wb.SheetNames){
       if(/INDICE|ÍNDICE/i.test(sn)) continue;
       const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
-      const m=vfReadMQ(rows);
+      const mapa=window.__mqMap;
+      if(mapa && mapa.sheet!==sn) continue;
+      const m=mapa?vfReadMQComMapa(rows,mapa):vfReadMQ(rows);
       if(m&&m.length){ m.forEach(l=>{ l.__sheet=sn; if(!l.cap||l.cap==='(sem capítulo)') l.cap=sn; }); mq.push(...m); }
     }
-    if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades em nenhuma das '+wb.SheetNames.length+' folha(s) deste ficheiro ('+esc(wb.SheetNames.join(', '))+'). Preciso de uma linha de cabeçalho com uma coluna de descrição (Designação / Descrição / Artigo), uma de unidade (Un. / Unid. / Unidade) e uma de quantidade (Quant. / Quantidade / Qtd.), e de linhas com unidade e quantidade preenchidas.</div>'; return; }
+    if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades em nenhuma das '+wb.SheetNames.length+' folha(s) deste ficheiro ('+esc(wb.SheetNames.join(', '))+'). Preciso de uma linha de cabeçalho com uma coluna de descrição (Designação / Descrição / Artigo), uma de unidade (Un. / Unid. / Unidade) e uma de quantidade (Quant. / Quantidade / Qtd.), e de linhas com unidade e quantidade preenchidas. Usa <b>Definir colunas à mão</b> para indicar as colunas.</div>'; vfMQMapaAbrir(); return; }
     const results=mq.map(l=>{ const canon=vfCanonMQ(l); l.__canon=canon;
       return {l,m:vfPriceLine(l,libFull,libMat,libLab,uplift,chap,canon)}; });
     window.__mqResults=results;
@@ -563,6 +609,9 @@ function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
     return {rec:Math.round(mat.rec*(1+up/100)*100)/100,n:mat.n,min:mat.min,max:mat.max,best:mat.best,
             conf:'baixa',kind:up>0?'material+inst.%':'só material',parts:{material:mat.rec,instalacao:inst},cands:mat.cands};
   }
+  /* um registo com descrição bem parecida (≥60%) vale mais do que a média do capítulo,
+     mesmo sendo só um: fica com confiança baixa, mas é o preço daquele elemento */
+  if(full.rec!=null && full.best>=0.6){ full.kind='completo'; return full; }
   // FALLBACK: sem match de texto -> rácio do capítulo (custo completo) na mesma unidade.
   // É a tua visão "€/elemento na unidade natural" — usa o €/un médio do capítulo do custo real.
   if(chap && canon){
@@ -647,8 +696,8 @@ function vfRenderMQ(results, libFullN, libMatN, scope){
   const body=results.map((x,i)=>{
     const m=x.m; const rec=m.rec;
     const inp='<input type="number" id="mqp_'+i+'" value="'+(rec!=null?rec.toFixed(2):'')+'" style="width:90px;text-align:right" oninput="vfMQTotal()">';
-    return '<tr style="cursor:pointer" onclick="vfMQDrill('+i+')">'
-      +'<td>'+esc(String(x.l.designacao).slice(0,54))+'</td>'
+    return '<tr id="mqr_'+i+'" style="cursor:pointer" onclick="vfMQDrill('+i+')" title="Clica para ver a origem do preço">'
+      +'<td style="min-width:280px;max-width:520px;white-space:normal">'+(x.l.cap?'<div style="font-size:11px;color:var(--ink-500,#8391a3)">'+esc(String(x.l.cap).slice(0,60))+'</div>':'')+esc(String(x.l.designacao).slice(0,220))+'</td>'
       +'<td>'+esc(x.l.unidade)+'</td>'
       +'<td class="mono" style="text-align:right">'+fmt(x.l.quantidade,2)+'</td>'
       +'<td>'+vfKindBadge(m.kind)+'</td>'
@@ -662,7 +711,7 @@ function vfRenderMQ(results, libFullN, libMatN, scope){
   const porCap=results.filter(x=>x.m.kind==='rácio cap.').length;
   const semNada=results.filter(x=>x.m.rec==null).length;
   out.innerHTML='<div class="note" style="margin-bottom:8px">Base de custo: <b>'+esc(scope||'todos os projetos')+'</b> · '+libFullN+' preços completos + '+(libMatN||0)+' de material. <b>'+fiavel+'</b> com preço fiável (match de texto) · <b>'+comMat+'</b> via material · <b>'+porCap+'</b> via rácio de capítulo · <b>'+semNada+'</b> sem preço (manual). Ajusta o que precisares e o total actualiza. Clica numa linha para ver a origem.</div>'
-    +'<table style="font-size:13px">'+th+body+'</table>'
+    +'<div style="overflow-x:auto"><table style="font-size:13px">'+th+body+'</table></div>'
     +'<div style="margin-top:10px;font-size:14px;display:flex;align-items:center;gap:14px"><b>Estimativa total: <span id="mqTotal">—</span></b> <button class="btn navy" onclick="vfExportMQ()">Exportar Excel</button></div>'
     +'<div id="mqDrill" style="margin-top:12px"></div>';
   vfMQTotal();
@@ -706,14 +755,72 @@ function vfMQTotal(){
   });
   const t=document.getElementById('mqTotal'); if(t) t.textContent=vfMoeda(tot);
 }
+/* Origem do preço: abre por baixo da própria linha (antes aparecia no fundo da tabela). */
 function vfMQDrill(i){
-  const x=(window.__mqResults||[])[i]; const d=document.getElementById('mqDrill'); if(!x||!d) return;
+  const x=(window.__mqResults||[])[i]; const tr=document.getElementById('mqr_'+i); if(!x||!tr) return;
+  const aberto=document.getElementById('mqd_'+i);
+  if(aberto){ aberto.remove(); tr.style.background=''; return; }
   const c=x.m.cands||[];
-  const th='<tr><th>Registo de custo</th><th>Contrato</th><th style="text-align:right">€/un</th><th style="text-align:right">Semelhança</th></tr>';
-  const body=c.length?c.map(k=>'<tr><td>'+esc(String(k.desc).slice(0,64))+'</td><td class="mono">'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score*100).toFixed(0)+'%</td></tr>').join(''):'<tr><td colspan="4">Sem registos comparáveis por texto.</td></tr>';
+  const th='<tr><th>Registo de custo</th><th>Origem · referência · projeto</th><th style="text-align:right">€/un</th><th style="text-align:right">Semelhança</th></tr>';
+  const body=c.length?c.map(k=>'<tr><td style="white-space:normal">'+esc(String(k.desc||'').slice(0,160))+'</td><td>'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score!=null?(k.score*100).toFixed(0)+'%':'—')+'</td></tr>').join('')
+    :'<tr><td colspan="4">Sem registos comparáveis por texto na mesma unidade ('+esc(x.l.unidade)+').</td></tr>';
   const capNota=x.m.viaCap?'<div class="note" style="margin:6px 0">Preço por <b>rácio de capítulo</b>: '+esc(x.m.cap||'')+' · €/'+esc(x.l.unidade)+' médio do custo real ('+(x.m.n||0)+' registos). Usado por não haver correspondência de texto fiável — confirma antes de fechar.</div>':'';
-  d.innerHTML='<div class="card"><b>'+esc(String(x.l.designacao).slice(0,80))+'</b> · '+esc(x.l.unidade)+capNota+'<table style="margin-top:8px;font-size:13px">'+th+body+'</table></div>';
+  const partes=x.m.parts?'<div class="note" style="margin:6px 0">Composição: material '+fmt(x.m.parts.material,2)+' €'+(x.m.parts.instalacao!=null?' + instalação '+fmt(x.m.parts.instalacao,2)+' €':'')+'.</div>':'';
+  const fx=(x.m.min!=null&&x.m.max!=null)?'<div class="hint">Intervalo dos registos usados: '+fmt(x.m.min,2)+' – '+fmt(x.m.max,2)+' €/'+esc(x.l.unidade)+' · mediana '+fmt(x.m.med!=null?x.m.med:x.m.rec,2)+'</div>':'';
+  const row=document.createElement('tr'); row.id='mqd_'+i;
+  row.innerHTML='<td colspan="8" style="background:#f6f8fb;padding:10px 14px"><div><b>'+esc(String(x.l.designacao).slice(0,200))+'</b> · '+esc(x.l.unidade)+' · '+fmt(x.l.quantidade,2)+'</div>'+capNota+partes+fx
+    +'<table style="margin-top:8px;font-size:12.5px;width:100%">'+th+body+'</table></td>';
+  tr.after(row); tr.style.background='#eef3fa';
 }
+/* Painel para indicar as colunas à mão quando o formato não é reconhecido (ou para forçar) */
+function vfMQMapaAbrir(){
+  const inp=document.getElementById('mqFile'); const box=document.getElementById('mqMapPanel');
+  if(!box) return;
+  if(!inp||!inp.files||!inp.files[0]){ box.innerHTML='<div class="note">Escolhe primeiro o ficheiro do MQ.</div>'; box.classList.remove('hidden'); return; }
+  const rd=new FileReader();
+  rd.onload=e=>{
+    let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }catch(err){ box.innerHTML='<div class="note">Não consegui abrir o ficheiro.</div>'; return; }
+    window.__mqMapWB=wb;
+    const sheets=wb.SheetNames;
+    box.innerHTML='<div class="card"><b>Definir colunas à mão</b><div class="hint">Escolhe a folha, as colunas e a primeira linha de artigos. As linhas sem unidade passam a título de capítulo.</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;align-items:end">'
+      +'<div><label>Folha</label><br><select id="mqmSheet" onchange="vfMQMapaPreview()">'+sheets.map(s=>'<option>'+esc(s)+'</option>').join('')+'</select></div>'
+      +'<div><label>Código (opcional)</label><br><select id="mqmCode"></select></div>'
+      +'<div><label>Descrição</label><br><select id="mqmDes"></select></div>'
+      +'<div><label>Unidade</label><br><select id="mqmUn"></select></div>'
+      +'<div><label>Quantidade</label><br><select id="mqmQty"></select></div>'
+      +'<div><label>1ª linha de artigos</label><br><input type="number" id="mqmIni" value="2" min="1" style="width:80px"></div>'
+      +'<button class="btn navy" onclick="vfMQMapaAplicar()">Aplicar e orçamentar</button>'
+      +'<button class="btn ghost" onclick="vfMQMapaLimpar()">Voltar à deteção automática</button></div>'
+      +'<div id="mqmPrev" style="overflow-x:auto;margin-top:10px"></div></div>';
+    box.classList.remove('hidden');
+    vfMQMapaPreview();
+  };
+  rd.readAsArrayBuffer(inp.files[0]);
+}
+function vfMQColLetra(j){ let s=''; j++; while(j>0){ const m=(j-1)%26; s=String.fromCharCode(65+m)+s; j=Math.floor((j-1)/26); } return s; }
+function vfMQMapaPreview(){
+  const wb=window.__mqMapWB; if(!wb) return;
+  const sn=document.getElementById('mqmSheet').value;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
+  let nc=0; rows.slice(0,40).forEach(r=>nc=Math.max(nc,(r||[]).length));
+  const g=vfInferirColunas(rows)||{};
+  const opts=(sel,vazio)=>(vazio?'<option value="-1">—</option>':'')+Array.from({length:nc},(_,j)=>'<option value="'+j+'"'+(j===sel?' selected':'')+'>'+vfMQColLetra(j)+'</option>').join('');
+  document.getElementById('mqmCode').innerHTML=opts(g.code!=null?g.code:-1,true);
+  document.getElementById('mqmDes').innerHTML=opts(g.des);
+  document.getElementById('mqmUn').innerHTML=opts(g.un);
+  document.getElementById('mqmQty').innerHTML=opts(g.qty);
+  if(g.row!=null) document.getElementById('mqmIni').value=g.row+2;
+  const prev=rows.slice(0,15);
+  document.getElementById('mqmPrev').innerHTML='<table style="font-size:12px"><tr><th>#</th>'+Array.from({length:nc},(_,j)=>'<th>'+vfMQColLetra(j)+'</th>').join('')+'</tr>'
+    +prev.map((r,i)=>'<tr><td class="mono">'+(i+1)+'</td>'+Array.from({length:nc},(_,j)=>'<td>'+esc(String((r||[])[j]==null?'':(r||[])[j]).slice(0,40))+'</td>').join('')+'</tr>').join('')+'</table>';
+}
+function vfMQMapaAplicar(){
+  const v=id=>parseInt(document.getElementById(id).value,10);
+  window.__mqMap={sheet:document.getElementById('mqmSheet').value, code:v('mqmCode'), des:v('mqmDes'), un:v('mqmUn'), qty:v('mqmQty'), inicio:Math.max(0,v('mqmIni')-1)};
+  vfPriceMQFile();
+}
+function vfMQMapaLimpar(){ window.__mqMap=null; const b=document.getElementById('mqMapPanel'); if(b){ b.classList.add('hidden'); b.innerHTML=''; } }
 (function vfMountMQ(){
   if(document.getElementById('nav-precomq')) return;
   const navR=document.getElementById('nav-racios');
@@ -726,7 +833,8 @@ function vfMQDrill(i){
       +'<div class="card" style="margin-top:10px"><b>Biblioteca de compras (fornecedores)</b><div class="note">Importa o ficheiro de Compras (.xlsm) — uma vez, ou sempre que houver novas adjudicações. Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato. Alimenta a composição material + instalação.</div><input type="file" id="cmFile" accept=".xlsm,.xlsx"> <button class="btn navy" onclick="vfImportComprasFile()">Importar compras</button> <span id="cmOut" class="note"></span></div>'
       +'<div class="card" style="margin-top:10px"><label>Uplift de instalação sobre material (%)</label> <input type="number" id="mqUplift" value="0" style="width:80px"> <span class="note">Aplica-se às linhas onde só há preço de material (sem mão de obra registada).</span></div>'
       +'<div class="card" style="margin-top:10px"><label>Base de custo a usar</label> <select id="mqProj" style="min-width:250px" onmousedown="vfMQFillProjects()"><option value="">Todos os projetos (combina tudo)</option></select> &nbsp; <label>Segmento</label> <select id="mqSeg" style="min-width:160px"><option value="">Todos</option><option value="medio">Médio</option><option value="medio_alto">Médio-alto</option><option value="premium">Premium</option></select> &nbsp; <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="mqOrc"> Incluir orçamentos do empreiteiro (pricing sheets)</label> <span class="note">Escolhe um projeto (ex.: só L’Urbain) para orçamentar apenas com o custo real dessa obra, em vez da média de todas. Aplica-se ao match de texto e aos rácios de capítulo.</span></div>'
-      +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades vazio (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx,.xls"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button></div>'
+      +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades vazio (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx,.xls,.xlsm" onchange="vfMQMapaLimpar()"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button> <button class="btn ghost" onclick="vfMQMapaAbrir()">Definir colunas à mão</button></div>'
+      +'<div id="mqMapPanel" class="hidden" style="margin-top:10px"></div>'
       +'<div id="mqOut" style="margin-top:12px"></div>';
     host.parentNode.appendChild(mv);
   }
@@ -1188,4 +1296,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','2.7.1');
+APP_REGISTAR('09-custo-real','2.7.2');

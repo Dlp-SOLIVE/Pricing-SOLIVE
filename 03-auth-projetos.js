@@ -130,4 +130,4 @@ async function loadMappings(){
   MAPPINGS=data||[];
 }
 
-APP_REGISTAR('03-auth-projetos','2.7.1');
+APP_REGISTAR('03-auth-projetos','2.7.2');
