@@ -1063,4 +1063,4 @@ restoreEstInputs();
 loadBenchmarks();
 if(new URLSearchParams(location.search).get('test')==='1') runSelfTests();
 
-APP_REGISTAR('07-motor','2.9.0');
+APP_REGISTAR('07-motor','3.0.0');

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/lucide.css">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=2.9.0">
+<link rel="stylesheet" href="app.css?v=3.0.0">
 </head>
 <body>
 <header>
@@ -19,13 +19,6 @@
   <div class="sub">Plataforma de Orçamentação</div>
   <span class="badge" id="connBadge">Modo local</span>
   <nav>
-    <button id="nav-analisador" class="on" onclick="showView('analisador')">Analisador</button>
-    <button id="nav-estimador" onclick="showView('estimador')">Estimador</button>
-    <button id="nav-orcamento" onclick="showView('orcamento')">Orçamentação</button>
-    <button id="nav-consultas" onclick="showView('consultas')">Consultas</button>
-    <button id="nav-execucao" onclick="showView('execucao')">Execução</button>
-    <button id="nav-comparar" onclick="showView('comparar')">Comparar</button>
-    <button id="nav-biblioteca" onclick="showView('biblioteca')">Biblioteca</button>
     <button id="btnLogout" class="hidden" onclick="logout()" title="Terminar sessão">Sair</button>
   </nav>
 </header>
@@ -95,6 +88,7 @@
   <input type="number" id="orcFogos"><input type="text" id="cstProj">
 </div>
 <main>
+<div id="areaTabs" class="areatabs hidden"></div>
 <div class="overlay hidden" id="descOverlay">
   <div class="modal" style="max-width:720px">
     <h3>Descritores do projeto</h3>
@@ -136,24 +130,17 @@
   <div class="purpose red" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Rever o mapa de quantidades</h1>
+    <h1>Mapa de quantidades</h1>
     <p>Carrega o mapa de quantidades que o projetista entregou. A plataforma verifica a <b>coerência interna</b> do mapa e sinaliza capítulos fora do padrão histórico, para orientar a tua revisão. Não substitui o confronto com as peças desenhadas — aponta onde olhar primeiro. Preenche os descritores do projeto: são eles que tornam a comparação rigorosa.</p>
     <div class="io"><span class="in">Entra: MQ do projetista (.xlsx)</span><span class="out">Produz: comentários para projetistas (.xlsx)</span><span class="out">Alimenta: Biblioteca e Comparação</span></div>
   </div>
 
-  <div class="card">
-    <div class="step"><div class="n">1</div><h2>Projeto e descritores do envelope</h2></div>
-    <div class="hint">Os descritores do projeto ativo, definidos uma única vez na barra de topo. São o denominador de toda a análise comparativa e é a ABC que ativa os testes de rácio.</div>
-    <div class="ctxecho" id="anEcho"></div>
-    <div class="grid g6" style="margin-top:12px">
-      <div style="grid-column:span 2"><label>Fase do projeto</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
-      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn ghost" style="width:100%;justify-content:center" onclick="abrirDescritores()">Editar descritores do projeto</button></div>
+  <div class="card" id="mqShared">
+    <div class="mqseg" role="tablist">
+      <button type="button" id="mqsegRever" class="on" onclick="showView('analisador')"><b>Rever o MQ</b><span>alertas, rácios e alterações face à revisão anterior</span></button>
+      <button type="button" id="mqsegOrcar" onclick="showView('precomq')"><b>Orçamentar o MQ</b><span>preço por linha a partir do custo real gravado</span></button>
     </div>
-  </div>
-
-  <div class="card">
-    <div class="step"><div class="n">2</div><h2>Mapa de quantidades</h2></div>
-    <div class="hint">Excel (.xlsx) com código, designação dos trabalhos, unidade e quantidade. A deteção do formato é automática; se o layout do gabinete for atípico, usa o mapeador manual.</div>
+    <div class="hint" id="mqSharedHint">Excel (.xlsx) com código, designação dos trabalhos, unidade e quantidade. Carregas uma vez e serve para os dois separadores. A deteção do formato é automática; se o layout do gabinete for atípico, usa o mapeador manual.</div>
     <div class="drop" id="drop">Larga aqui o ficheiro <b>.xlsx</b> ou clica para escolher</div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden">
     <div id="sheetPick" class="hidden">
@@ -168,9 +155,19 @@
     </div>
   </div>
 
+  <div class="card">
+    <div class="step"><div class="n">1</div><h2>Projeto e descritores do envelope</h2></div>
+    <div class="hint">Os descritores do projeto ativo, definidos uma única vez na barra de topo. São o denominador de toda a análise comparativa e é a ABC que ativa os testes de rácio.</div>
+    <div class="ctxecho" id="anEcho"></div>
+    <div class="grid g6" style="margin-top:12px">
+      <div style="grid-column:span 2"><label>Fase do projeto</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
+      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn ghost" style="width:100%;justify-content:center" onclick="abrirDescritores()">Editar descritores do projeto</button></div>
+    </div>
+  </div>
+
   <div id="results" class="hidden">
     <div class="card">
-      <div class="step"><div class="n">3</div><h2>Resultado da análise <span class="tag" id="rFicheiro"></span></h2></div>
+      <div class="step"><div class="n">2</div><h2>Resultado da análise <span class="tag" id="rFicheiro"></span></h2></div>
       <div class="kpis">
         <div class="kpi"><div class="v" id="kArtigos">0</div><div class="l">Artigos medidos</div></div>
         <div class="kpi"><div class="v" id="kCaps">0</div><div class="l">Capítulos detetados</div></div>
@@ -723,7 +720,7 @@
 
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v2.9.0</span> <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.0.0</span> <span id="selfTestFooter"></span></footer>
 
 <!-- ====== BOTÃO DE AJUDA (autoexplicativo) ====== -->
 <button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
@@ -752,11 +749,11 @@
 <p style="margin:0;color:#a06000"><b>Cuidado:</b> é uma estimativa top-down — serve para decidir e negociar, <b>não para assinar</b>.</p>
 </div><div class="ajuda-sec" data-area="orcamentar" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Orçamentar — orçamento detalhado (com mapa de quantidades)</h3>
-<p style="margin:0 0 10px">Três passos, nos sub-separadores no topo:</p>
+<p style="margin:0 0 10px">Nos separadores da área <b>Orçamentar</b>:</p>
 <ul style="margin:0 0 10px;padding-left:18px">
-<li><b>Analisar MQ</b> — larga o Excel do projetista; a plataforma deteta o formato e organiza por capítulos (se o layout for atípico, há mapeador manual).</li>
-<li><b>Preço MQ</b> — aplica preços da biblioteca a cada artigo.</li>
-<li><b>Orçamentação</b> — revês linha a linha; cada linha tem um estado (de rácio a compromisso) e uma fonte, e fechas o mapa de venda.</li>
+<li><b>Mapa de quantidades</b> — carregas o Excel do projetista uma vez (ou largas em <b>Importar</b>). Em <b>Rever o MQ</b> a plataforma deteta o formato, organiza por capítulos e dá alertas; em <b>Orçamentar o MQ</b> aplica o custo real a cada artigo.</li>
+<li><b>Orçamento</b> — revês capítulo a capítulo; cada linha tem um estado (de rácio a compromisso) e uma fonte.</li>
+<li><b>Consultas ao mercado</b> — pedes e comparas propostas.</li>
 </ul>
 <p style="margin:0;color:#a06000"><b>Cuidado:</b> confirma a proveniência de cada capítulo — um total pode parecer firme e ser sobretudo estimativa.</p>
 </div><div class="ajuda-sec" data-area="consultas" style="display:none">
@@ -773,7 +770,7 @@
 <p style="margin:0;color:#a06000"><b>Cuidado:</b> precisas de sessão de gestor iniciada para gravar.</p>
 </div><div class="ajuda-sec" data-area="custoreal" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Custo Real — o custo efetivo da obra</h3>
-<p style="margin:0 0 10px">Sub-separadores: <b>Verificar Auto</b> (autos de medição), <b>Rácios</b> e <b>Comparar</b> (contrato vs. real).</p>
+<p style="margin:0 0 10px">Está em <b>Obra › Autos de medição</b>, <b>Biblioteca › Rácios de custo real</b> e <b>Biblioteca › Benchmark</b>.</p>
 <p style="margin:0">Ao fechar a obra, os preços reais passam a alimentar a biblioteca — e a estimativa da obra seguinte fica mais firme.</p>
 </div><div class="ajuda-sec" data-area="biblioteca" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Biblioteca — o conhecimento acumulado</h3>
@@ -782,6 +779,7 @@
 </div><div class="ajuda-sec" data-area="geral" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Cuidados importantes</h3>
 <ul style="margin:0;padding-left:18px">
+<li>Para trazer um Excel para a plataforma, usa <b>Importar</b>: reconhece o tipo de ficheiro e leva-o ao ecrã certo.</li>
 <li>Abre sempre pelo <b>link oficial</b>, não por um ficheiro guardado no PC (fica desatualizado).</li>
 <li><b>Inicia sessão</b> (topo: "Ligado · email"). Sem sessão, vês mas não gravas.</li>
 <li><b>Backup</b>: garante que o backup automático está a correr (repositório privado de backups).</li>
@@ -797,21 +795,22 @@
 <script>
 /* Versão da plataforma: muda em CADA entrega e tem de ser igual em todos os ficheiros
    *.js (linha APP_REGISTAR no fim de cada um). O 99-arranque.js confirma. */
-window.APP={versao:"2.9.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias"], carregados:{}};
+window.APP={versao:"3.0.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
 window.APP_REGISTAR=function(nome,versao){ APP.carregados[nome]=versao; };
 </script>
-<script src="01-base.js?v=2.9.0"></script>
-<script src="02-execucao.js?v=2.9.0"></script>
-<script src="03-auth-projetos.js?v=2.9.0"></script>
-<script src="04-analisador.js?v=2.9.0"></script>
-<script src="05-orcamentacao.js?v=2.9.0"></script>
-<script src="06-estimador-comparar.js?v=2.9.0"></script>
-<script src="07-motor.js?v=2.9.0"></script>
-<script src="08-contexto.js?v=2.9.0"></script>
-<script src="09-custo-real.js?v=2.9.0"></script>
-<script src="10-ajuda.js?v=2.9.0"></script>
-<script src="11-ux.js?v=2.9.0"></script>
-<script src="12-tipologias.js?v=2.9.0"></script>
-<script src="99-arranque.js?v=2.9.0"></script>
+<script src="01-base.js?v=3.0.0"></script>
+<script src="02-execucao.js?v=3.0.0"></script>
+<script src="03-auth-projetos.js?v=3.0.0"></script>
+<script src="04-analisador.js?v=3.0.0"></script>
+<script src="05-orcamentacao.js?v=3.0.0"></script>
+<script src="06-estimador-comparar.js?v=3.0.0"></script>
+<script src="07-motor.js?v=3.0.0"></script>
+<script src="08-contexto.js?v=3.0.0"></script>
+<script src="09-custo-real.js?v=3.0.0"></script>
+<script src="10-ajuda.js?v=3.0.0"></script>
+<script src="11-ux.js?v=3.0.0"></script>
+<script src="12-tipologias.js?v=3.0.0"></script>
+<script src="13-importar.js?v=3.0.0"></script>
+<script src="99-arranque.js?v=3.0.0"></script>
 </body>
 </html>

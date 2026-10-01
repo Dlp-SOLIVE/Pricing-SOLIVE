@@ -22,27 +22,15 @@ function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classLi
     ['lib-pane-gerir','lib-pane-ver'].forEach(id=>{const p=document.getElementById(id); if(p) va.appendChild(p);});
     ['lib-tab-gerir','lib-tab-ver'].forEach(id=>{const b=document.getElementById(id); if(b) b.setAttribute('data-uxhide','');});
   }
-  // barra lateral agrupada pelo ciclo
+  // barra lateral: 5 áreas (Fase 2). Os separadores de cada área desenham-se em showView.
   const B=id=>document.getElementById(id);
-  const mk=(id,v,label)=>{let b=B(id); if(!b){b=uxEl('button',{id:id}); b.onclick=()=>showView(v);} b.textContent=label; return b;};
-  const grp=t=>uxEl('div',{class:'navgrp'},t);
-  const items=[
-    mk('nav-resumo','resumo','Resumo do projeto'),
-    grp('1 · Estimar'), mk('nav-programa','programa','Programa e tipologias'), mk('nav-estimador','estimador','Estimativa para o BP'),
-    grp('2 · Rever projeto'), mk('nav-analisador','analisador','Revisão do MQ'),
-    grp('3 · Orçamentar'), mk('nav-orcamento','orcamento','Orçamento'), mk('nav-consultas','consultas','Consultas ao mercado'), mk('nav-precomq','precomq','Orçamentar MQ'),
-    grp('4 · Executar'), mk('nav-execucao','execucao','Adjudicações e desvios'), mk('nav-verificar','verificar','Autos de medição'),
-    grp('Conhecimento'), mk('nav-comparar','comparar','Benchmark'), mk('nav-racios','racios','Rácios de custo real'), mk('nav-kit','kit','Kit-tipo por tipologia'), mk('nav-biblioteca','biblioteca','Biblioteca'),
-    uxEl('div',{class:'navsep'}),
-    mk('nav-admin','admin','Administração')
-  ];
-  const aj=uxEl('button',{id:'nav-ajuda'}); aj.textContent='Ajuda'; aj.onclick=()=>{try{abrirAjuda()}catch(e){}};
+  const items=AREAS.filter(a=>a.k!=='admin').map(a=>{ const b=uxEl('button',{id:'nava-'+a.k,type:'button'}); b.textContent=a.t; b.onclick=()=>abrirArea(a.k); return b; });
+  items.push(uxEl('div',{class:'navsep'}));
+  const ad=uxEl('button',{id:'nava-admin',type:'button'}); ad.textContent='Administração'; ad.onclick=()=>abrirArea('admin'); items.push(ad);
+  const aj=uxEl('button',{id:'nav-ajuda',type:'button'}); aj.textContent='Ajuda'; aj.onclick=()=>{try{abrirAjuda()}catch(e){}};
   items.push(aj);
   const out=B('btnLogout');
   nav.innerHTML=''; items.forEach(i=>nav.appendChild(i)); if(out) nav.appendChild(out);
-  // eyebrows por fase
-  const EB={estimador:'1 · Estimar',analisador:'2 · Rever projeto',orcamento:'3 · Orçamentar',consultas:'3 · Orçamentar',execucao:'4 · Executar',comparar:'Conhecimento',biblioteca:'Conhecimento'};
-  Object.entries(EB).forEach(([v,t])=>{const e=document.querySelector('#view-'+v+' .purpose .eyebrow'); if(e) e.textContent=t;});
   document.querySelectorAll('.purpose .toggle').forEach(b=>{b.textContent='Como funciona';});
   // Desvios → Executar; Relatório para o topo do Benchmark
   const dv=B('vfDvCard'), ex=B('view-execucao'); if(dv&&ex) ex.appendChild(dv);
@@ -194,14 +182,14 @@ async function uxRenderResumo(){
   const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
   const addIc=(el,n)=>{ if(!el||el.querySelector('[class^="icon-"]')) return; el.insertAdjacentHTML('afterbegin',ic(n)); };
   // menu
-  const NAV={programa:'layout-grid',kit:'boxes',resumo:'layout-dashboard',estimador:'calculator',analisador:'file-search',orcamento:'wallet',consultas:'send',precomq:'list-checks',execucao:'hard-hat',verificar:'clipboard-check',comparar:'git-compare',racios:'chart-column',biblioteca:'library',admin:'settings',ajuda:'circle-help'};
-  Object.entries(NAV).forEach(([k,n])=>addIc(document.getElementById('nav-'+k),n));
+  AREAS.forEach(a=>addIc(document.getElementById('nava-'+a.k),a.ic));
+  addIc(document.getElementById('nav-ajuda'),'circle-help');
   addIc(document.getElementById('btnLogout'),'log-out');
   // títulos curtos + subtítulo (a explicação longa fica em «Como funciona»)
   const T={
     resumo:['Resumo do projeto','Em que ponto está cada fase do projeto ativo'],
     estimador:['Estimativa para o BP','Custo estimado a partir dos descritores e da biblioteca'],
-    analisador:['Revisão do MQ','Validar o mapa de quantidades contra o histórico da Solive'],
+    analisador:['Mapa de quantidades','Rever o MQ do projetista e orçamentá-lo com o custo real'],
     orcamento:['Orçamento','Consolidação por capítulo, com semáforo de fonte do preço'],
     consultas:['Consultas ao mercado','Registo de consultas e mapa comparativo de propostas'],
     execucao:['Adjudicações e desvios','Do estimado ao real, capítulo a capítulo'],
@@ -246,15 +234,17 @@ async function uxRenderResumo(){
 /* ═══════════ Explicações por separador (para que serve · passos · resultado · ciclo) ═══════════ */
 (function uxHowTo(){
   const TX={"resumo":{"s":"O ponto de situação do projeto ativo e o que falta fazer","p":"Ver, num só ecrã, em que fase está o projeto e qual é o passo seguinte.","st":["Escolhe o projeto na barra do topo (ou escreve o nome de um novo).","Vê o estado de cada fase: estimativa, revisão do MQ, orçamento, consultas e execução.","Segue para o separador da fase que ainda não está concluída."],"r":"Sabes o que já está feito e o que falta."},"estimador":{"s":"Uma primeira estimativa de custo, só com os descritores do projeto","p":"Estimar o custo de construção antes de haver projeto de execução, para validar o budget do Business Plan.","st":["Confirma os descritores do projeto (ABC, fogos, pisos…) em «Editar descritores», no topo.","Ajusta os parâmetros do cálculo (segmento e projetos de referência).","Lê a estimativa por capítulo e compara o total com o budget do BP."],"r":"Custo estimado por capítulo, com o intervalo que os projetos históricos implicam.","w":"Na fase de Business Plan, antes de receberes o mapa de quantidades.","n":"analisador"},"analisador":{"s":"Validar o mapa de quantidades do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços.","st":["Confirma os descritores do projeto: são eles que tornam a comparação rigorosa.","Carrega o MQ (.xlsx). Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"orcamento"},"orcamento":{"s":"Construir o orçamento capítulo a capítulo e ver quanto já é preço firme","p":"Passar de uma estimativa por rácio a um orçamento suportado por preços de mercado.","st":["Arranca dos rácios da biblioteca, ou larga o resumo do orçamento em Excel.","À medida que tens preços, atualiza o estado de cada capítulo: rácio → em consulta → proposta → adjudicado.","Acompanha o semáforo: a percentagem consolidada mostra quanto do orçamento já é sólido."],"r":"Orçamento por capítulo, com a fonte de cada preço à vista.","w":"Depois de revisto o MQ e durante as consultas ao mercado.","n":"consultas"},"consultas":{"s":"Pedir preços ao mercado e escolher a melhor proposta","p":"Registar as consultas aos fornecedores e comparar as propostas lado a lado.","st":["Abre uma consulta por capítulo ou pacote e indica os fornecedores consultados.","Regista as propostas à medida que chegam.","Compara-as no mapa comparativo.","Escolhe a proposta: o preço passa para o Orçamento e fica no histórico do fornecedor."],"r":"Capítulos do orçamento com preço de mercado e histórico de preços por fornecedor.","w":"Quando um capítulo do orçamento ainda está em rácio ou com proposta antiga.","n":"execucao"},"precomq":{"s":"Preencher um mapa de quantidades vazio com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Importa o ficheiro de Compras (.xlsm) — basta uma vez, ou quando houver novas adjudicações.","Define o uplift de instalação e a base de custo (todas as obras ou só uma).","Carrega o MQ vazio e clica em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"},"execucao":{"s":"Registar o que foi adjudicado e as variações em obra","p":"Guardar o preço de contrato de cada pacote e os desvios de execução, com o motivo de cada um.","st":["Quando fechas com um subempreiteiro, regista a adjudicação do pacote.","Durante a obra, regista cada variação e o respetivo motivo.","Acompanha o desvio face ao orçado, capítulo a capítulo."],"r":"Desvios medidos (e não estimados) e uma Biblioteca que aprende com o preço de contrato.","w":"A partir da primeira adjudicação e durante toda a obra.","n":"verificar"},"verificar":{"s":"Conferir os autos de medição com o adjudicado","p":"Confirmar que o que o subempreiteiro mede em cada auto está de acordo com o contrato.","st":["Escolhe o projeto e o pacote.","Carrega ou regista o auto de medição.","Revê as diferenças assinaladas face ao adjudicado antes de aprovar."],"r":"Autos conferidos e diferenças identificadas antes do pagamento.","w":"Todos os meses, quando chegam os autos."},"comparar":{"s":"Comparar projetos entre si, normalizados por m², fogo ou implantação","p":"Perceber onde um projeto se afasta do histórico, em descritores, custos e quantidades.","st":["Escolhe os projetos a comparar — o L’Urbain entra sempre como referência.","Escolhe a normalização (por m² de ABC, por fogo ou por implantação).","Lê as diferenças e usa-as para calibrar a estimativa."],"r":"Comparação lado a lado, pronta a usar num relatório.","w":"Para calibrar uma estimativa ou justificar um desvio."},"racios":{"s":"Os rácios de custo real por capítulo, a partir das obras fechadas","p":"Consultar quanto custou, de facto, cada capítulo nas obras da Solive.","st":["Filtra por segmento ou por projeto.","Consulta o €/m² e o €/unidade de cada capítulo."],"r":"Os rácios que alimentam a Estimativa e o Orçamentar MQ."},"biblioteca":{"s":"O conhecimento acumulado da Solive: rácios, quantidades e taxonomia","p":"Ter num só sítio os rácios de custo e de quantidades de todos os projetos, por capítulo e por fase.","st":["Não se preenche à mão: cada projeto entra ao gravares uma análise na Revisão do MQ e no fecho de obra.","Consulta os rácios por capítulo, projeto e fase.","Mantém a taxonomia de capítulos atualizada (quem administra a plataforma)."],"r":"Estimativas mais rigorosas a cada projeto que fechas."},"admin":{"s":"Gerir projetos, versões gravadas e fases","p":"Tarefas de manutenção, separadas das restantes para evitar ações irreversíveis por engano.","st":["Consulta as versões gravadas do orçamento de cada projeto.","Elimina projetos que já não são precisos — esta ação não se pode anular."],"r":"Uma lista de projetos limpa e o histórico de versões à mão."}};
-  const G={"estimador":"Estimar","analisador":"Rever projeto","orcamento":"Orçamentar","consultas":"Orçamentar","precomq":"Orçamentar","execucao":"Executar","verificar":"Executar"};
-  const NAMES={"estimador":"Estimativa para o BP","analisador":"Revisão do MQ","orcamento":"Orçamento","consultas":"Consultas ao mercado","precomq":"Orçamentar MQ","execucao":"Adjudicações e desvios","verificar":"Autos de medição"};
-  const CYCLE=[['Estimar','estimador'],['Rever projeto','analisador'],['Orçamentar','orcamento'],['Executar','execucao']];
+  /* Fase 2: textos do Mapa de quantidades (Rever + Orçamentar) e do Importar */
+  TX.analisador={"s":"Rever o MQ do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços. O mesmo ficheiro serve depois para o orçamentar.","st":["Carrega o MQ (.xlsx) no cartão do topo — ou larga-o em Importar, que o traz para aqui.","Escolhe a folha e carrega em «Analisar ficheiro». Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca.","Passa a «Orçamentar o MQ» para teres um preço por linha."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"precomq"};
+  TX.precomq={"s":"Preencher o mapa de quantidades com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Carrega o MQ no cartão do topo (é o mesmo do separador «Rever o MQ»).","Define o uplift de instalação e a base de custo (todas as obras, só uma, ou um segmento).","Carrega em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"};
+  TX.importar={"s":"Um só sítio para largar qualquer ficheiro","p":"Largas o Excel e a plataforma reconhece o que é — mapa de quantidades, auto de medição, pricing sheet, proposta, resumo do orçamento, orçamento transferido ou ficheiro de compras — e leva-o para o ecrã certo.","st":["Confirma o projeto ativo na barra do topo (o ficheiro de compras não precisa).","Larga o ficheiro .xlsx/.xlsm na zona de importação.","Confirma o tipo que a plataforma sugere, ou escolhe outro em «Não é isso?».","Continua no ecrã para onde o ficheiro foi levado."],"r":"O ficheiro processado no ecrã certo, sem teres de saber onde ele entra."};
+  const NAMES={"estimador":"Estimativa para o BP","analisador":"Mapa de quantidades","orcamento":"Orçamento","consultas":"Consultas ao mercado","precomq":"Orçamentar o MQ","execucao":"Adjudicações e desvios","verificar":"Autos de medição"};
   const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
   function build(v){
     const view=document.getElementById('view-'+v); const t=TX[v]; if(!view||!t) return;
     let pu=view.querySelector('.purpose');
-    if(!pu){ pu=document.createElement('div'); pu.className='purpose'; pu.innerHTML='<div class="eyebrow">'+(G[v]||'')+'</div><h1>'+(NAMES[v]||'')+'</h1>'; view.prepend(pu); }
+    if(!pu){ pu=document.createElement('div'); pu.className='purpose'; pu.innerHTML='<div class="eyebrow"></div><h1>'+(NAMES[v]||'')+'</h1>'; view.prepend(pu); }
     if(pu.dataset.howto) return; pu.dataset.howto='1';
     let tg=pu.querySelector('.toggle');
     if(!tg){ tg=document.createElement('button'); tg.className='toggle'; tg.type='button'; tg.onclick=function(){foldPurpose(this)}; pu.prepend(tg); }
@@ -268,10 +258,10 @@ async function uxRenderResumo(){
     if(t.w) html+='<div class="ht-lbl">Quando usar</div><p>'+esc(t.w)+'</p>';
     const box=document.createElement('div'); box.className='howto'; box.innerHTML=html;
     (sub||h1||pu.lastChild).insertAdjacentElement('afterend',box);
-    if(G[v]){
+    if(t.n){
+      /* os separadores da área já mostram onde estás; aqui fica só o passo seguinte */
       const cy=document.createElement('div'); cy.className='cycle';
-      cy.innerHTML=CYCLE.map(([lbl,to],i)=>(i?'<span class="cy-sep">›</span>':'')+'<button type="button" class="cy'+(G[v]===lbl?' on':'')+'" data-to="'+to+'">'+(i+1)+' · '+lbl+'</button>').join('')
-        +(t.n?'<button type="button" class="next" data-to="'+t.n+'">A seguir: '+esc(NAMES[t.n]||t.n)+' '+ic('arrow-right')+'</button>':'');
+      cy.innerHTML='<button type="button" class="next" data-to="'+t.n+'">A seguir: '+esc(NAMES[t.n]||t.n)+' '+ic('arrow-right')+'</button>';
       cy.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
       box.insertAdjacentElement('beforebegin',cy);
     }
@@ -279,7 +269,7 @@ async function uxRenderResumo(){
   function guide(){
     const vr=document.getElementById('view-resumo'); if(!vr||vr.querySelector('.guide')) return;
     const g=document.createElement('div'); g.className='guide';
-    const S=[['1 · Estimar','Estimativa para o BP','Custo estimado a partir dos descritores.','estimador'],['2 · Rever projeto','Revisão do MQ','Validar o mapa de quantidades do projetista.','analisador'],['3 · Orçamentar','Orçamento e consultas','Trocar rácios por preços de mercado.','orcamento'],['4 · Executar','Adjudicações e autos','Registar o contrato e os desvios em obra.','execucao']];
+    const S=[['Importar','Largar um ficheiro','A plataforma reconhece o tipo e leva-o ao ecrã certo.','importar'],['Orçamentar','Estimativa, MQ e orçamento','Do rácio ao preço de mercado, capítulo a capítulo.','estimador'],['Obra','Adjudicações e autos','Registar o contrato e os desvios em obra.','execucao'],['Biblioteca','Rácios, kit-tipo e benchmark','O que as obras feitas ensinam à próxima.','racios']];
     g.innerHTML='<h3>Como usar a plataforma</h3><div class="g-steps">'+S.map(s=>'<div class="g-step" data-to="'+s[3]+'"><span class="g-n">'+s[0]+'</span><span class="g-t">'+s[1]+'</span><span class="g-d">'+s[2]+'</span></div>').join('')+'</div>';
     g.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
     const pu=vr.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',g); else vr.prepend(g);
@@ -292,4 +282,4 @@ async function uxRenderResumo(){
     }catch(e){} };
 })();
 
-APP_REGISTAR('11-ux','2.9.0');
+APP_REGISTAR('11-ux','3.0.0');

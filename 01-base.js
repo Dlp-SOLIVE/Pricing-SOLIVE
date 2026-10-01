@@ -113,11 +113,46 @@ const online=()=>!!(SUPA.url&&SUPA.key);
 function toast(msg){ alertx(msg,true) }   /* um só canal de feedback: o banner */
 
 /* ================= NAVEGAÇÃO ================= */
+/* Fase 2 (v3.0): o menu tem 5 áreas; cada área tem separadores no topo.
+   Cada separador continua a ser uma vista (view-<nome>) e showView(<nome>) continua
+   a ser o único despachante — os atalhos antigos (showView('consultas'), etc.) servem. */
+const AREAS=[
+  {k:'projeto',   t:'Projeto',       ic:'layout-dashboard', tabs:[['resumo','Resumo'],['programa','Programa e tipologias']]},
+  {k:'importar',  t:'Importar',      ic:'upload',           tabs:[['importar','Importar ficheiro']]},
+  {k:'orcamentar',t:'Orçamentar',    ic:'wallet',           tabs:[['estimador','Estimativa para o BP'],['analisador','Mapa de quantidades'],['orcamento','Orçamento'],['consultas','Consultas ao mercado']]},
+  {k:'obra',      t:'Obra',          ic:'hard-hat',         tabs:[['execucao','Adjudicações e desvios'],['verificar','Autos de medição']]},
+  {k:'biblioteca',t:'Biblioteca',    ic:'library',          tabs:[['racios','Rácios de custo real'],['kit','Kit-tipo e preços'],['comparar','Benchmark'],['biblioteca','Histórico e taxonomia']]},
+  {k:'admin',     t:'Administração', ic:'settings',         tabs:[['admin','Projetos e versões']]}
+];
+/* vistas que aparecem dentro do separador de outra (o MQ tem Rever e Orçamentar) */
+const VISTA_SEPARADOR={precomq:'analisador'};
+const VISTAS=['resumo','programa','importar','analisador','precomq','estimador','orcamento','consultas','execucao','verificar','racios','kit','comparar','biblioteca','admin'];
+const AREA_ULTIMA={};
+function areaDaVista(v){ const t=VISTA_SEPARADOR[v]||v; return AREAS.find(a=>a.tabs.some(x=>x[0]===t))||null; }
+function abrirArea(k){ const a=AREAS.find(x=>x.k===k); if(!a) return; showView(AREA_ULTIMA[k]||a.tabs[0][0]); }
+function desenharSeparadores(v){
+  const bar=document.getElementById('areaTabs'); if(!bar) return;
+  if(bar.parentNode&&bar.parentNode.firstElementChild!==bar) bar.parentNode.prepend(bar);   // vistas criadas depois não podem ficar por cima
+  const a=areaDaVista(v);
+  AREAS.forEach(x=>{ const b=document.getElementById('nava-'+x.k); if(b) b.classList.toggle('on', !!a&&a.k===x.k); });
+  if(!a){ bar.innerHTML=''; bar.classList.add('hidden'); return; }
+  AREA_ULTIMA[a.k]=v;
+  const cur=VISTA_SEPARADOR[v]||v;
+  if(a.tabs.length<2){ bar.innerHTML=''; bar.classList.add('hidden'); }
+  else{
+    bar.classList.remove('hidden');
+    bar.innerHTML=a.tabs.map(([k,l])=>'<button type="button" data-v="'+k+'" class="'+(k===cur?'on':'')+'">'+l+'</button>').join('');
+    bar.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>showView(b.dataset.v));
+  }
+  const eb=document.querySelector('#view-'+v+' .purpose .eyebrow'); if(eb) eb.textContent=a.t;
+}
 function showView(v){
-  ['resumo','programa','analisador','estimador','orcamento','consultas','verificar','racios','precomq','comparar','biblioteca','kit','execucao','admin'].forEach(x=>{
+  if(!document.getElementById('view-'+v)) v='resumo';
+  VISTAS.forEach(x=>{
     const ve=document.getElementById('view-'+x); if(ve) ve.classList.toggle('hidden', v!==x);
-    const nb=document.getElementById('nav-'+x); if(nb) nb.classList.toggle('on', v===x);
   });
+  try{ desenharSeparadores(v); }catch(e){ console.warn(e); }
+  try{ if(typeof mqPartilhaMontar==='function') mqPartilhaMontar(v); }catch(e){ console.warn(e); }
   try{ window.scrollTo(0,0); }catch(e){}
   if(v==='resumo'){ try{ uxRenderResumo(); }catch(e){ console.warn(e); } }
   if(v==='biblioteca'){ try{ renderTaxonomia(); }catch(e){} }
@@ -128,7 +163,6 @@ function showView(v){
   if(v==='execucao') gxRender();
   if(v==='programa'){ try{ tpRenderPrograma(); }catch(e){ console.warn(e); } }
   if(v==='kit'){ try{ tpRenderKit(); }catch(e){ console.warn(e); } }
-  /* o que antes eram 6 embrulhos sucessivos, agora em sequência explícita */
   try{ if(typeof ctxRender==='function') ctxRender(); }catch(e){}
   if(v==='precomq'){ try{ vfMQFillProjects(); }catch(e){} }
   if(v==='comparar'){ try{ vfDvFillProjects(); }catch(e){} }
@@ -136,4 +170,4 @@ function showView(v){
   try{ if(typeof window.__howtoOnView==='function') window.__howtoOnView(v); }catch(e){}
 }
 
-APP_REGISTAR('01-base','2.9.0');
+APP_REGISTAR('01-base','3.0.0');

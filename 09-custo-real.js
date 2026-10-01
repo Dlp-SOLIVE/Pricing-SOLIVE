@@ -216,10 +216,7 @@ function vfVerificarFile(){
 }
 /* injeta o botão de navegação e a vista, sem editar o HTML existente */
 (function vfMount(){
-  if(document.getElementById('nav-verificar')) return;
-  const navF=document.getElementById('nav-comparar')||document.getElementById('nav-consultas');
-  if(navF) navF.insertAdjacentHTML('afterend',
-    '<button id="nav-verificar" onclick="showView(\'verificar\')">Verificar Auto</button>');
+  if(document.getElementById('view-verificar')) return;
   const host=document.getElementById('view-comparar')||document.getElementById('view-consultas');
   if(host){
     const div=document.createElement('div');
@@ -351,9 +348,7 @@ function vfDrill(cap){
   d.innerHTML='<div class="card"><b>'+esc(cap)+'</b> — '+lines.length+' linhas de origem<table style="margin-top:8px;font-size:13px">'+th+body+'</table></div>';
 }
 (function vfMountRacios(){
-  if(document.getElementById('nav-racios')) return;
-  const navV=document.getElementById('nav-verificar');
-  if(navV) navV.insertAdjacentHTML('afterend','<button id="nav-racios" onclick="showView(\'racios\')">Rácios (custo real)</button>');
+  if(document.getElementById('view-racios')) return;
   const host=document.getElementById('view-verificar');
   if(host){
     const rx=document.createElement('div'); rx.id='view-racios'; rx.className='hidden';
@@ -515,7 +510,7 @@ async function vfMQFillProjects(){
 }
 async function vfPriceMQFile(){
   const inp=document.getElementById('mqFile'); const out=document.getElementById('mqOut');
-  if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o MQ (.xlsx) primeiro.</div>'; return; }
+  if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Carrega primeiro o mapa de quantidades (.xlsx) no cartão de cima.</div>'; return; }
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar biblioteca de custo…</div>';
   /* Biblioteca = vista única v_linha_custo (Fase 1), só preços ao nível do artigo:
@@ -852,18 +847,15 @@ function vfMQMapaAplicar(){
 }
 function vfMQMapaLimpar(){ window.__mqMap=null; const b=document.getElementById('mqMapPanel'); if(b){ b.classList.add('hidden'); b.innerHTML=''; } }
 (function vfMountMQ(){
-  if(document.getElementById('nav-precomq')) return;
-  const navR=document.getElementById('nav-racios');
-  if(navR) navR.insertAdjacentHTML('afterend','<button id="nav-precomq" onclick="showView(\'precomq\')">Preço MQ</button>');
+  if(document.getElementById('view-precomq')) return;
   const host=document.getElementById('view-racios')||document.getElementById('view-verificar');
   if(host){
     const mv=document.createElement('div'); mv.id='view-precomq'; mv.className='hidden';
-    mv.innerHTML='<div class="purpose"><div class="eyebrow">3 · Orçamentar</div><h1>Orçamentar MQ</h1><p class="subtitle">Preencher um mapa de quantidades vazio com o custo real gravado</p></div>'
+    mv.innerHTML='<div class="purpose"><div class="eyebrow">3 · Orçamentar</div><h1>Mapa de quantidades</h1><p class="subtitle">Preencher um mapa de quantidades vazio com o custo real gravado</p></div>'
       +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante). Onde não há correspondência de texto fiável, usa o <b>rácio do capítulo</b> (€/unidade médio do elemento no custo real). Preenche o seguro; confirma os que vêm por rácio. Nada é inventado — só custo real.</div>'
-      +'<div class="card" style="margin-top:10px"><b>Biblioteca de compras (fornecedores)</b><div class="note">Importa o ficheiro de Compras (.xlsm) — uma vez, ou sempre que houver novas adjudicações. Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato. Alimenta a composição material + instalação.</div><input type="file" id="cmFile" accept=".xlsm,.xlsx"> <button class="btn navy" onclick="vfImportComprasFile()">Importar compras</button> <span id="cmOut" class="note"></span></div>'
       +'<div class="card" style="margin-top:10px"><label>Uplift de instalação sobre material (%)</label> <input type="number" id="mqUplift" value="0" style="width:80px"> <span class="note">Aplica-se às linhas onde só há preço de material (sem mão de obra registada).</span></div>'
       +'<div class="card" style="margin-top:10px"><label>Base de custo a usar</label> <select id="mqProj" style="min-width:250px" onmousedown="vfMQFillProjects()"><option value="">Todos os projetos (combina tudo)</option></select> &nbsp; <label>Segmento</label> <select id="mqSeg" style="min-width:160px"><option value="">Todos</option><option value="medio">Médio</option><option value="medio_alto">Médio-alto</option><option value="premium">Premium</option></select> &nbsp; <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="mqOrc"> Incluir orçamentos do empreiteiro (pricing sheets)</label> <span class="note">Escolhe um projeto (ex.: só L’Urbain) para orçamentar apenas com o custo real dessa obra, em vez da média de todas. Aplica-se ao match de texto e aos rácios de capítulo.</span></div>'
-      +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades vazio (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx,.xls,.xlsm" onchange="vfMQMapaLimpar()"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button> <button class="btn ghost" onclick="vfMQMapaAbrir()">Definir colunas à mão</button></div>'
+      +'<div class="card" style="margin-top:10px"><input type="file" id="mqFile" accept=".xlsx,.xls,.xlsm" class="hidden" onchange="vfMQMapaLimpar()"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn red" onclick="vfPriceMQFile()">Orçamentar</button> <button class="btn ghost" onclick="vfMQMapaAbrir()">Definir colunas à mão</button> <span id="mqFicheiroNome" class="note" style="margin:0">Carrega o mapa de quantidades no cartão de cima.</span></div><div class="note" style="margin-top:8px">Os preços de compras (material e mão de obra) importam-se em <a href="#" onclick="showView(\'importar\');return false">Importar</a>.</div></div>'
       +'<div id="mqMapPanel" class="hidden" style="margin-top:10px"></div>'
       +'<div id="mqOut" style="margin-top:12px"></div>';
     host.parentNode.appendChild(mv);
@@ -1326,4 +1318,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','2.9.0');
+APP_REGISTAR('09-custo-real','3.0.0');

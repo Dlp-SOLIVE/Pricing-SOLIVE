@@ -325,4 +325,4 @@ function tpExportar(){
   XLSX.writeFile(wb,("Elementos_"+e.projeto).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('12-tipologias','2.9.0');
+APP_REGISTAR('12-tipologias','3.0.0');

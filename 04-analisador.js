@@ -10,13 +10,15 @@ drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])};
 fi.onchange=()=>{if(fi.files[0])loadFile(fi.files[0])};
 
-function loadFile(f){
+/* Devolve uma promessa (o importador único espera pela leitura antes de continuar). */
+function loadFile(f){ return new Promise(resolve=>{
   wbName=f.name; MANUAL_H=null;
   document.getElementById('mapNote').classList.add('hidden');
   const r=new FileReader();
+  r.onerror=()=>resolve(false);
   r.onload=e=>{
     try{ workbook=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
-    catch(err){alertx("Não foi possível ler o ficheiro. Confirma que é um .xlsx válido.");return}
+    catch(err){alertx("Não foi possível ler o ficheiro. Confirma que é um .xlsx válido.");resolve(false);return}
     drop.innerHTML="Ficheiro carregado: <b>"+esc(wbName)+"</b> — clica para trocar";
     const pills=document.getElementById('sheetPills');
     pills.innerHTML="";
@@ -32,8 +34,37 @@ function loadFile(f){
     [...pills.children].forEach(c=>{if(c.textContent===guess)c.classList.add('on')});
     document.getElementById('sheetPick').classList.remove('hidden');
     tryStoredMapping();
+    try{ mqPartilhar(f); }catch(err){ console.warn(err); }
+    resolve(true);
   };
   r.readAsArrayBuffer(f);
+}); }
+
+/* ================= MQ PARTILHADO (Rever ↔ Orçamentar) =================
+   O mesmo ficheiro serve os dois separadores do Mapa de quantidades: o cartão de
+   carregamento (#mqShared) muda de vista e o Orçamentar lê o ficheiro daqui. */
+let MQ_FICHEIRO=null;
+function definirFicheiroInput(id,f){
+  const i=document.getElementById(id); if(!i||!f) return false;
+  try{ const dt=new DataTransfer(); dt.items.add(f); i.files=dt.files; return i.files.length===1; }catch(e){ return false; }
+}
+function mqPartilhar(f){
+  MQ_FICHEIRO=f;
+  definirFicheiroInput('mqFile',f);
+  try{ if(typeof vfMQMapaLimpar==='function') vfMQMapaLimpar(); }catch(e){}
+  const s=document.getElementById('mqFicheiroNome'); if(s) s.innerHTML='Ficheiro: <b>'+esc(f.name)+'</b>';
+}
+function mqPartilhaMontar(v){
+  if(v!=='analisador'&&v!=='precomq') return;
+  const card=document.getElementById('mqShared'), view=document.getElementById('view-'+v);
+  if(!card||!view) return;
+  if(card.parentNode!==view){
+    const ref=view.querySelector(':scope > .ux-empty')||view.querySelector(':scope > .purpose');
+    if(ref) ref.after(card); else view.prepend(card);
+  }
+  card.classList.toggle('modo-orcar', v==='precomq');
+  const a=document.getElementById('mqsegRever'), b=document.getElementById('mqsegOrcar');
+  if(a) a.classList.toggle('on', v==='analisador'); if(b) b.classList.toggle('on', v==='precomq');
 }
 
 /* aplica automaticamente um padrão memorizado, se corresponder */
@@ -869,4 +900,4 @@ async function resolveFaseExistente(projeto_id,faseTipo){
   }
 }
 
-APP_REGISTAR('04-analisador','2.9.0');
+APP_REGISTAR('04-analisador','3.0.0');
