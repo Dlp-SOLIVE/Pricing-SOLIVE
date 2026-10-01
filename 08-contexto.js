@@ -465,4 +465,4 @@ function confereProjeto(wbk,nomeAtivo){
     'Continuar grava os dados no projeto ativo e substitui o que lá estiver.\n\nTens a certeza?');
 }
 
-APP_REGISTAR('08-contexto','2.7.0');
+APP_REGISTAR('08-contexto','2.7.1');

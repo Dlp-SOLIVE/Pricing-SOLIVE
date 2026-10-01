@@ -418,25 +418,46 @@ function vfMatchLine(line, lib){
 }
 /* leitor de MQ vazio (mesma família de template; não exige colunas de preço) */
 function vfReadMQ(rows){
+  /* Cabeçalho: primeiro o detetor do Analisador (aceita Designação/Descrição/Artigo,
+     Un./Unid./Unidade, Quant./Quantidade/Qt./Qtd. e cabeçalhos em duas linhas);
+     se falhar, uma procura mais larga nas primeiras 60 linhas. */
   let H=null;
-  for(let i=0;i<Math.min(rows.length,30);i++){
-    const r=(rows[i]||[]).map(vfNorm);
-    const des=r.findIndex(x=>/DESIGNA/.test(x));
-    const un=r.findIndex(x=>/^UN\.?$/.test(x));
-    const qt=r.findIndex(x=>/^QUANT/.test(x));
-    if(des>=0&&un>=0&&qt>=0){ H={row:i,des,un,qty:qt}; break; }
+  try{ const d=(typeof detectHeader==='function')?detectHeader(rows):null;
+       if(d) H={row:d.row,des:d.desc,un:d.un,qty:d.qt,code:(d.code>=0&&d.code!==d.desc)?d.code:0}; }catch(e){}
+  if(!H){
+    for(let i=0;i<Math.min(rows.length,60);i++){
+      const r=(rows[i]||[]).map(vfNorm);
+      const des=r.findIndex(x=>/DESIGNA|DESCRI|ARTIGO|TRABALHOS?$/.test(x));
+      const un=r.findIndex(x=>/^UN(\.|ID\.?|IDADE|IDADES)?$|^UNIT/.test(x));
+      const qt=r.findIndex(x=>/^QUANT|^QT|^QTD|^QTY/.test(x));
+      if(des>=0&&un>=0&&qt>=0){ H={row:i,des,un,qty:qt,code:0}; break; }
+    }
   }
   if(!H) return null;
+  /* cabeçalho a dois níveis ("Quantidades" por cima de "Un." e "Quant."): a unidade e a
+     quantidade não podem ser a mesma coluna — procurar a quantidade na linha do cabeçalho */
+  if(H.un===H.qty){
+    const hr=(rows[H.row]||[]).map(vfNorm);
+    const q2=hr.findIndex((x,j)=>j!==H.un&&/^QUANT|^QT|^QTD|^QTY/.test(x));
+    if(q2>=0) H.qty=q2;
+    const u2=hr.findIndex((x,j)=>j!==H.qty&&/^UN(\.|ID\.?|IDADE|IDADES)?$|^UNIT/.test(x));
+    if(u2>=0) H.un=u2;
+  }
   const out=[]; let secao=null;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
-    const a=String(r[0]==null?"":r[0]).trim();
+    const a=String(r[H.code]==null?"":r[H.code]).trim();
     const d=String(r[H.des]==null?"":r[H.des]).trim();
     const un=String(r[H.un]==null?"":r[H.un]).trim();
     const q=vfNum(r[H.qty]);
-    if(/^VALOR GLOBAL|^TOTAL DO CONTRATO/.test(vfNorm(d))) continue;
+    const dn=vfNorm(d);
+    if(!d) continue;
+    if(/^VALOR GLOBAL|^TOTAL DO CONTRATO/.test(dn) || RE_SOMA.test(dn)) continue;
     if(un!=="" && q!=null){ out.push({pos:i,art:a,designacao:d,unidade:un,quantidade:q,cap:secao||null}); }
-    else if(d&&!un){ if(VF_ROMAN.test(a)&&a) secao=d; }
+    else if(un===""){
+      /* título de capítulo: código curto (I, 2, 3., A) ou texto todo em maiúsculas */
+      if((a && (VF_ROMAN.test(a) || /^\d{1,2}\.?$|^[A-Z]\.?$/i.test(a))) || (d.length>3 && d===d.toUpperCase() && /[A-ZÀ-Ú]/.test(d))) secao=d;
+    }
   }
   return out;
 }
@@ -501,7 +522,7 @@ async function vfPriceMQFile(){
       const m=vfReadMQ(rows);
       if(m&&m.length){ m.forEach(l=>{ l.__sheet=sn; if(!l.cap||l.cap==='(sem capítulo)') l.cap=sn; }); mq.push(...m); }
     }
-    if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades neste ficheiro (preciso de colunas Designação / Un. / Quant.).</div>'; return; }
+    if(!mq.length){ out.innerHTML='<div class="note">Não reconheci um mapa de quantidades em nenhuma das '+wb.SheetNames.length+' folha(s) deste ficheiro ('+esc(wb.SheetNames.join(', '))+'). Preciso de uma linha de cabeçalho com uma coluna de descrição (Designação / Descrição / Artigo), uma de unidade (Un. / Unid. / Unidade) e uma de quantidade (Quant. / Quantidade / Qtd.), e de linhas com unidade e quantidade preenchidas.</div>'; return; }
     const results=mq.map(l=>{ const canon=vfCanonMQ(l); l.__canon=canon;
       return {l,m:vfPriceLine(l,libFull,libMat,libLab,uplift,chap,canon)}; });
     window.__mqResults=results;
@@ -1167,4 +1188,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','2.7.0');
+APP_REGISTAR('09-custo-real','2.7.1');
