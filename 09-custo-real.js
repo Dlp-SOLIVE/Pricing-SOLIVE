@@ -595,7 +595,36 @@ function vfCanonMQ(l){
   if(/DESE[MN]FUMAG/.test(t)) return 'SCIE';
   return vfGuess(l.designacao)||null;
 }
+/* Roupeiros/armários: o custo cresce com o nº de portas/módulos. Deriva €/módulo da
+   biblioteca (mediana, ≥3 registos com nº de módulos na descrição) e multiplica pelo nº
+   de módulos da linha do MQ. Backtest no L'Urbain: erro ~23% contra ~46% do preço plano. */
+function vfModulosDe(desc){
+  const d=String(desc||'').toLowerCase(); let m;
+  if((m=d.match(/(\d+)\s*(?:portas?\s+de\s+batente|portas?\s+de\s+correr|folhas?\s+de\s+abrir|folhas?)/))) return parseInt(m[1]);
+  if((m=d.match(/(?:em|com)\s+(\d+)\s*m[óo]dulos?/))) return parseInt(m[1]);
+  if((m=d.match(/(\d+)\s*m[óo]dulos?/))) return parseInt(m[1]);
+  if((m=d.match(/(\d+)\s*pain[eé]is?/))) return parseInt(m[1]);
+  if((m=d.match(/(\d+)\s*gavet[õo]es?/))) return parseInt(m[1]);
+  if((m=d.match(/(\d+)\s*gavetas?/))) return parseInt(m[1]);
+  if((m=d.match(/(\d+)\s*portas?/))) return parseInt(m[1]);
+  return null;
+}
+function vfPrecoPorModulo(line, lib){
+  const RE=/ROUPEIRO|ARMARIO/;
+  if(!RE.test(vfNorm(line.designacao))) return null;
+  if(!/^(UN|CJ|VG|U|UND)$/.test(vfUnit(line.unidade))) return null;
+  const n=vfModulosDe(line.designacao); if(!n) return null;
+  const usados=[], rates=[];
+  (lib||[]).forEach(r=>{ if(!RE.test(vfNorm(r.designacao))) return; if(!/^(UN|CJ|VG|U|UND)$/.test(vfUnit(r.unidade))) return;
+    const k=vfModulosDe(r.designacao); const pu=Number(r.preco_unit); if(!k||!(pu>0)) return; rates.push(pu/k); usados.push({r,k}); });
+  if(rates.length<3) return null;
+  const med=vfMedian(rates);
+  return {rec:Math.round(n*med*100)/100, n:rates.length, min:n*Math.min(...rates), max:n*Math.max(...rates), med:n*med, conf:'média', best:1,
+          kind:'escala (módulo)', escala:{modulos:n, eurModulo:med},
+          cands:usados.slice(0,8).map(x=>({desc:x.r.designacao+' — '+x.k+' módulo(s)', pu:Number(x.r.preco_unit), contrato:x.r.contrato, score:null}))};
+}
 function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
+  const esc_=vfPrecoPorModulo(line, libFull); if(esc_) return esc_;
   const full=vfMatchLine(line, libFull);
   if(full.conf==='alta'||full.conf==='média'){ full.kind='completo'; return full; }
   const mat=(libMat&&libMat.length)?vfMatchLine(line, libMat):{rec:null,conf:'sem'};
@@ -687,7 +716,7 @@ function vfConfBadge(c){
   return '<span style="background:'+m[0]+';color:#fff;padding:1px 8px;border-radius:20px;font-size:12px;font-weight:600">'+m[1]+'</span>';
 }
 function vfKindBadge(k){
-  const m={completo:['#1c7c46','completo'],composto:['#298893','mat+inst'],'só material':['#b26a00','só material'],'material+inst.%':['#b26a00','mat+inst %'],'rácio cap.':['#2E6DB0','rácio cap.']}[k];
+  const m={completo:['#1c7c46','completo'],composto:['#298893','mat+inst'],'só material':['#b26a00','só material'],'material+inst.%':['#b26a00','mat+inst %'],'rácio cap.':['#2E6DB0','rácio cap.'],'escala (módulo)':['#5B4BA0','por módulo']}[k];
   return m?'<span style="background:'+m[0]+';color:#fff;padding:1px 7px;border-radius:20px;font-size:12px;font-weight:600">'+m[1]+'</span>':'—';
 }
 function vfRenderMQ(results, libFullN, libMatN, scope){
@@ -765,10 +794,11 @@ function vfMQDrill(i){
   const body=c.length?c.map(k=>'<tr><td style="white-space:normal">'+esc(String(k.desc||'').slice(0,160))+'</td><td>'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score!=null?(k.score*100).toFixed(0)+'%':'—')+'</td></tr>').join('')
     :'<tr><td colspan="4">Sem registos comparáveis por texto na mesma unidade ('+esc(x.l.unidade)+').</td></tr>';
   const capNota=x.m.viaCap?'<div class="note" style="margin:6px 0">Preço por <b>rácio de capítulo</b>: '+esc(x.m.cap||'')+' · €/'+esc(x.l.unidade)+' médio do custo real ('+(x.m.n||0)+' registos). Usado por não haver correspondência de texto fiável — confirma antes de fechar.</div>':'';
+  const escNota=x.m.escala?'<div class="note" style="margin:6px 0">Preço por <b>escala</b>: '+x.m.escala.modulos+' módulo(s) × '+fmt(x.m.escala.eurModulo,2)+' €/módulo (mediana de '+x.m.n+' registos com nº de módulos na descrição).</div>':'';
   const partes=x.m.parts?'<div class="note" style="margin:6px 0">Composição: material '+fmt(x.m.parts.material,2)+' €'+(x.m.parts.instalacao!=null?' + instalação '+fmt(x.m.parts.instalacao,2)+' €':'')+'.</div>':'';
   const fx=(x.m.min!=null&&x.m.max!=null)?'<div class="hint">Intervalo dos registos usados: '+fmt(x.m.min,2)+' – '+fmt(x.m.max,2)+' €/'+esc(x.l.unidade)+' · mediana '+fmt(x.m.med!=null?x.m.med:x.m.rec,2)+'</div>':'';
   const row=document.createElement('tr'); row.id='mqd_'+i;
-  row.innerHTML='<td colspan="8" style="background:#f6f8fb;padding:10px 14px"><div><b>'+esc(String(x.l.designacao).slice(0,200))+'</b> · '+esc(x.l.unidade)+' · '+fmt(x.l.quantidade,2)+'</div>'+capNota+partes+fx
+  row.innerHTML='<td colspan="8" style="background:#f6f8fb;padding:10px 14px"><div><b>'+esc(String(x.l.designacao).slice(0,200))+'</b> · '+esc(x.l.unidade)+' · '+fmt(x.l.quantidade,2)+'</div>'+capNota+escNota+partes+fx
     +'<table style="margin-top:8px;font-size:12.5px;width:100%">'+th+body+'</table></td>';
   tr.after(row); tr.style.background='#eef3fa';
 }
@@ -1296,4 +1326,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','2.8.0');
+APP_REGISTAR('09-custo-real','2.9.0');

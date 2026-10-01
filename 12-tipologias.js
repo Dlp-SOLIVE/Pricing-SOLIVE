@@ -172,7 +172,7 @@ async function tpRenderKit(){
     +(projEl.length?'<div class="hint" style="margin-top:10px">Elevadores (definidos em Programa e tipologias de cada projeto): '
       +((typeof PROJETOS!=='undefined'?PROJETOS:[]).filter(x=>x.n_caixas_elevador!=null).map(x=>esc(x.nome)+' — '+x.n_caixas_elevador+' caixa(s)'+(x.n_paragens!=null?', '+x.n_paragens+' paragens':'')+(x.fogos?' para '+x.fogos+' fogos':'')).join(' · ')||'ainda sem projetos com elevadores indicados')+'.</div>':'')
     +'</div>'
-    +'<div class="card" style="margin-top:14px"><h2 style="margin-top:0">Quantidades a orçamentar · projeto ativo</h2><div id="tkEstimar"></div></div>';
+    +'<div class="card" style="margin-top:14px"><h2 style="margin-top:0">Quantidades e preço por elemento · projeto ativo</h2><div id="tkEstimar"></div></div>';
   tpEstimarAtivo(segAtual);
 }
 async function tpKitGravar(){
@@ -216,19 +216,113 @@ async function tpEstimarAtivo(segKit){
     });
     linhas.push({el,qt:partes.length?tot:null,fonte:[...fontes].join(' + ')+(falta.length?(fontes.size?' · ':'')+'sem dado: '+falta.join(', '):''),det:partes.join(' + ')});
   });
-  window.__tpEstim={projeto:p.nome,segmento:seg,linhas};
-  out.innerHTML='<div class="hint">Projeto <b>'+esc(p.nome)+'</b> · segmento <b>'+esc(segLabel(seg))+'</b> · '+mix.reduce((s,m)=>s+(+m.n_fogos||0),0)+' fogos. Ordem: ficha de programa do próprio projeto → padrão do kit-tipo → mediana observada noutros projetos do mesmo segmento. Sem nenhum, fica assinalado — não se inventa.</div>'
-    +'<div style="overflow-x:auto"><table style="margin-top:8px"><tr><th>Elemento</th><th>Un.</th><th style="text-align:right">Quantidade</th><th>Origem</th><th>Cálculo</th></tr>'
-    +linhas.map(l=>'<tr><td>'+esc(l.el.nome)+'</td><td>'+esc(l.el.unidade)+'</td><td class="mono" style="text-align:right">'+(l.qt!=null?fmt(l.qt,2):'—')+'</td><td>'+esc(l.fonte||'')+'</td><td class="hint">'+esc(l.det||'')+'</td></tr>').join('')
-    +'</table></div><div style="margin-top:10px"><button class="btn ghost" onclick="tpExportar()">Exportar (.xlsx)</button></div>';
+  /* FASE 4 — preço de cada elemento: 1º preço fixado à mão (segmento do projeto);
+     2º mediana da biblioteca (custo real) no mesmo segmento; 3º outros segmentos;
+     4º orçamentos do empreiteiro / compras. Sempre com a origem à vista. */
+  await tpLoadPrecos();
+  const nFogos=mix.reduce((s,m)=>s+(+m.n_fogos||0),0);
+  linhas.forEach(l=>{ l.preco=tpPrecoElemento(l.el,seg); l.total=(l.qt!=null&&l.preco.pu!=null)?l.qt*l.preco.pu:null; });
+  window.__tpEstim={projeto:p.nome,segmento:seg,linhas,nFogos};
+  const totGeral=linhas.reduce((s,l)=>s+(l.total||0),0);
+  const semPreco=linhas.filter(l=>l.qt!=null&&l.qt>0&&l.preco.pu==null).length;
+  const porCap={}; linhas.forEach(l=>{ if(l.total!=null){ const c=l.el.capitulo||'(sem capítulo)'; porCap[c]=(porCap[c]||0)+l.total; } });
+  out.innerHTML='<div class="hint">Projeto <b>'+esc(p.nome)+'</b> · segmento <b>'+esc(segLabel(seg))+'</b> · '+nFogos+' fogos. Quantidades: ficha de programa do próprio projeto → padrão do kit-tipo → mediana observada noutros projetos. Preços: fixado à mão → biblioteca de custo real no mesmo segmento → outros segmentos → orçamentos do empreiteiro. Sem nenhum, fica assinalado — não se inventa. Clica numa linha para ver a origem do preço.</div>'
+    +'<div style="overflow-x:auto"><table style="margin-top:8px"><tr><th>Elemento</th><th>Un.</th><th style="text-align:right">Quantidade</th><th>Origem da quantidade</th><th style="text-align:right">€/un</th><th>Origem do preço</th><th style="text-align:right">Total (€)</th><th>Fixar €/un</th></tr>'
+    +linhas.map((l,i)=>'<tr id="tpr_'+i+'" style="cursor:pointer" onclick="tpPrecoDrill('+i+')" title="'+esc(l.det||'')+'">'
+      +'<td>'+esc(l.el.nome)+'</td><td>'+esc(l.el.unidade)+'</td>'
+      +'<td class="mono" style="text-align:right">'+(l.qt!=null?fmt(l.qt,2):'—')+'</td><td>'+esc(l.fonte||'')+'</td>'
+      +'<td class="mono" style="text-align:right">'+(l.preco.pu!=null?fmt(l.preco.pu,2):'—')+'</td>'
+      +'<td>'+esc(l.preco.fonte||'')+'</td>'
+      +'<td class="mono" style="text-align:right;font-weight:600">'+(l.total!=null?fmt(l.total,0):'—')+'</td>'
+      +'<td onclick="event.stopPropagation()"><input type="text" inputmode="decimal" data-fix="'+l.el.id+'" value="'+(l.preco.fixado!=null?l.preco.fixado:'')+'" placeholder="€/'+esc(l.el.unidade)+'" style="width:86px"></td></tr>').join('')
+    +'<tr style="font-weight:600"><td colspan="6">TOTAL dos elementos'+(semPreco?' <span class="hint" style="font-weight:400">('+semPreco+' elemento(s) com quantidade mas sem preço)</span>':'')+'</td><td class="mono" style="text-align:right">'+fmt(totGeral,0)+'</td><td></td></tr>'
+    +'</table></div>'
+    +'<div class="hint" style="margin-top:6px">'+(nFogos?'≈ <b>'+fmt(totGeral/nFogos,0)+' €/fogo</b> nos elementos com preço · ':'')+Object.entries(porCap).map(([c,v])=>esc(c)+' '+fmt(v,0)+' €'+(nFogos?' ('+fmt(v/nFogos,0)+' €/fogo)':'')).join(' · ')+'</div>'
+    +'<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn navy" onclick="tpGuardarFixos()">Guardar preços fixados ('+esc(segLabel(seg))+')</button><button class="btn ghost" onclick="tpExportar()">Exportar (.xlsx)</button></div>';
+}
+/* ---------- FASE 4 · preço por elemento ---------- */
+let TP_LIB=null, TP_LIB_T=0, TP_FIX=[];
+async function tpLoadPrecos(){
+  if(!TP_LIB||Date.now()-TP_LIB_T>60000){
+    TP_LIB=await lerLinhasCusto(q=>q.eq('nivel','artigo').gt('preco_unit',0));
+    TP_LIB_T=Date.now();
+  }
+  const r=await sbq(sb.from('elemento_preco').select('*'),"Ler preços fixados"); TP_FIX=r.data||[];
+}
+function tpUnidade(u){ return vfUnit(u||''); }
+function tpCasa(el,r){
+  if(!el.padrao_texto) return false;
+  const d=vfNorm(r.descricao||'')+' '+vfNorm(r.familia||'');
+  try{
+    if(!new RegExp(el.padrao_texto).test(d)) return false;
+    if(el.excluir_texto && new RegExp(el.excluir_texto).test(d)) return false;
+  }catch(e){ return false; }
+  return true;
+}
+function tpPrecoElemento(el,seg){
+  const fix=TP_FIX.find(x=>String(x.elemento_id)===String(el.id)&&x.segmento===seg);
+  if(fix) return {pu:+fix.preco_unit,fixado:+fix.preco_unit,fonte:'fixado à mão'+(fix.nota?' · '+fix.nota:''),n:1,cands:[]};
+  if(!el.padrao_texto) return {pu:null,fonte:'sem padrão — fixar à mão',cands:[]};
+  const uns=String(el.unidades_preco||el.unidade||'').split(',').map(x=>tpUnidade(x)).filter(Boolean);
+  let rows=(TP_LIB||[]).filter(r=>tpCasa(el,r));
+  const comAuto=new Set(rows.filter(r=>r.fonte==='auto').map(r=>r.projeto_id));
+  rows=rows.filter(r=>!(r.fonte==='auto_pu'&&comAuto.has(r.projeto_id)));
+  const naUn=rows.filter(r=>uns.includes(tpUnidade(r.unidade)));
+  const REAL=['auto','subempreitada','composto','auto_pu','pu'];
+  const camadas=[
+    ['custo real · '+segLabel(seg), r=>REAL.includes(r.fonte)&&(!el.sensivel_segmento||r.segmento===seg)],
+    ['custo real · outros segmentos', r=>REAL.includes(r.fonte)],
+    ['orçamento do empreiteiro / compras', r=>r.fonte==='orcamento_empreiteiro'||r.fonte==='mq'||r.fonte==='compra']];
+  /* alternativa: a biblioteca só tem o elemento por unidade (ex.: cozinha completa €/un) */
+  const altRows=rows.filter(r=>!uns.includes(tpUnidade(r.unidade))&&/^(UN|CJ|VG)$/.test(tpUnidade(r.unidade))&&REAL.includes(r.fonte));
+  const alt=altRows.length?{med:tpMed(altRows.map(r=>+r.preco_unit)),n:altRows.length,un:altRows[0].unidade}:null;
+  for(const [lbl,f] of camadas){
+    const c=naUn.filter(f);
+    if(c.length){
+      const ps=c.map(r=>+r.preco_unit);
+      return {pu:tpMed(ps),fonte:lbl+' · mediana de '+c.length,n:c.length,min:Math.min(...ps),max:Math.max(...ps),
+              cands:c.sort((a,b)=>(+a.preco_unit)-(+b.preco_unit)).slice(0,12),alt};
+    }
+  }
+  return {pu:null,fonte:alt?'sem preço em '+el.unidade+' (ver alternativa)':'sem registos na biblioteca',cands:[],alt};
+}
+function tpPrecoDrill(i){
+  const e=window.__tpEstim; const l=e&&e.linhas[i]; const tr=document.getElementById('tpr_'+i); if(!l||!tr) return;
+  const ab=document.getElementById('tpd_'+i); if(ab){ ab.remove(); tr.style.background=''; return; }
+  const P=l.preco;
+  const LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
+  const body=(P.cands||[]).map(r=>'<tr><td style="white-space:normal">'+esc(String(r.descricao||'').slice(0,140))+'</td><td>'+esc((LBL[r.fonte]||r.fonte)+' · '+(r.ref||r.fornecedor||'')+(r.projeto?' · '+r.projeto:''))+'</td><td>'+esc(r.segmento?segLabel(r.segmento):'—')+'</td><td>'+esc(r.unidade||'')+'</td><td class="mono" style="text-align:right">'+fmt(r.preco_unit,2)+'</td></tr>').join('');
+  const row=document.createElement('tr'); row.id='tpd_'+i;
+  row.innerHTML='<td colspan="8" style="background:#f6f8fb;padding:10px 14px">'
+    +'<div><b>'+esc(l.el.nome)+'</b> · quantidade: '+esc(l.det||l.fonte||'—')+'</div>'
+    +(P.min!=null?'<div class="hint">Intervalo: '+fmt(P.min,2)+' – '+fmt(P.max,2)+' €/'+esc(l.el.unidade)+' · mediana '+fmt(P.pu,2)+'</div>':'')
+    +(P.alt?'<div class="note" style="margin:6px 0">A biblioteca também tem este elemento por <b>'+esc(P.alt.un)+'</b>: mediana '+fmt(P.alt.med,2)+' € ('+P.alt.n+' registos). Não é convertível automaticamente para '+esc(l.el.unidade)+'; se fizer sentido (ex.: cozinha completa por fogo), fixa o €/'+esc(l.el.unidade)+' à mão.</div>':'')
+    +(body?'<table style="margin-top:8px;font-size:12.5px;width:100%"><tr><th>Registo</th><th>Origem</th><th>Segmento</th><th>Un.</th><th style="text-align:right">€/un</th></tr>'+body+'</table>':'<div class="hint">'+esc(P.fonte||'')+'</div>')
+    +'<div class="hint" style="margin-top:6px">Reconhecido na biblioteca por: '+esc(l.el.padrao_texto||'—')+(l.el.excluir_texto?' · exclui: '+esc(l.el.excluir_texto):'')+'</div></td>';
+  tr.after(row); tr.style.background='#eef3fa';
+}
+async function tpGuardarFixos(){
+  const e=window.__tpEstim; if(!e) return;
+  const seg=e.segmento; const ins=[], del=[];
+  document.querySelectorAll('#tkEstimar input[data-fix]').forEach(x=>{ const v=tpNum(x.value), id=+x.dataset.fix;
+    if(v!=null&&v>0) ins.push({segmento:seg,elemento_id:id,preco_unit:v,fonte:'manual',nota:'Fixado em '+new Date().toLocaleDateString('pt-PT')+' ('+e.projeto+')'});
+    else if(TP_FIX.some(f=>String(f.elemento_id)===String(id)&&f.segmento===seg)) del.push(id); });
+  let r;
+  for(const id of del){ r=await sbq(sb.from('elemento_preco').delete().eq('segmento',seg).eq('elemento_id',id),"Retirar preço fixado"); if(r.error) return; }
+  if(ins.length){ r=await sbq(sb.from('elemento_preco').upsert(ins,{onConflict:'segmento,elemento_id'}),"Guardar preços fixados"); if(r.error) return; }
+  alertx("Preços fixados guardados para "+segLabel(seg)+": "+ins.length+(del.length?" · retirados "+del.length:"")+".",true);
+  await tpEstimarAtivo(seg);
 }
 function tpExportar(){
   const e=window.__tpEstim; if(!e) return;
-  const aoa=[["SOLIVE — Quantidades por tipologia"],["Projeto: "+e.projeto+"   ·   Segmento: "+segLabel(e.segmento)+"   ·   "+new Date().toLocaleDateString('pt-PT')],[],
-    ["Elemento","Un.","Quantidade","Origem","Cálculo"]].concat(e.linhas.map(l=>[l.el.nome,l.el.unidade,l.qt!=null?Math.round(l.qt*100)/100:"",l.fonte||"",l.det||""]));
-  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:40},{wch:6},{wch:12},{wch:34},{wch:60}];
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Quantidades");
-  XLSX.writeFile(wb,("Quantidades_tipologia_"+e.projeto).replace(/[^\w]+/g,"_")+".xlsx");
+  const aoa=[["SOLIVE — Quantidades e preços por elemento"],["Projeto: "+e.projeto+"   ·   Segmento: "+segLabel(e.segmento)+"   ·   "+(e.nFogos||'')+" fogos   ·   "+new Date().toLocaleDateString('pt-PT')],[],
+    ["Elemento","Capítulo","Un.","Quantidade","Origem da quantidade","€/un","Origem do preço","Total (€)","Cálculo da quantidade"]]
+    .concat(e.linhas.map(l=>[l.el.nome,l.el.capitulo||"",l.el.unidade,l.qt!=null?Math.round(l.qt*100)/100:"",l.fonte||"",l.preco&&l.preco.pu!=null?Math.round(l.preco.pu*100)/100:"",l.preco?l.preco.fonte||"":"",l.total!=null?Math.round(l.total):"",l.det||""]));
+  const tot=e.linhas.reduce((s,l)=>s+(l.total||0),0);
+  aoa.push([],["TOTAL","","","","","","",Math.round(tot)]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:38},{wch:22},{wch:6},{wch:11},{wch:30},{wch:10},{wch:36},{wch:12},{wch:50}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Elementos");
+  XLSX.writeFile(wb,("Elementos_"+e.projeto).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('12-tipologias','2.8.0');
+APP_REGISTAR('12-tipologias','2.9.0');

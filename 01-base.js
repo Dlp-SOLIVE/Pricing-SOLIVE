@@ -136,4 +136,4 @@ function showView(v){
   try{ if(typeof window.__howtoOnView==='function') window.__howtoOnView(v); }catch(e){}
 }
 
-APP_REGISTAR('01-base','2.8.0');
+APP_REGISTAR('01-base','2.9.0');
