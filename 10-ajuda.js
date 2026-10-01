@@ -20,4 +20,4 @@ function abrirAjuda(){ const o=document.getElementById('ajudaOverlay'); if(!o)re
 function fecharAjuda(){ const o=document.getElementById('ajudaOverlay'); if(o) o.classList.add('hidden'); }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharAjuda(); });
 
-APP_REGISTAR('10-ajuda','2.6.1');
+APP_REGISTAR('10-ajuda','2.7.0');

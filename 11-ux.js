@@ -292,4 +292,4 @@ async function uxRenderResumo(){
     }catch(e){} };
 })();
 
-APP_REGISTAR('11-ux','2.6.1');
+APP_REGISTAR('11-ux','2.7.0');

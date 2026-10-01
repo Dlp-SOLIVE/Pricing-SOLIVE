@@ -166,13 +166,10 @@ function guardarDescritores(){
    gatherProjectData, calibracaoDesvios, loadBenchmarks e renderComparar faziam,
    cada uma, uma consulta por projeto e outra por fase. Com dez projetos eram mais
    de vinte idas ao servidor, em série, com o ecrã parado. Agora: duas consultas. */
-const SEGMENTOS=[
-  {v:"res-high",  g:"Residencial", l:"High-end"},
-  {v:"res-std",   g:"Residencial", l:"Standard"},
-  {v:"res-btr",   g:"Residencial", l:"Build-to-rent"},
-  {v:"res-student",g:"Residencial",l:"Student accommodation"},
-  {v:"retail",    g:"Retail",      l:"Retail"},
-  {v:"office",    g:"Escritórios", l:"Escritórios"}
+const SEGMENTOS=[   /* lista fechada na base (ck_projetos_segmento) */
+  {v:"medio",      g:"Médio",      l:"Médio"},
+  {v:"medio_alto", g:"Médio-alto", l:"Médio-alto"},
+  {v:"premium",    g:"Premium",    l:"Premium"}
 ];
 function segLabel(v){ const s=SEGMENTOS.find(x=>x.v===v); return s? (s.g===s.l?s.l:s.g+" · "+s.l) : "—"; }
 function segOptions(sel){ return '<option value="">— não definido —</option>'+
@@ -468,4 +465,4 @@ function confereProjeto(wbk,nomeAtivo){
     'Continuar grava os dados no projeto ativo e substitui o que lá estiver.\n\nTens a certeza?');
 }
 
-APP_REGISTAR('08-contexto','2.6.1');
+APP_REGISTAR('08-contexto','2.7.0');

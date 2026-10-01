@@ -260,7 +260,7 @@ function vfRatios(lines){
     if(!g[cap]) g[cap]={cap,custo:0,nL:0,contratos:{},natCusto:{full:0,material:0,labour:0},natUnits:{},porProj:{}};
     const t=Number(l.total)||0; g[cap].custo+=t; g[cap].nL++;
     g[cap].porProj[proj]=(g[cap].porProj[proj]||0)+t;
-    const cid=(l.import_id!=null)?('#'+l.import_id):(l.contrato||''); if(cid) g[cap].contratos[cid]=1;
+    const cid=l.contrato||''; if(cid) g[cap].contratos[cid]=1;
     g[cap].natCusto[nat]=(g[cap].natCusto[nat]||0)+t;
     const u=vfUnit(l.unidade);
     if(u){ const key=nat+'|'+u; if(!g[cap].natUnits[key]) g[cap].natUnits[key]={nat,un:l.unidade,custo:0,qt:0}; g[cap].natUnits[key].custo+=t; g[cap].natUnits[key].qt+=Number(l.quantidade)||0; }
@@ -288,27 +288,15 @@ async function vfLoadRatios(){
   const out=document.getElementById('rxOut');
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar custo gravado…</div>';
-  // custo_linha pode ter >1000 linhas; o Supabase devolve no máx. 1000 por pedido.
-  // Paginar em blocos de 1000 até trazer tudo (senão os rácios ficam truncados).
-  const SEL='import_id,capitulo_canonico,capitulo_origem,total,contrato,designacao,unidade,quantidade,preco_unit,natureza';
-  let lines=[];
-  for(let from=0; from<200000; from+=1000){
-    const q=await sb.from('custo_linha').select(SEL).range(from,from+999);
-    if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
-    const batch=q.data||[]; lines=lines.concat(batch);
-    if(batch.length<1000) break;
-  }
-  // projeto/segmento a partir do custo_import — junção FIÁVEL por import_id.
-  // O contrato em texto pode ter variações (espaços, reimportações, duplicados);
-  // o import_id é a chave estável. Contrato normalizado só como salvaguarda.
-  const impById={}, impByContr={};
-  try{ const qi=await sb.from('custo_import').select('id,contrato,segmento,projeto_ref');
-    (qi.data||[]).forEach(r=>{ const v={seg:r.segmento||null,proj:r.projeto_ref||null};
-      impById[r.id]=v; if(r.contrato) impByContr[vfNorm(r.contrato)]=v; }); }catch(e){}
-  lines.forEach(l=>{ const m=impById[l.import_id]||impByContr[vfNorm(l.contrato)]||{}; l.__seg=m.seg||null; l.__proj=m.proj||null; });
+  /* Custo real dos autos verificados, a partir da vista única (Fase 1): o projeto e o
+     segmento vêm do projeto (projeto_id), não do texto do ficheiro. */
+  const vl=await lerLinhasCusto(q=>q.eq('fonte','auto'));
+  const lines=vl.map(l=>({contrato:l.ref, capitulo_canonico:l.capitulo, capitulo_origem:null, designacao:l.descricao,
+    unidade:l.unidade, quantidade:l.quantidade, preco_unit:l.preco_unit, total:l.total, natureza:naturezaDeAmbito(l.ambito),
+    __proj:l.projeto||null, __seg:l.segmento?segLabel(l.segmento):null}));
   window.__rxLines=lines;
   const nMap=lines.filter(l=>l.__proj).length;
-  window.__rxDiag='motor rácios r4 · linhas lidas '+lines.length+' · mapeadas a projeto '+nMap;
+  window.__rxDiag='motor rácios r5 (vista única) · linhas lidas '+lines.length+' · com projeto '+nMap;
   // opções construídas a partir das linhas realmente mapeadas (cada opção garante resultados)
   const projSet={}, segSet={};
   lines.forEach(l=>{ if(l.__proj) projSet[l.__proj]=1; if(l.__seg) segSet[l.__seg]=1; });
@@ -454,8 +442,8 @@ function vfReadMQ(rows){
 }
 async function vfMQFillProjects(){
   const sel=document.getElementById('mqProj'); if(!sel||typeof sb==='undefined'||!sb) return;
-  try{ const qi=await sb.from('custo_import').select('projeto_ref');
-    const projs=[...new Set((qi.data||[]).map(r=>r.projeto_ref).filter(Boolean))].sort();
+  try{
+    const projs=[...new Set((typeof PROJETOS!=='undefined'?PROJETOS:[]).map(p=>p.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'));
     const cur=sel.value;
     sel.innerHTML='<option value="">Todos os projetos (combina tudo)</option>'+projs.map(p=>'<option'+(vfNorm(p)===vfNorm(cur)?' selected':'')+'>'+esc(p)+'</option>').join('');
   }catch(e){}
@@ -465,38 +453,34 @@ async function vfPriceMQFile(){
   if(!inp.files||!inp.files[0]){ out.innerHTML='<div class="note">Escolhe o MQ (.xlsx) primeiro.</div>'; return; }
   if(typeof sb==="undefined"||!sb){ out.innerHTML='<div class="note">Precisas de estar ligado e com sessão iniciada.</div>'; return; }
   out.innerHTML='<div class="note">A carregar biblioteca de custo…</div>';
-  // Paginar (custo_linha pode ter >1000 linhas; senão a biblioteca vem truncada a 1000).
-  const SELM='import_id,capitulo_canonico,designacao,unidade,quantidade,preco_unit,total,contrato,natureza';
-  let clAll=[];
-  for(let from=0; from<200000; from+=1000){
-    const q=await sb.from('custo_linha').select(SELM).range(from,from+999);
-    if(q.error){ out.innerHTML='<div class="note">Erro a ler custo: '+esc(q.error.message||'')+'</div>'; return; }
-    const batch=q.data||[]; clAll=clAll.concat(batch);
-    if(batch.length<1000) break;
-  }
-  // Base de custo: restringir a um projeto (ex.: só L'Urbain) — junção fiável por import_id.
+  /* Biblioteca = vista única v_linha_custo (Fase 1), só preços ao nível do artigo:
+     autos verificados, subempreitadas reais, compostos, compras, preços colhidos de autos
+     e — se pedido — orçamentos do empreiteiro (pricing sheets). */
   const projSel=(document.getElementById('mqProj')||{}).value||'';
-  if(projSel){
-    const impById={}, impByContr={};
-    try{ const qi=await sb.from('custo_import').select('id,contrato,projeto_ref');
-      (qi.data||[]).forEach(r=>{ impById[r.id]=r.projeto_ref||null; if(r.contrato) impByContr[vfNorm(r.contrato)]=r.projeto_ref||null; }); }catch(e){}
-    clAll=clAll.filter(r=>{ const pr=impById[r.import_id]||impByContr[vfNorm(r.contrato)]||null; return pr && vfNorm(pr)===vfNorm(projSel); });
-  }
-  let qc={data:[]}; try{ qc=await sb.from('custo_compra').select('descricao,unidade,preco_unit,kind,ref'); }catch(e){}
-  const cd=(qc&&qc.data)||[];
-  const map=r=>({designacao:r.descricao,unidade:r.unidade,preco_unit:r.preco_unit,contrato:r.ref});
-  const cl=clAll.filter(r=>Number(r.preco_unit)>0);
-  if(projSel && !cl.length){ out.innerHTML='<div class="note">Sem custo gravado para o projeto «'+esc(projSel)+'». Escolhe outro ou «Todos os projetos».</div>'; return; }
+  const segSel=(document.getElementById('mqSeg')||{}).value||'';
+  const comOrc=!!(document.getElementById('mqOrc')||{}).checked;
+  const FONTE_LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
+  let vl=await lerLinhasCusto(q=>q.eq('nivel','artigo').gt('preco_unit',0));
+  if(!comOrc) vl=vl.filter(r=>r.fonte!=='orcamento_empreiteiro'&&r.fonte!=='mq');
+  // preços colhidos de autos antigos repetem os autos verificados do mesmo projeto: não contar duas vezes
+  const comAuto=new Set(vl.filter(r=>r.fonte==='auto').map(r=>r.projeto_id));
+  vl=vl.filter(r=>!(r.fonte==='auto_pu'&&comAuto.has(r.projeto_id)));
+  // compras não têm projeto: entram sempre; o resto segue os filtros
+  if(projSel) vl=vl.filter(r=>r.fonte==='compra'||vfNorm(r.projeto)===vfNorm(projSel));
+  if(segSel)  vl=vl.filter(r=>r.fonte==='compra'||r.segmento===segSel);
+  const cl=vl.map(r=>({designacao:r.descricao, unidade:r.unidade, preco_unit:Number(r.preco_unit), total:r.total, quantidade:r.quantidade,
+    capitulo_canonico:r.capitulo, natureza:naturezaDeAmbito(r.ambito), fonte:r.fonte,
+    contrato:(FONTE_LBL[r.fonte]||r.fonte)+' · '+(r.ref||r.fornecedor||'')+(r.projeto?' · '+r.projeto:'')}));
+  if((projSel||segSel) && !cl.some(r=>r.fonte!=='compra')){ out.innerHTML='<div class="note">Sem preços para os filtros escolhidos'+(projSel?' · projeto «'+esc(projSel)+'»':'')+(segSel?' · segmento «'+esc(segLabel(segSel))+'»':'')+'. Alarga os filtros.</div>'; return; }
   const natOf=r=>r.natureza||'full';
-  // custo_linha (autos) encaminhado por natureza + compras por kind
-  const libFull=cl.filter(r=>natOf(r)==='full').concat(cd.filter(r=>r.kind==='full').map(map));
-  const libMat=cl.filter(r=>natOf(r)==='material').concat(cd.filter(r=>r.kind==='material'&&Number(r.preco_unit)>0).map(map));
-  const libLab=cl.filter(r=>natOf(r)==='labour').concat(cd.filter(r=>r.kind==='labour'&&Number(r.preco_unit)>0).map(map));
-  if(!libFull.length&&!libMat.length){ out.innerHTML='<div class="note">Sem custo gravado ainda — importa autos (Verificar) e/ou o ficheiro de Compras primeiro.</div>'; return; }
+  const libFull=cl.filter(r=>natOf(r)==='full');
+  const libMat=cl.filter(r=>natOf(r)==='material');
+  const libLab=cl.filter(r=>natOf(r)==='labour');
+  if(!libFull.length&&!libMat.length){ out.innerHTML='<div class="note">Sem preços na biblioteca ainda — importa autos (Autos de medição) e/ou o ficheiro de Compras primeiro.</div>'; return; }
   // Rácios por capítulo (custo completo) — €/unidade médio por capítulo canónico + unidade.
   // Preenche as linhas do MQ que não casam por texto, com o rácio do elemento.
   const chap={};
-  cl.filter(r=>natOf(r)==='full').forEach(r=>{
+  cl.filter(r=>natOf(r)==='full'&&r.fonte==='auto').forEach(r=>{
     const c=r.capitulo_canonico, u=vfUnit(r.unidade);
     const t=Number(r.total)||0, qn=Number(r.quantidade)||0;
     if(!c||!u||qn<=0) return;
@@ -521,8 +505,9 @@ async function vfPriceMQFile(){
     const results=mq.map(l=>{ const canon=vfCanonMQ(l); l.__canon=canon;
       return {l,m:vfPriceLine(l,libFull,libMat,libLab,uplift,chap,canon)}; });
     window.__mqResults=results;
-    window.__mqScope=projSel||'todos os projetos (combinado)'; window.__mqFileName=f.name||'';
-    vfRenderMQ(results,libFull.length,libMat.length,projSel||'todos os projetos (combinado)');
+    const scope=(projSel||'todos os projetos (combinado)')+(segSel?' · segmento '+segLabel(segSel):'')+(comOrc?' · inclui orçamentos do empreiteiro':' · só custo real');
+    window.__mqScope=scope; window.__mqFileName=f.name||'';
+    vfRenderMQ(results,libFull.length,libMat.length,scope);
   };
   rd.readAsArrayBuffer(f);
 }
@@ -719,7 +704,7 @@ function vfMQDrill(i){
       +'<div class="note">Carrega um mapa de quantidades <b>vazio</b> (sem preços). Para cada linha, a plataforma procura no custo gravado o preço <b>melhor suportado</b> (mesma unidade + descrição semelhante). Onde não há correspondência de texto fiável, usa o <b>rácio do capítulo</b> (€/unidade médio do elemento no custo real). Preenche o seguro; confirma os que vêm por rácio. Nada é inventado — só custo real.</div>'
       +'<div class="card" style="margin-top:10px"><b>Biblioteca de compras (fornecedores)</b><div class="note">Importa o ficheiro de Compras (.xlsm) — uma vez, ou sempre que houver novas adjudicações. Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato. Alimenta a composição material + instalação.</div><input type="file" id="cmFile" accept=".xlsm,.xlsx"> <button class="btn navy" onclick="vfImportComprasFile()">Importar compras</button> <span id="cmOut" class="note"></span></div>'
       +'<div class="card" style="margin-top:10px"><label>Uplift de instalação sobre material (%)</label> <input type="number" id="mqUplift" value="0" style="width:80px"> <span class="note">Aplica-se às linhas onde só há preço de material (sem mão de obra registada).</span></div>'
-      +'<div class="card" style="margin-top:10px"><label>Base de custo a usar</label> <select id="mqProj" style="min-width:250px" onmousedown="vfMQFillProjects()"><option value="">Todos os projetos (combina tudo)</option></select> <span class="note">Escolhe um projeto (ex.: só L’Urbain) para orçamentar apenas com o custo real dessa obra, em vez da média de todas. Aplica-se ao match de texto e aos rácios de capítulo.</span></div>'
+      +'<div class="card" style="margin-top:10px"><label>Base de custo a usar</label> <select id="mqProj" style="min-width:250px" onmousedown="vfMQFillProjects()"><option value="">Todos os projetos (combina tudo)</option></select> &nbsp; <label>Segmento</label> <select id="mqSeg" style="min-width:160px"><option value="">Todos</option><option value="medio">Médio</option><option value="medio_alto">Médio-alto</option><option value="premium">Premium</option></select> &nbsp; <label style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="mqOrc"> Incluir orçamentos do empreiteiro (pricing sheets)</label> <span class="note">Escolhe um projeto (ex.: só L’Urbain) para orçamentar apenas com o custo real dessa obra, em vez da média de todas. Aplica-se ao match de texto e aos rácios de capítulo.</span></div>'
       +'<div class="card" style="margin-top:10px"><label>Mapa de quantidades vazio (.xlsx)</label> <input type="file" id="mqFile" accept=".xlsx,.xls"> <button class="btn navy" onclick="vfPriceMQFile()">Orçamentar</button></div>'
       +'<div id="mqOut" style="margin-top:12px"></div>';
     host.parentNode.appendChild(mv);
@@ -733,43 +718,44 @@ function vfMQDrill(i){
    re-aponto-a por override, com fallback seguro ao comportamento antigo se
    ainda não houver custo gravado. Só usa linhas de natureza 'full'.
    ========================================================================== */
-function vfAggProjects(lines, impMap){
-  const byProj={};
-  lines.forEach(l=>{ if((l.natureza||'full')!=='full') return;
-    const info=impMap[l.contrato]||{proj:'(sem projeto)',seg:null};
-    const cap=l.capitulo_canonico||l.capitulo_origem||'(sem capítulo)';
-    if(!byProj[info.proj]) byProj[info.proj]={nome:info.proj,seg:info.seg,caps:{}};
-    byProj[info.proj].caps[cap]=(byProj[info.proj].caps[cap]||0)+(Number(l.total)||0);
-  });
-  return byProj;
-}
 /* custo real (custo_linha) agregado por projeto. Paginado: o Supabase devolve no
    máximo 1000 linhas por pedido. Junção ao projeto por import_id (estável), com o
    contrato em texto só como recurso. */
-async function gpdCustoReal(){
+/* Vista única de preços (v_linha_custo, Fase 1): uma linha por preço, de todas
+   as fontes, já com projeto_id, projeto e segmento. Paginada (1000 por pedido).
+   filtro: função que recebe a query do Supabase e lhe acrescenta .eq/.in/... */
+async function lerLinhasCusto(filtro, colunas){
   if(typeof sb==='undefined'||!sb) return [];
-  let li=[];
-  for(let from=0; from<200000; from+=1000){
-    const q=await sb.from('custo_linha').select('import_id,total,capitulo_canonico,capitulo_origem,natureza,contrato').range(from,from+999);
-    if(q.error) break;
-    const bt=q.data||[]; li=li.concat(bt);
-    if(bt.length<1000) break;
+  const SEL=colunas||'fonte,nivel,projeto_id,projeto,segmento,data,ref,fornecedor,capitulo,familia,descricao,unidade,quantidade,preco_unit,total,ambito,confianca,origem,origem_id';
+  let out=[];
+  for(let from=0; from<300000; from+=1000){
+    let q=sb.from('v_linha_custo').select(SEL);
+    if(filtro) q=filtro(q);
+    const r=await q.range(from,from+999);
+    if(r.error){ console.warn('v_linha_custo',r.error); alertx("Não consegui ler a vista de preços (v_linha_custo): "+r.error.message+". Confirma que o SQL da Fase 1 foi corrido."); return out; }
+    const b=r.data||[]; out=out.concat(b);
+    if(b.length<1000) break;
   }
+  return out;
+}
+/* natureza antiga (full/material/labour) a partir do âmbito da vista */
+function naturezaDeAmbito(a){ return a==='mao_obra'?'labour':(a==='fornecimento'?'material':'full'); }
+/* custo real (autos verificados) agregado por projeto — só custo completo (F&A) */
+async function gpdCustoReal(){
+  const li=await lerLinhasCusto(q=>q.eq('fonte','auto').eq('ambito','F&A'),'projeto_id,projeto,segmento,capitulo,total');
   if(!li.length) return [];
-  const byId={}, byContr={};
-  try{
-    const qi=await sb.from('custo_import').select('id,contrato,projeto_ref,segmento');
-    (qi.data||[]).forEach(r=>{ const v={proj:r.projeto_ref||'(sem projeto)',seg:r.segmento||null}; byId[r.id]=v; if(r.contrato) byContr[r.contrato]=v; });
-  }catch(e){}
-  const imp={}; li.forEach(l=>{ const v=byId[l.import_id]||byContr[l.contrato]; if(v&&l.contrato) imp[l.contrato]=v; });
-  const byProj=vfAggProjects(li,imp);
+  const byProj={};
+  li.forEach(l=>{ const k=l.projeto||'(sem projeto)';
+    if(!byProj[k]) byProj[k]={nome:k,seg:l.segmento||null,caps:{}};
+    const cap=l.capitulo||'(sem capítulo)';
+    byProj[k].caps[cap]=(byProj[k].caps[cap]||0)+(Number(l.total)||0); });
   return Object.values(byProj).map(p=>{
     let gfa=null,fogos=null,D=null;
     const pr=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>vfNorm(x.nome)===vfNorm(p.nome));
     if(pr){ gfa=pr.gfa; fogos=pr.fogos; D=descritoresDe(pr); }
     if(gfa==null && /URBAIN/i.test(p.nome||'')){ gfa=REF.gfa; fogos=REF.fogos; }
     return {nome:p.nome,ano:(new Date()).getFullYear(),gfa,fogos,caps:p.caps,fase:'Custo real',
-            D:Object.assign({abc:gfa,fogos},D||{},{segmento:p.seg||(D&&D.segmento)||null})};
+            D:Object.assign({abc:gfa,fogos},D||{},{segmento:(D&&D.segmento)||p.seg||null})};
   });
 }
 /* Fonte única dos rácios do Estimador e do Comparar.
@@ -1147,7 +1133,7 @@ async function vfBoardReport(){
     const imp={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref,segmento'); (qi.data||[]).forEach(r=>{ imp[r.id]={proj:r.projeto_ref,seg:r.segmento}; }); }catch(e){}
     const orc={}; try{ const qo=await sb.from('orcamento_producao').select('projeto_ref,capitulo_canonico,total_orcado'); (qo.data||[]).forEach(r=>{ const k=vfNorm(r.projeto_ref); (orc[k]=orc[k]||{}); const ck=vfNorm(r.capitulo_canonico); orc[k][ck]=(orc[k][ck]||0)+(Number(r.total_orcado)||0); }); }catch(e){}
     const realProj={}, realProjCap={}, capTot={}, segOf={};
-    lines.forEach(l=>{ const im=imp[l.import_id]; if(!im||!im.proj) return; const proj=im.proj; if(im.seg) segOf[proj]=im.seg;
+    lines.forEach(l=>{ const im=imp[l.import_id]; if(!im||!im.proj) return; const proj=im.proj; { const sp=(typeof segDoProjeto==='function')?segDoProjeto(proj):null; if(sp) segOf[proj]=segLabel(sp); else if(im.seg) segOf[proj]=im.seg; }
       const c=l.capitulo_canonico||'(sem capítulo)'; const t=Number(l.total)||0;
       realProj[proj]=(realProj[proj]||0)+t; capTot[c]=(capTot[c]||0)+t;
       (realProjCap[proj]=realProjCap[proj]||{}); const ck=vfNorm(c); realProjCap[proj][ck]=(realProjCap[proj][ck]||0)+t; });
@@ -1181,4 +1167,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','2.6.1');
+APP_REGISTAR('09-custo-real','2.7.0');
