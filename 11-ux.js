@@ -1,281 +1,295 @@
-/* Solive · Orçamentação — 06-estimador-comparar.js
-   Estimador por rácios/drivers e Comparar projetos.
+/* Solive · Orçamentação — 11-ux.js
+   Camada de apresentação: menu lateral, resumo do projeto, separadores de resultados e explicações por separador.
    Versão: ver APP_REGISTAR no fim do ficheiro (tem de ser igual à do index.html). */
 
-/* ================= ESTIMADOR ================= */
-async function _runEstimador(){
-  const D=estDescritores();
-  const base=document.getElementById('estBase').value;
-  const pref=document.getElementById('estFonte').value;
-  const infl=parseFloat(document.getElementById('estInfl').value)||0;
-  const inflModo=document.getElementById('estInflModo').value;
-  const alvo=parseInt(document.getElementById('estAno').value)||new Date().getFullYear();
-  const budget=parseFloat(document.getElementById('estBudget').value)||null;
-  const usarPU=document.getElementById('estPU').value==='auto';
-  const calibOn=document.getElementById('estCalib').value==='on';
-  const softOn=document.getElementById('estSoft').value==='on';
+/* ═══════════ SOLIVE · reorganização UX ═══════════ */
+function uxEl(tag,attrs,html){const e=document.createElement(tag);Object.entries(attrs||{}).forEach(([k,v])=>e.setAttribute(k,v));if(html!=null)e.innerHTML=html;return e;}
+function uxFmtEur(n){return (Math.round(n||0)).toLocaleString('pt-PT')+' €';}
+function uxFmtM(n){return ((n||0)/1e6).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' M€';}
+function uxPurpose(eyebrow,title,text){return '<div class="purpose" data-ux><button class="toggle" onclick="foldPurpose(this)">Como funciona</button><div class="eyebrow">'+eyebrow+'</div><h1>'+title+'</h1><p>'+text+'</p></div>';}
+/* «Como funciona» em vez de esconder/mostrar */
+function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classList.toggle('open');btn.innerHTML='<i class="icon-'+(on?'x':'circle-help')+'" aria-hidden="true"></i>'+(on?'Fechar':'Como funciona');}
 
-  if(base==='abc'&&!D.abc){return alertx("Introduz a ABC (ou muda a base de cálculo).")}
-  if(base==='fogo'&&!D.fogos){return alertx("Introduz o nº de fogos para a base €/fogo.")}
-  if(base==='media'&&(!D.abc||!D.fogos)){return alertx("A base 'média' precisa de ABC e de fogos.")}
-  if(base==='driver'&&!D.abc&&!D.fogos){return alertx("Introduz pelo menos a ABC ou o nº de fogos.")}
-
-  const projData=await gatherProjectData(pref);
-  if(!projData.length){
-    document.getElementById('estResults').classList.add('hidden');
-    return alertx(pref==='adjudicado'
-      ? "Ainda não há preços adjudicados registados no separador Execução. Escolhe outra fonte dos rácios."
-      : "Não há projetos na base para calcular rácios.");
+(function uxMount(){
+  const nav=document.querySelector('header nav'); if(!nav) return;
+  // novos ecrãs
+  const main=document.querySelector('main');
+  if(main && !document.getElementById('view-resumo')){
+    const vr=uxEl('div',{id:'view-resumo',class:'hidden'}, uxPurpose('Projeto ativo','Resumo do projeto','Em que ponto está o projeto ativo em cada fase do ciclo e o que falta fazer. Os números vêm do que já foi gravado: análises do MQ, orçamento em curso, consultas e adjudicações.')+'<div id="rsBody"></div>');
+    main.insertBefore(vr, main.firstChild);
+    const va=uxEl('div',{id:'view-admin',class:'hidden'}, uxPurpose('Administração','Projetos, versões e fases','Eliminar projetos e consultar as versões gravadas do orçamento. Separado da Biblioteca para evitar ações irreversíveis por engano.'));
+    main.appendChild(va);
+    ['lib-pane-gerir','lib-pane-ver'].forEach(id=>{const p=document.getElementById(id); if(p) va.appendChild(p);});
+    ['lib-tab-gerir','lib-tab-ver'].forEach(id=>{const b=document.getElementById(id); if(b) b.setAttribute('data-uxhide','');});
   }
-  const calib=calibOn?await calibracaoDesvios():{};
-  const puEst=usarPU?estimativaPorPU(D):null;
-
-  /* rácio por capítulo = total histórico / driver histórico, escalado por (driver_alvo/driver_hist)^expoente */
-  const perCap={};
-  projData.forEach(pd=>{
-    Object.entries(pd.caps).forEach(([cap,total])=>{
-      const t=TAXO[cap]||TAXO_DEFAULT;
-      const f=fatorInflacao(infl,inflModo,t.idx,alvo-pd.ano);
-      const dh=driverValue(t.driver,pd.D), dt=driverValue(t.driver,D);
-      let val=null, modo=null, rc=null;
-      if(base==='driver'&&dh>0&&dt>0){
-        val=total*f*Math.pow(dt/dh,t.exp); rc=total/dh; modo='drv';
-      } else {
-        const ah=pd.D.abc, fh=pd.D.fogos;
-        const porAbc=(ah>0&&D.abc>0)?total*f/ah*D.abc:null;
-        const porFogo=(fh>0&&D.fogos>0)?total*f/fh*D.fogos:null;
-        if(base==='fogo'&&porFogo!=null){val=porFogo;rc=total/fh;}
-        else if(base==='media'&&porAbc!=null&&porFogo!=null){val=(porAbc+porFogo)/2;rc=total/ah;}
-        else if(porAbc!=null){val=porAbc;rc=total/ah;}
-        else if(porFogo!=null){val=porFogo;rc=total/fh;}
-        modo='lin';
-      }
-      if(val==null||!isFinite(val))return;
-      (perCap[cap]=perCap[cap]||[]).push({val,rc,modo,proj:pd.nome});
-    });
-  });
-
-  const ordemCap=capsOrd().concat(Object.keys(perCap).filter(c=>!CAPS.includes(c)));
-  const rows=[]; let tC=0,tLo=0,tHi=0;
-  ordemCap.forEach(cap=>{
-    const lst=perCap[cap]; if(!lst||!lst.length)return;
-    const t=TAXO[cap]||TAXO_DEFAULT;
-    const ests=lst.map(x=>x.val);
-    let central=med(ests), lo=Math.min(...ests), hi=Math.max(...ests);
-    let fonte=(base==='driver'&&lst[0].modo==='drv')?'drv':'lin';
-    // preços unitários sobrepõem-se ao rácio quando existe medição e amostra suficiente
-    const pu=puEst&&puEst.porCap[cap];
-    if(pu&&pu.cobertura>=0.6){
-      central=pu.valor; lo=pu.lo; hi=pu.hi; fonte='qt';
-    }
-    const k=calib[cap];
-    const kf=(calibOn&&k&&k.n>=1)?k.fator:1;
-    central*=kf; lo*=kf; hi*=kf;
-    rows.push({cap,n:ests.length,rc:med(lst.map(x=>x.rc).filter(v=>v!=null)),
-               central,lo,hi,fonte,drv:t.driver,exp:t.exp,kf,kn:k?k.n:0});
-    tC+=central; tLo+=lo; tHi+=hi;
-  });
-
-  const baseLbl={driver:"driver físico",abc:"€/m² ABC",fogo:"€/fogo",media:"média ABC+fogo"}[base];
-  document.getElementById('estResults').classList.remove('hidden');
-  document.getElementById('estTag').textContent=baseLbl+" · "+projData.length+" projeto(s) · infl. "+infl+"%/ano → "+alvo+(calibOn?" · calibrado":"");
-  document.getElementById('estKTotal').textContent=fmt(tC,0)+" €";
-  document.getElementById('estKRange').textContent=fmt(tLo,0)+" – "+fmt(tHi,0);
-  document.getElementById('estKM2').textContent=D.abc?fmt(tC/D.abc,0):"—";
-  document.getElementById('estKProj').textContent=projData.length;
-
-  /* soft costs */
-  let soft=0;
-  const softCard=document.getElementById('estSoftCard');
-  if(softOn){ soft=renderSoftCosts(tC); softCard.classList.remove('hidden'); }
-  else softCard.classList.add('hidden');
-  const totalBP=tC+soft;
-
-  const bb=document.getElementById('estKBudgetBox'), bv=document.getElementById('estKBudget');
-  if(budget){const d=(totalBP-budget)/budget;bv.textContent=(d>0?"+":"")+fmt(d*100,1)+"%";bb.className="kpi "+(Math.abs(d)<0.05?"ok":d>0?"err":"warn");}
-  else{bv.textContent="—";bb.className="kpi";}
-
-  const nQt=rows.filter(r=>r.fonte==='qt').length, nDrv=rows.filter(r=>r.fonte==='drv').length;
-  const nota=document.getElementById('estNota');
-  const partes=[];
-  if(projData.length<=1) partes.push("<b>Base com 1 projeto</b> — sem dispersão real. O intervalo é nulo e a estimativa depende inteiramente do L'Urbain. Fecha obras e grava orçamentos para ganhar fiabilidade.");
-  else partes.push("Estimativa central por mediana; intervalo = envelope mín–máx dos "+projData.length+" projetos na base. Não é um intervalo estatístico — é o que os projetos reais implicam.");
-  if(nQt) partes.push("<b>"+nQt+" capítulo(s)</b> estimados por quantidade × preço unitário da biblioteca — o método mais preciso disponível.");
-  if(nDrv) partes.push(nDrv+" capítulo(s) escalados pelo seu driver físico próprio.");
-  if(calibOn){const nc=rows.filter(r=>r.kn>0).length; partes.push(nc?("Calibração aplicada em "+nc+" capítulo(s) com histórico de desvio orçamento→real."):"Calibração ligada mas sem obras fechadas suficientes — sem efeito.");}
-  if(softOn) partes.push("Soft costs: <b>"+fmt(soft,0)+" €</b> · total para o BP <b>"+fmt(totalBP,0)+" €</b>.");
-  nota.innerHTML=partes.join(" ");
-
-  const tb=document.getElementById('tbEst'); tb.innerHTML="";
-  rows.forEach(r=>{
-    const chip={qt:'<span class="srcchip src-qt">QT×PU</span>',drv:'<span class="srcchip src-drv">DRIVER</span>',lin:'<span class="srcchip src-lin">ABC</span>'}[r.fonte];
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(r.cap)}</td><td class="num">${r.n}</td>
-      <td><span class="drvchip">${esc(DRIVER_LBL[r.drv]||r.drv)}</span>${r.exp!==1?`<span class="drvchip exp" title="expoente de escala">^${r.exp}</span>`:""}</td>
-      <td>${chip}</td>
-      <td class="num">${fmt(r.rc,2)}</td>
-      <td class="num" style="color:${r.kf!==1?'var(--warn)':'#c4ccd8'}">${r.kf!==1?"×"+fmt(r.kf,2):"—"}</td>
-      <td class="num" style="font-weight:600">${fmt(r.central,0)}</td>
-      <td class="num" style="color:#8794a8">${fmt(r.lo,0)}</td>
-      <td class="num" style="color:#8794a8">${fmt(r.hi,0)}</td>`;
-    tb.appendChild(tr);
-  });
-  const trT=document.createElement('tr');
-  trT.innerHTML=`<td style="font-weight:600">TOTAL HARD COSTS</td><td class="num">—</td><td></td><td></td><td class="num">—</td><td class="num">—</td>
-    <td class="num" style="font-weight:600">${fmt(tC,0)}</td>
-    <td class="num" style="font-weight:600;color:#8794a8">${fmt(tLo,0)}</td>
-    <td class="num" style="font-weight:600;color:#8794a8">${fmt(tHi,0)}</td>`;
-  tb.appendChild(trT);
-
-  EST_LAST={nome:document.getElementById('estNome').value||"Projeto",base:baseLbl,pref,infl,inflModo,alvo,
-            D,budget,rows,tC,tLo,tHi,soft,totalBP,nproj:projData.length,calibOn,softOn};
-  document.getElementById('estResults').scrollIntoView({behavior:'smooth'});
-  saveLocal('est',estInputs());
-}
-let EST_LAST=null;
-function exportEstimativa(){
-  if(!EST_LAST){toast("Corre uma estimativa primeiro.");return}
-  const E=EST_LAST, D=E.D;
-  const head=[["SOLIVE — ESTIMATIVA PRELIMINAR (Business Plan)"],
-    ["Projeto: "+E.nome+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],
-    ["Base de cálculo: "+E.base+"   ·   Fonte dos rácios: "+E.pref+"   ·   Projetos na base: "+E.nproj],
-    ["Inflação: "+E.infl+"%/ano ("+(E.inflModo==='split'?"diferenciada por índice":"uniforme")+") → ano-alvo "+E.alvo],
-    ["Calibração pelo desvio histórico: "+(E.calibOn?"LIGADA":"desligada")],
-    ["Descritores — ABC: "+(D.abc||"—")+" m² · acima: "+(D.acima||"—")+" · abaixo: "+(D.abaixo||"—")+" · implantação: "+(D.implantacao||"—")+" · lote: "+(D.lote||"—")+" · fogos: "+(D.fogos||"—")+" · pisos "+(D.pisosA||"—")+"/"+(D.pisosB||"—")+" · estacionamento: "+(D.park||"—")],
-    [],
-    ["METODOLOGIA"],
-    ["Cada capítulo é escalado pela grandeza física que comanda o seu custo (driver), não uniformemente por m² de ABC."],
-    ["Fórmula: estimativa = total_histórico × (driver_novo / driver_histórico) ^ expoente × fator_inflação × fator_calibração"],
-    ["Expoente < 1 significa que o capítulo tem componente fixa e cresce menos que proporcionalmente à dimensão."],
-    ["Fonte QT×PU = estimado por quantidade medida × preço unitário da biblioteca (método mais preciso)."],
-    ["Fonte DRIVER = rácio do capítulo escalado pelo driver físico. Fonte ABC = recurso a m² por falta de driver."],
-    [],
-    ["Capítulo","Nº projetos","Driver","Expoente","Fonte","Rácio central","Calibração","Estimativa (€)","Mínimo (€)","Máximo (€)"]];
-  const fonteLbl={qt:"QT×PU",drv:"DRIVER",lin:"ABC"};
-  const body=E.rows.map(r=>[r.cap,r.n,DRIVER_LBL[r.drv]||r.drv,r.exp,fonteLbl[r.fonte],
-    Math.round(r.rc*100)/100,r.kf!==1?Math.round(r.kf*100)/100:"",
-    Math.round(r.central),Math.round(r.lo),Math.round(r.hi)]);
-  body.push(["TOTAL HARD COSTS","","","","","","",Math.round(E.tC),Math.round(E.tLo),Math.round(E.tHi)]);
-  if(E.softOn&&SOFT_ROWS.length){
-    body.push([]);
-    body.push(["SOFT COSTS","","","","","% s/ hard costs","","Valor (€)"]);
-    SOFT_ROWS.forEach(s=>body.push([s.lbl,"","","","",s.pct+"%","",Math.round(E.tC*s.pct/100)]));
-    body.push(["TOTAL SOFT COSTS","","","","","","",Math.round(E.soft)]);
-    body.push(["TOTAL PARA O BUSINESS PLAN","","","","","","",Math.round(E.totalBP)]);
-  }
-  if(E.budget){
-    body.push([]);
-    body.push(["Budget do BP","","","","","","",Math.round(E.budget)]);
-    body.push(["Desvio estimativa vs. budget","","","","","","",Math.round(E.totalBP-E.budget),"",
-      (((E.totalBP-E.budget)/E.budget*100).toFixed(1))+"%"]);
-  }
-  const ws=XLSX.utils.aoa_to_sheet(head.concat(body));
-  ws['!cols']=[{wch:44},{wch:11},{wch:24},{wch:10},{wch:10},{wch:14},{wch:11},{wch:16},{wch:14},{wch:14}];
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Estimativa");
-  XLSX.writeFile(wb,("Estimativa_"+E.nome).replace(/\s+/g,"_")+".xlsx");
-}
-
-/* ================= COMPARAR ================= */
-let CMP_SEQ=0;
-async function _renderComparar(){
-  const _s=++CMP_SEQ, _vivo=()=>_s===CMP_SEQ;
-  const off=document.getElementById('cmpOffline');
-  // referência embutida (só usada isolada offline, ou como preenchimento do L'Urbain gravado)
-  const lurbTotal=REF.capitulos.reduce((s,c)=>s+c.total,0);
-  const refMetricas=Object.fromEntries(Object.entries(REF.qty).flatMap(([cap,us])=>Object.entries(us).map(([u,q])=>[cap+" ("+u+")",{un:u,q}])));
-  const ref={
-    nome:"L'Urbain (ref.)", gfa:REF.gfa, gca:REF.gca, ac_abaixo:null, fogos:REF.fogos,
-    pisos_acima:null, pisos_enterrados:2, area_implantacao:null, area_lote:null, estacionamento:null,
-    metricas:refMetricas, _total:lurbTotal, _fonte:"referência"
-  };
-  let cols=[];
-  if(SESSION && PROJETOS.length){
-    off.className='note'; off.textContent="A comparar os projetos gravados na biblioteca. O custo é o CUSTO REAL gravado (autos), consistente com os Rácios e os Desvios.";
-    // custo real por projeto a partir de custo_linha (paginado), via import_id -> projeto_ref
-    let realByProj={};
-    try{
-      let __all=[]; for(let __f=0;__f<200000;__f+=1000){ const __q=await sb.from('custo_linha').select('import_id,total').range(__f,__f+999); if(__q.error)break; const __b=__q.data||[]; __all=__all.concat(__b); if(__b.length<1000)break; }
-      const __imp={}; const __qi=await sb.from('custo_import').select('id,projeto_ref'); (__qi.data||[]).forEach(r=>{ __imp[r.id]=r.projeto_ref||null; });
-      __all.forEach(l=>{ const pr=__imp[l.import_id]; if(pr){ const k=norm(pr); realByProj[k]=(realByProj[k]||0)+(Number(l.total)||0); } });
-    }catch(e){ console.warn('custo real por projeto',e); }
-    if(!_vivo())return;
-    for(const p of PROJETOS){
-      // custo REAL gravado (custo_linha); só recorre às fases antigas se o projeto ainda não tem autos
-      let total=null, fonte=null;
-      const __rk=norm(p.nome);
-      if(realByProj[__rk]!=null && realByProj[__rk]>0){ total=Math.round(realByProj[__rk]*100)/100; fonte='Custo real'; }
-      else {
-        const {data:fs}=await sb.from('fases').select('*').eq('projeto_id',p.id);
-        if(!_vivo())return;
-        if(fs&&fs.length){ for(const tipo of ['Real','Contrato','Orçamento']){ const m=fs.filter(x=>x.fase===tipo); if(m.length){ const f=m.sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]; total=+f.total||null; fonte=tipo; break; } } }
-      }
-      const col=Object.assign({},p,{_total:total,_fonte:fonte});
-      // completar o L'Urbain gravado com a referência embutida onde estiver vazio
-      if(norm(p.nome).includes("URBAIN")){
-        ['gfa','gca','fogos','pisos_enterrados','ac_abaixo','area_implantacao','area_lote','estacionamento'].forEach(k=>{ if(col[k]==null && ref[k]!=null) col[k]=ref[k]; });
-        if(!col.metricas || !Object.keys(col.metricas).length) col.metricas=refMetricas;
-        /* NÃO preencher o custo com o pricing sheet embutido — usa-se o custo real de custo_linha. */
-      }
-      cols.push(col);
-    }
-  } else {
-    off.className='note red'; off.textContent="Sem sessão — a mostrar apenas a referência L'Urbain. Inicia sessão para comparar os projetos da biblioteca.";
-    cols=[ref];
-  }
-
-  // definição das linhas: [secção, rótulo, função(col)->valor, casas decimais]
-  const num=(v,d)=>v==null||isNaN(v)?"—":fmt(v,d);
-  const mq=(c,chave,unPref)=>{ // quantidade física por nome aproximado (unidade preferida opcional)
-    if(!c.metricas)return null;
-    const cands=Object.keys(c.metricas).filter(k=>norm(k).startsWith(norm(chave)));
-    if(!cands.length)return null;
-    if(unPref){const pk=cands.find(k=>norm(c.metricas[k].un||"").replace("2","²").replace("3","³")===unPref);if(pk)return c.metricas[pk].q;}
-    // preferir maior grandeza (área costuma dominar sobre remates lineares)
-    return cands.map(k=>c.metricas[k].q).reduce((a,b)=>Math.max(a,b),0);
-  };
-  const rows=[
-    ["DESCRITORES","Nº de fogos",c=>c.fogos,0],
-    [null,"ABC total (m²)",c=>c.gfa,0],
-    [null,"Acima do solo (m²)",c=>c.gca,0],
-    [null,"Abaixo do solo (m²)",c=>c.ac_abaixo,0],
-    [null,"Pisos elevados",c=>c.pisos_acima,0],
-    [null,"Pisos enterrados",c=>c.pisos_enterrados,0],
-    [null,"Área implantação (m²)",c=>c.area_implantacao,0],
-    [null,"Área do lote (m²)",c=>c.area_lote,0],
-    [null,"Estacionamento (lug.)",c=>c.estacionamento,0],
-    ["CUSTO","Custo total (€)",c=>c._total,0],
-    [null,"€/m² ABC",c=>c._total&&c.gfa?c._total/c.gfa:null,0],
-    [null,"€/m² acima do solo",c=>c._total&&c.gca?c._total/c.gca:null,0],
-    [null,"€/m² abaixo do solo",c=>c._total&&c.ac_abaixo?c._total/c.ac_abaixo:null,0],
-    [null,"€/m² implantação",c=>c._total&&c.area_implantacao?c._total/c.area_implantacao:null,0],
-    [null,"€/fogo",c=>c._total&&c.fogos?c._total/c.fogos:null,0],
-    ["QUANTIDADES FÍSICAS","Grandezas captadas",c=>c.metricas?Object.keys(c.metricas).length:null,0],
-    [null,"Escavação (m³)",c=>mq(c,"Escava","m³"),0],
-    [null,"Betão e estruturas (m³)",c=>mq(c,"Betão","m³"),0],
-    [null,"Fachada / ETICS (m²)",c=>mq(c,"Fachada","m²")||mq(c,"ETICS","m²"),0],
-    [null,"Cerâmicos (m²)",c=>mq(c,"Cerâmic","m²"),0],
-    [null,"Rev. pavimentos (m²)",c=>mq(c,"Revestimentos de pav","m²"),0],
-    [null,"Carpintarias (un)",c=>mq(c,"Carpint","un"),0],
-    ["RÁCIOS FÍSICOS","Escavação / m² implantação",c=>{const e=mq(c,"Escava","m³");return e&&c.area_implantacao?e/c.area_implantacao:null},2],
-    [null,"Betão / m² ABC",c=>{const b=mq(c,"Betão","m³");return b&&c.gfa?b/c.gfa:null},3],
-    [null,"Betão / fogo",c=>{const b=mq(c,"Betão","m³");return b&&c.fogos?b/c.fogos:null},2],
-    [null,"Fachada / m² ABC",c=>{const f=mq(c,"Fachada","m²")||mq(c,"ETICS","m²");return f&&c.gfa?f/c.gfa:null},3],
-    [null,"Rev. pavimentos / m² ABC",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.gfa?x/c.gfa:null},3],
-    [null,"Rev. pavimentos / fogo",c=>{const x=mq(c,"Revestimentos de pav","m²");return x&&c.fogos?x/c.fogos:null},1]
+  // barra lateral agrupada pelo ciclo
+  const B=id=>document.getElementById(id);
+  const mk=(id,v,label)=>{let b=B(id); if(!b){b=uxEl('button',{id:id}); b.onclick=()=>showView(v);} b.textContent=label; return b;};
+  const grp=t=>uxEl('div',{class:'navgrp'},t);
+  const items=[
+    mk('nav-resumo','resumo','Resumo do projeto'),
+    grp('1 · Estimar'), mk('nav-estimador','estimador','Estimativa para o BP'),
+    grp('2 · Rever projeto'), mk('nav-analisador','analisador','Revisão do MQ'),
+    grp('3 · Orçamentar'), mk('nav-orcamento','orcamento','Orçamento'), mk('nav-consultas','consultas','Consultas ao mercado'), mk('nav-precomq','precomq','Orçamentar MQ'),
+    grp('4 · Executar'), mk('nav-execucao','execucao','Adjudicações e desvios'), mk('nav-verificar','verificar','Autos de medição'),
+    grp('Conhecimento'), mk('nav-comparar','comparar','Benchmark'), mk('nav-racios','racios','Rácios de custo real'), mk('nav-biblioteca','biblioteca','Biblioteca'),
+    uxEl('div',{class:'navsep'}),
+    mk('nav-admin','admin','Administração')
   ];
-
-  document.getElementById('cmpHead').innerHTML='<th style="min-width:220px">Indicador</th>'+cols.map(c=>`<th style="text-align:right;min-width:140px">${esc(c.nome)}${c._fonte&&c._fonte!=="referência"?`<div style="font-weight:400;font-size:12px;color:#8794a8">custo: ${esc(c._fonte)}</div>`:""}</th>`).join("");
-  const body=document.getElementById('cmpBody');body.innerHTML="";
-  rows.forEach(([sec,label,fn,d])=>{
-    if(sec){
-      const trs=document.createElement('tr');
-      trs.innerHTML=`<td colspan="${cols.length+1}" style="background:#F2EFED;font-weight:600;color:var(--navy);font-size:12px;letter-spacing:.5px;text-transform:uppercase">${esc(sec)}</td>`;
-      body.appendChild(trs);
-    }
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(label)}</td>`+cols.map(c=>`<td class="num">${num(fn(c),d)}</td>`).join("");
-    body.appendChild(tr);
+  const aj=uxEl('button',{id:'nav-ajuda'}); aj.textContent='Ajuda'; aj.onclick=()=>{try{abrirAjuda()}catch(e){}};
+  items.push(aj);
+  const out=B('btnLogout');
+  nav.innerHTML=''; items.forEach(i=>nav.appendChild(i)); if(out) nav.appendChild(out);
+  // eyebrows por fase
+  const EB={estimador:'1 · Estimar',analisador:'2 · Rever projeto',orcamento:'3 · Orçamentar',consultas:'3 · Orçamentar',execucao:'4 · Executar',comparar:'Conhecimento',biblioteca:'Conhecimento'};
+  Object.entries(EB).forEach(([v,t])=>{const e=document.querySelector('#view-'+v+' .purpose .eyebrow'); if(e) e.textContent=t;});
+  document.querySelectorAll('.purpose .toggle').forEach(b=>{b.textContent='Como funciona';});
+  // Desvios → Executar; Relatório para o topo do Benchmark
+  const dv=B('vfDvCard'), ex=B('view-execucao'); if(dv&&ex) ex.appendChild(dv);
+  const rb=B('vfBoardCard'), cp=B('view-comparar'); if(rb&&cp){const pu=cp.querySelector('.purpose'); if(pu&&pu.nextSibling) cp.insertBefore(rb,pu.nextSibling); else cp.insertBefore(rb,cp.firstChild);}
+  // botões: uma ação principal, restantes secundárias; sem .json
+  document.querySelectorAll('button').forEach(b=>{
+    const t=(b.textContent||'').trim();
+    if(/\(\.json\)/.test(t)) b.setAttribute('data-uxhide','');
+    if(t==='Mapear colunas manualmente'||t==='Analisar pricing sheet completo'){b.classList.remove('navy','red','teal');b.classList.add('uxlink');}
+    if(t==='Analisar mapa de quantidades') t && (b.textContent='Analisar ficheiro');
+    if(t==='Gravar na biblioteca') b.textContent='Gravar análise';
   });
+  // Estimador: opções avançadas recolhidas
+  const eb=[...document.querySelectorAll('#view-estimador button')].find(b=>(b.getAttribute('onclick')||'').indexOf('runEstimador')===0);
+  if(eb){
+    const grid=eb.closest('.grid'); const card=grid&&grid.closest('.card');
+    if(grid&&card&&!card.querySelector('details.uxadv')){
+      const det=uxEl('details',{class:'uxadv'},'<summary>Opções avançadas <span style="font-weight:400;color:var(--ink-500)">— base de cálculo, fonte dos rácios, inflação, calibração, soft costs</span></summary>');
+      const g2=uxEl('div',{class:'grid g6'});
+      [...grid.children].forEach(ch=>{ if(!ch.contains(eb)) g2.appendChild(ch); });
+      det.appendChild(g2);
+      const assum=card.querySelector('.assum'); if(assum) det.appendChild(assum);
+      grid.style.gridTemplateColumns='repeat(6,minmax(0,1fr))';
+      card.appendChild(det);
+      const h2=card.querySelector('.step h2'); if(h2) h2.textContent='Calcular';
+      const hint=uxEl('div',{class:'hint'},'Os valores por omissão são os recomendados. Abre as opções avançadas só se precisares de outro método.');
+      grid.parentNode.insertBefore(hint,grid);
+    }
+  }
+  // Revisão do MQ: resultados em separadores
+  uxMountTabs();
+  // começar no Resumo
+  try{ showView('resumo'); }catch(e){}
+})();
+
+function uxMountTabs(){
+  const res=document.getElementById('results'); if(!res||res.querySelector('.uxtabs')) return;
+  const cards=[...res.children].filter(c=>c.classList&&c.classList.contains('card'));
+  if(cards.length<3) return;
+  const pick=re=>cards.find(c=>re.test((c.querySelector('h2')||{}).textContent||''));
+  const T=[['Alertas',pick(/Alertas/)],['Custos',pick(/Custos por cap/)],['Quantidades',pick(/Quantidades f/)],['Rácios',pick(/rácio vs/i)],['Alterações',pick(/Track changes/)]].filter(x=>x[1]);
+  const bar=uxEl('div',{class:'uxtabs'});
+  T.forEach(([lbl,card],i)=>{
+    const b=uxEl('button',{},lbl); b.onclick=()=>uxTab(i);
+    bar.appendChild(b);
+    const h2=card.querySelector('h2'); if(h2 && /Track changes/.test(h2.textContent)) h2.firstChild && (h2.firstChild.nodeType===3) && (h2.firstChild.textContent=h2.firstChild.textContent.replace('Track changes vs. revisão anterior','Alterações face à revisão anterior'));
+  });
+  cards[0].after(bar);
+  window.__uxTabs=T; window.__uxTabBar=bar; window.__uxTabCur=0;
+  uxTab(0);
+  new MutationObserver(()=>uxTabSync()).observe(res,{attributes:true,subtree:true,attributeFilter:['class']});
+}
+function uxTabSync(){
+  const T=window.__uxTabs, bar=window.__uxTabBar; if(!T||!bar) return;
+  T.forEach(([l,c],i)=>{ const b=bar.children[i]; const off=c.classList.contains('hidden'); if(b) b.hidden=off; });
+  if(T[window.__uxTabCur] && T[window.__uxTabCur][1].classList.contains('hidden')) uxTab(0);
+}
+function uxTab(i){
+  const T=window.__uxTabs, bar=window.__uxTabBar; if(!T) return;
+  window.__uxTabCur=i;
+  T.forEach(([l,c],k)=>{ if(k===i) c.removeAttribute('data-uxhide'); else c.setAttribute('data-uxhide',''); if(bar.children[k]) bar.children[k].classList.toggle('on',k===i); });
+  uxTabSync();
 }
 
-APP_REGISTAR('06-estimador-comparar','2.6.0');
+/* contexto único: seletores de projeto seguem o projeto ativo */
+function ctxSeguirSeletores(v){
+    const map={execucao:['gxProj','dvProj'],racios:['rxProj'],precomq:['mqProj'],consultas:['mcProj']};
+    (map[v]||[]).forEach(id=>{
+      const el=document.getElementById(id); if(!el||typeof CTX==='undefined'||!CTX.nome) return;
+      if(id==='dvProj'){ try{ vfDvFillProjects(); }catch(e){} }
+      setTimeout(()=>{
+        if(el.tagName==='SELECT'){ const o=[...el.options].find(x=>norm(x.text)===norm(CTX.nome)||norm(x.value)===norm(CTX.nome)); if(o&&el.value!==o.value){ el.value=o.value; el.dispatchEvent(new Event('change',{bubbles:true})); } }
+        else if(el.value!==CTX.nome){ el.value=CTX.nome; el.dispatchEvent(new Event('change',{bubbles:true})); el.dispatchEvent(new Event('input',{bubbles:true})); }
+      },120);
+    });
+}
+
+/* Resumo do projeto */
+async function uxRenderResumo(){
+  const box=document.getElementById('rsBody'); if(!box) return;
+  const nome=(typeof CTX!=='undefined'&&CTX.nome)||'';
+  const h1=document.querySelector('#view-resumo .purpose h1'); if(h1) h1.textContent=nome?('Resumo do projeto · '+nome):'Resumo do projeto';
+  if(!nome){ box.innerHTML='<div class="rs-card"><h3>Escolhe o projeto ativo</h3><div class="hint">Escreve ou escolhe um projeto em «Projeto ativo», na barra de topo. Para um projeto novo, escreve o nome e preenche os descritores.</div></div>'; return; }
+  box.innerHTML='<div class="hint">A carregar…</div>';
+  const online=(typeof SESSION!=='undefined'&&SESSION&&typeof sb!=='undefined'&&sb);
+  const D=CTX.D||{};
+  const faltam=[['abc','ABC'],['fogos','nº de fogos'],['implantacao','área de implantação'],['pisosA','pisos acima do solo']].filter(([k])=>!(D[k]>0)).map(x=>x[1]);
+  let an=null, orc=null, cons=[], adj=[], ver=null;
+  if(online){
+    const proj=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(p=>norm(p.nome)===norm(nome));
+    try{ if(proj){ const r=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('id',{ascending:false}).limit(1); an=(r.data&&r.data[0])||null; } }catch(e){}
+    try{ const r=await sb.from('orcamentos').select('*').eq('projeto_nome',nome).maybeSingle(); orc=r.data||null; }catch(e){}
+    try{ if(!CONSULTAS||!CONSULTAS.length) await loadConsultas(); cons=(CONSULTAS||[]).filter(c=>norm(c.projeto)===norm(nome)); }catch(e){}
+    try{ const r=await sb.from('adjudicacoes').select('*').eq('projeto',nome); adj=r.data||[]; }catch(e){}
+    try{ const r=await sb.from('orcamento_versoes').select('*').eq('projeto_nome',nome).order('versao',{ascending:false}).limit(1); ver=(r.data&&r.data[0])||null; }catch(e){}
+  }
+  // orçamento
+  const linhas=(orc&&orc.linhas)||[];
+  const EST={}; (typeof ORC_ESTADOS!=='undefined'?ORC_ESTADOS:[]).forEach(e=>EST[e.k]=e);
+  const mig=e=>{try{return migrarEstado(e)}catch(x){return e}};
+  const total=linhas.reduce((s,r)=>s+(+r.valor||0),0);
+  const porEst={}; linhas.forEach(r=>{const k=mig(r.estado)||'racio'; porEst[k]=(porEst[k]||0)+(+r.valor||0);});
+  const solido=linhas.filter(r=>EST[mig(r.estado)]&&EST[mig(r.estado)].solido).reduce((s,r)=>s+(+r.valor||0),0);
+  const pctSol=total?Math.round(solido/total*100):0;
+  const racioLin=linhas.filter(r=>mig(r.estado)==='racio');
+  const racioVal=racioLin.reduce((s,r)=>s+(+r.valor||0),0);
+  const cores={racio:'#C81F35',consulta:'#B9760A',antiga:'#C9C2BF',firme:'#7CC4A0',compromisso:'#1F8A5B',adjudicado:'#1F8A5B'};
+  const bar=total?'<div class="rs-bar">'+Object.keys(cores).filter(k=>porEst[k]).map(k=>'<span style="width:'+(porEst[k]/total*100)+'%;background:'+cores[k]+'"></span>').join('')+'</div>':'';
+  // análise
+  const al=(an&&an.payload&&an.payload.alertas)||[];
+  const nErr=al.filter(a=>/err/i.test(a.sev)).length, nAv=al.filter(a=>/av|warn/i.test(a.sev)).length;
+  // consultas
+  const ec=c=>{try{return estadoConsulta(c).k}catch(e){return ''}};
+  const cAtr=cons.filter(c=>ec(c)==='atraso'), cAg=cons.filter(c=>ec(c)==='aguarda'), cRec=cons.filter(c=>ec(c)==='recebida');
+  // execução
+  const adjTot=adj.reduce((s,a)=>s+(+a.adjudicado||0),0);
+  const dt=d=>d?new Date(d).toLocaleDateString('pt-PT'):'';
+  const st=(v,n,badge,cls,val,sub)=>'<div class="rs-st" onclick="showView(\''+v+'\')"><div class="t"><span>'+n+'</span><span class="rs-b '+cls+'">'+badge+'</span></div><div class="v">'+val+'</div>'+(sub||'')+'</div>';
+  let html='<div class="rs-stages">';
+  html+=st('estimador','1 · Estimar', faltam.length?'Descritores':'Pronto', faltam.length?'rs-warn':'rs-ok', D.abc>0?(Math.round(D.abc).toLocaleString('pt-PT')+' m² ABC'):'Sem ABC', '<div class="s">'+(D.fogos>0?D.fogos+' fogos · ':'')+(faltam.length?'Falta: '+faltam.join(', '):'Descritores completos')+'</div>');
+  html+=st('analisador','2 · Rever projeto', an?(nErr+nAv?'A rever':'Sem alertas'):'Por fazer', an?(nErr+nAv?'rs-warn':'rs-ok'):'rs-none', an?esc(an.ficheiro||an.nome||'MQ analisado'):'—', '<div class="s">'+(an?(al.length+' alertas · '+nErr+' erros · '+nAv+' avisos'):'Ainda sem análise do MQ gravada')+'</div>');
+  html+=st('orcamento','3 · Orçamentar', total?(pctSol>=90?'Consolidado':'Em curso'):'Por iniciar', total?(pctSol>=90?'rs-ok':'rs-info'):'rs-none', total?(pctSol+'% consolidado'):'—', total?(bar+'<div class="s">'+uxFmtM(total)+(D.abc>0?' · '+Math.round(total/D.abc).toLocaleString('pt-PT')+' €/m²':'')+'</div>'):'<div class="s">Sem orçamento em curso gravado</div>');
+  html+=st('execucao','4 · Executar', adj.length?'Em curso':'Por iniciar', adj.length?'rs-info':'rs-none', adj.length?uxFmtM(adjTot):'—', '<div class="s">'+(adj.length?adj.length+' pacote(s) adjudicado(s)':'Começa depois da transferência para a Produção')+'</div>');
+  html+='</div>';
+  // próximas ações
+  const acts=[];
+  if(cAtr.length) acts.push(['!','#FBE1E5','#C81F35',cAtr.length+' consulta(s) sem resposta fora do prazo',[...new Set(cAtr.map(c=>c.cap))].slice(0,4).join(' · '),'consultas','Abrir consultas']);
+  if(an&&(nErr+nAv)) acts.push(['!','#FBEDD7','#B9760A',(nErr+nAv)+' alertas na última análise do MQ',nErr+' erros · '+nAv+' avisos · '+esc(an.ficheiro||''),'analisador','Rever MQ']);
+  if(racioLin.length) acts.push(['€','#F2EFED','#201C1D',racioLin.length+' capítulo(s) ainda estimados por rácio',uxFmtEur(racioVal)+(total?' · '+Math.round(racioVal/total*100)+'% do orçamento':''),'consultas','Abrir consulta']);
+  if(cAg.length) acts.push(['…','#F2EFED','#201C1D',cAg.length+' consulta(s) a aguardar resposta','Dentro do prazo','consultas','Ver']);
+  if(faltam.length) acts.push(['m²','#F2EFED','#201C1D','Descritores em falta: '+faltam.join(', '),'Sem eles, alguns rácios usam m² de ABC como aproximação',null,'Completar']);
+  if(!total) acts.push(['+','#F2EFED','#201C1D','Arrancar o orçamento','A partir da estimativa por rácios ou de um resumo em Excel','orcamento','Abrir orçamento']);
+  const actHtml=acts.length?acts.map(a=>'<div class="rs-act"><span class="rs-ic" style="background:'+a[1]+';color:'+a[2]+'">'+a[0]+'</span><div class="tx"><b>'+a[3]+'</b><span>'+a[4]+'</span></div><a onclick="'+(a[5]?'showView(\''+a[5]+'\')':'abrirDescritores()')+'">'+a[6]+'</a></div>').join(''):'<div class="hint">Nada pendente neste momento.</div>';
+  // orçamento face ao BP
+  const bp=+(document.getElementById('estBudget')||{}).value||0;
+  let right='<div class="rs-card"><h3>Orçamento</h3>';
+  right+='<div class="rs-kv"><span>Orçamento em curso</span><b>'+(total?uxFmtEur(total):'—')+'</b></div>';
+  right+='<div class="rs-kv"><span>Valor consolidado</span><b>'+(total?uxFmtEur(solido)+' ('+pctSol+'%)':'—')+'</b></div>';
+  if(bp) right+='<div class="rs-kv"><span>Budget do BP (hard costs)</span><b>'+uxFmtEur(bp)+'</b></div><div class="rs-kv" style="border-top:1px solid var(--line);margin-top:4px;padding-top:10px"><span style="color:var(--ink);font-weight:600">Folga face ao BP</span><b style="color:'+(bp-total<0?'#C81F35':'#1F8A5B')+'">'+uxFmtEur(bp-total)+'</b></div>';
+  right+='<div class="rs-kv"><span>Consultas</span><b>'+cons.length+' ('+cRec.length+' com proposta)</b></div>';
+  right+='<div class="hint" style="margin-top:8px">'+(ver?('Última versão gravada: rev. '+ver.versao+(ver.criado_em||ver.created_at?' · '+dt(ver.criado_em||ver.created_at):'')):'Sem versões gravadas')+(orc&&orc.atualizado?' · orçamento atualizado a '+dt(orc.atualizado):'')+'</div></div>';
+  html+='<div class="rs-grid"><div class="rs-card"><h3>Próximas ações</h3>'+actHtml+'</div>'+right+'</div>';
+  if(!online) html='<div class="note" style="margin-bottom:14px">Modo local: inicia sessão para ver os dados gravados deste projeto.</div>'+html;
+  box.innerHTML=html;
+}
+
+/* ═══════════ Entrega 2 · ícones, títulos curtos, zona de ficheiros, estado vazio ═══════════ */
+(function uxE2(){
+  const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
+  const addIc=(el,n)=>{ if(!el||el.querySelector('[class^="icon-"]')) return; el.insertAdjacentHTML('afterbegin',ic(n)); };
+  // menu
+  const NAV={resumo:'layout-dashboard',estimador:'calculator',analisador:'file-search',orcamento:'wallet',consultas:'send',precomq:'list-checks',execucao:'hard-hat',verificar:'clipboard-check',comparar:'git-compare',racios:'chart-column',biblioteca:'library',admin:'settings',ajuda:'circle-help'};
+  Object.entries(NAV).forEach(([k,n])=>addIc(document.getElementById('nav-'+k),n));
+  addIc(document.getElementById('btnLogout'),'log-out');
+  // títulos curtos + subtítulo (a explicação longa fica em «Como funciona»)
+  const T={
+    resumo:['Resumo do projeto','Em que ponto está cada fase do projeto ativo'],
+    estimador:['Estimativa para o BP','Custo estimado a partir dos descritores e da biblioteca'],
+    analisador:['Revisão do MQ','Validar o mapa de quantidades contra o histórico da Solive'],
+    orcamento:['Orçamento','Consolidação por capítulo, com semáforo de fonte do preço'],
+    consultas:['Consultas ao mercado','Registo de consultas e mapa comparativo de propostas'],
+    execucao:['Adjudicações e desvios','Do estimado ao real, capítulo a capítulo'],
+    comparar:['Benchmark','Comparar projetos lado a lado'],
+    biblioteca:['Biblioteca','Rácios e taxonomia acumulados pela Solive'],
+    admin:['Administração','Projetos, versões e fases']
+  };
+  Object.entries(T).forEach(([v,[t,s]])=>{
+    const p=document.querySelector('#view-'+v+' .purpose'); if(!p) return;
+    const h1=p.querySelector('h1'); if(h1) h1.textContent=t;
+    if(!p.querySelector('.subtitle') && h1) h1.insertAdjacentHTML('afterend','<p class="subtitle">'+s+'</p>');
+  });
+  document.querySelectorAll('.purpose .toggle').forEach(b=>addIc(b,'circle-help'));
+  // ícones nos botões, pelo texto
+  const RULES=[[/^exportar|excel|descarregar/i,'download'],[/^gravar|^guardar/i,'save'],[/^importar|^carregar|^largar/i,'upload'],[/arrancar/i,'sparkles'],[/^registar|^adicionar|^novo|^nova|^abrir/i,'plus'],[/^editar/i,'pencil'],[/^eliminar|^apagar/i,'trash-2'],[/^comparar/i,'git-compare'],[/^repor/i,'rotate-ccw'],[/^aplicar/i,'check'],[/^cancelar|^fechar/i,'x'],[/^o que significam/i,'book-open']];
+  const iconize=root=>root.querySelectorAll('.btn,.btnctx').forEach(b=>{
+    const t=(b.textContent||'').trim(); const r=RULES.find(([re])=>re.test(t)); if(r) addIc(b,r[1]);
+    const first=b.firstChild; if(first&&first.nodeType===3&&/^\s*\?\s*/.test(first.nodeValue)&&/\?/.test(first.nodeValue)) first.nodeValue=first.nodeValue.replace(/^\s*\?\s*/,'');
+  });
+  iconize(document);
+  // zona de ficheiros
+  document.querySelectorAll('.drop').forEach(d=>{ if(!d.querySelector('.drop-ic')) d.insertAdjacentHTML('afterbegin','<span class="drop-ic">'+ic('upload')+'</span>'); });
+  // estado vazio: um só aviso ao centro em vez de repetir em cada bloco
+  const NEED=['resumo','estimador','analisador','orcamento','consultas','precomq','execucao','verificar'];
+  NEED.forEach(v=>{
+    const view=document.getElementById('view-'+v); if(!view||view.querySelector('.ux-empty')) return;
+    view.classList.add('needs-project');
+    const box=document.createElement('div'); box.className='ux-empty';
+    box.innerHTML='<span class="ux-empty-ic">'+ic('folder-open')+'</span><div><h3>Escolhe um projeto para começar</h3><p>Escolhe um projeto existente na barra do topo ou escreve o nome de um novo.</p></div><button class="btn red" type="button">'+ic('folder-search')+'Escolher projeto</button>';
+    box.querySelector('button').onclick=e=>{ const i=document.getElementById('ctxNome'); if(i){ i.focus(); } try{ toggleCtxLista(e); }catch(err){} };
+    const pu=view.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',box); else view.prepend(box);
+  });
+  const sync=()=>{ let has=false; try{ has=!!(CTX&&CTX.nome); }catch(e){} document.body.classList.toggle('no-project',!has); };
+  try{ const _r=ctxRender; ctxRender=function(){ const out=_r.apply(this,arguments); sync(); return out; }; }catch(e){}
+  sync();
+  // conteúdo desenhado depois (tabelas, modais): voltar a pôr ícones
+  let pend=false; const target=document.querySelector('main')||document.body;
+  const mo=new MutationObserver(()=>{ if(pend) return; pend=true; requestAnimationFrame(()=>{ mo.disconnect(); iconize(document); pend=false; mo.observe(target,{childList:true,subtree:true}); }); });
+  mo.observe(target,{childList:true,subtree:true});
+})();
+
+/* ═══════════ Explicações por separador (para que serve · passos · resultado · ciclo) ═══════════ */
+(function uxHowTo(){
+  const TX={"resumo":{"s":"O ponto de situação do projeto ativo e o que falta fazer","p":"Ver, num só ecrã, em que fase está o projeto e qual é o passo seguinte.","st":["Escolhe o projeto na barra do topo (ou escreve o nome de um novo).","Vê o estado de cada fase: estimativa, revisão do MQ, orçamento, consultas e execução.","Segue para o separador da fase que ainda não está concluída."],"r":"Sabes o que já está feito e o que falta."},"estimador":{"s":"Uma primeira estimativa de custo, só com os descritores do projeto","p":"Estimar o custo de construção antes de haver projeto de execução, para validar o budget do Business Plan.","st":["Confirma os descritores do projeto (ABC, fogos, pisos…) em «Editar descritores», no topo.","Ajusta os parâmetros do cálculo (segmento e projetos de referência).","Lê a estimativa por capítulo e compara o total com o budget do BP."],"r":"Custo estimado por capítulo, com o intervalo que os projetos históricos implicam.","w":"Na fase de Business Plan, antes de receberes o mapa de quantidades.","n":"analisador"},"analisador":{"s":"Validar o mapa de quantidades do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços.","st":["Confirma os descritores do projeto: são eles que tornam a comparação rigorosa.","Carrega o MQ (.xlsx). Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"orcamento"},"orcamento":{"s":"Construir o orçamento capítulo a capítulo e ver quanto já é preço firme","p":"Passar de uma estimativa por rácio a um orçamento suportado por preços de mercado.","st":["Arranca dos rácios da biblioteca, ou larga o resumo do orçamento em Excel.","À medida que tens preços, atualiza o estado de cada capítulo: rácio → em consulta → proposta → adjudicado.","Acompanha o semáforo: a percentagem consolidada mostra quanto do orçamento já é sólido."],"r":"Orçamento por capítulo, com a fonte de cada preço à vista.","w":"Depois de revisto o MQ e durante as consultas ao mercado.","n":"consultas"},"consultas":{"s":"Pedir preços ao mercado e escolher a melhor proposta","p":"Registar as consultas aos fornecedores e comparar as propostas lado a lado.","st":["Abre uma consulta por capítulo ou pacote e indica os fornecedores consultados.","Regista as propostas à medida que chegam.","Compara-as no mapa comparativo.","Escolhe a proposta: o preço passa para o Orçamento e fica no histórico do fornecedor."],"r":"Capítulos do orçamento com preço de mercado e histórico de preços por fornecedor.","w":"Quando um capítulo do orçamento ainda está em rácio ou com proposta antiga.","n":"execucao"},"precomq":{"s":"Preencher um mapa de quantidades vazio com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Importa o ficheiro de Compras (.xlsm) — basta uma vez, ou quando houver novas adjudicações.","Define o uplift de instalação e a base de custo (todas as obras ou só uma).","Carrega o MQ vazio e clica em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"},"execucao":{"s":"Registar o que foi adjudicado e as variações em obra","p":"Guardar o preço de contrato de cada pacote e os desvios de execução, com o motivo de cada um.","st":["Quando fechas com um subempreiteiro, regista a adjudicação do pacote.","Durante a obra, regista cada variação e o respetivo motivo.","Acompanha o desvio face ao orçado, capítulo a capítulo."],"r":"Desvios medidos (e não estimados) e uma Biblioteca que aprende com o preço de contrato.","w":"A partir da primeira adjudicação e durante toda a obra.","n":"verificar"},"verificar":{"s":"Conferir os autos de medição com o adjudicado","p":"Confirmar que o que o subempreiteiro mede em cada auto está de acordo com o contrato.","st":["Escolhe o projeto e o pacote.","Carrega ou regista o auto de medição.","Revê as diferenças assinaladas face ao adjudicado antes de aprovar."],"r":"Autos conferidos e diferenças identificadas antes do pagamento.","w":"Todos os meses, quando chegam os autos."},"comparar":{"s":"Comparar projetos entre si, normalizados por m², fogo ou implantação","p":"Perceber onde um projeto se afasta do histórico, em descritores, custos e quantidades.","st":["Escolhe os projetos a comparar — o L’Urbain entra sempre como referência.","Escolhe a normalização (por m² de ABC, por fogo ou por implantação).","Lê as diferenças e usa-as para calibrar a estimativa."],"r":"Comparação lado a lado, pronta a usar num relatório.","w":"Para calibrar uma estimativa ou justificar um desvio."},"racios":{"s":"Os rácios de custo real por capítulo, a partir das obras fechadas","p":"Consultar quanto custou, de facto, cada capítulo nas obras da Solive.","st":["Filtra por segmento ou por projeto.","Consulta o €/m² e o €/unidade de cada capítulo."],"r":"Os rácios que alimentam a Estimativa e o Orçamentar MQ."},"biblioteca":{"s":"O conhecimento acumulado da Solive: rácios, quantidades e taxonomia","p":"Ter num só sítio os rácios de custo e de quantidades de todos os projetos, por capítulo e por fase.","st":["Não se preenche à mão: cada projeto entra ao gravares uma análise na Revisão do MQ e no fecho de obra.","Consulta os rácios por capítulo, projeto e fase.","Mantém a taxonomia de capítulos atualizada (quem administra a plataforma)."],"r":"Estimativas mais rigorosas a cada projeto que fechas."},"admin":{"s":"Gerir projetos, versões gravadas e fases","p":"Tarefas de manutenção, separadas das restantes para evitar ações irreversíveis por engano.","st":["Consulta as versões gravadas do orçamento de cada projeto.","Elimina projetos que já não são precisos — esta ação não se pode anular."],"r":"Uma lista de projetos limpa e o histórico de versões à mão."}};
+  const G={"estimador":"Estimar","analisador":"Rever projeto","orcamento":"Orçamentar","consultas":"Orçamentar","precomq":"Orçamentar","execucao":"Executar","verificar":"Executar"};
+  const NAMES={"estimador":"Estimativa para o BP","analisador":"Revisão do MQ","orcamento":"Orçamento","consultas":"Consultas ao mercado","precomq":"Orçamentar MQ","execucao":"Adjudicações e desvios","verificar":"Autos de medição"};
+  const CYCLE=[['Estimar','estimador'],['Rever projeto','analisador'],['Orçamentar','orcamento'],['Executar','execucao']];
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
+  function build(v){
+    const view=document.getElementById('view-'+v); const t=TX[v]; if(!view||!t) return;
+    let pu=view.querySelector('.purpose');
+    if(!pu){ pu=document.createElement('div'); pu.className='purpose'; pu.innerHTML='<div class="eyebrow">'+(G[v]||'')+'</div><h1>'+(NAMES[v]||'')+'</h1>'; view.prepend(pu); }
+    if(pu.dataset.howto) return; pu.dataset.howto='1';
+    let tg=pu.querySelector('.toggle');
+    if(!tg){ tg=document.createElement('button'); tg.className='toggle'; tg.type='button'; tg.onclick=function(){foldPurpose(this)}; pu.prepend(tg); }
+    tg.innerHTML=ic('circle-help')+'Como funciona';
+    let sub=pu.querySelector('.subtitle'); const h1=pu.querySelector('h1');
+    if(!sub&&h1){ h1.insertAdjacentHTML('afterend','<p class="subtitle"></p>'); sub=pu.querySelector('.subtitle'); }
+    if(sub) sub.textContent=t.s;
+    pu.querySelectorAll('p:not(.subtitle)').forEach(p=>p.remove());
+    let html='<div class="ht-lbl">Para que serve</div><p>'+esc(t.p)+'</p><div class="ht-lbl">Passos</div><ol>'+t.st.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>';
+    if(t.r) html+='<div class="ht-lbl">Resultado</div><p>'+esc(t.r)+'</p>';
+    if(t.w) html+='<div class="ht-lbl">Quando usar</div><p>'+esc(t.w)+'</p>';
+    const box=document.createElement('div'); box.className='howto'; box.innerHTML=html;
+    (sub||h1||pu.lastChild).insertAdjacentElement('afterend',box);
+    if(G[v]){
+      const cy=document.createElement('div'); cy.className='cycle';
+      cy.innerHTML=CYCLE.map(([lbl,to],i)=>(i?'<span class="cy-sep">›</span>':'')+'<button type="button" class="cy'+(G[v]===lbl?' on':'')+'" data-to="'+to+'">'+(i+1)+' · '+lbl+'</button>').join('')
+        +(t.n?'<button type="button" class="next" data-to="'+t.n+'">A seguir: '+esc(NAMES[t.n]||t.n)+' '+ic('arrow-right')+'</button>':'');
+      cy.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
+      box.insertAdjacentElement('beforebegin',cy);
+    }
+  }
+  function guide(){
+    const vr=document.getElementById('view-resumo'); if(!vr||vr.querySelector('.guide')) return;
+    const g=document.createElement('div'); g.className='guide';
+    const S=[['1 · Estimar','Estimativa para o BP','Custo estimado a partir dos descritores.','estimador'],['2 · Rever projeto','Revisão do MQ','Validar o mapa de quantidades do projetista.','analisador'],['3 · Orçamentar','Orçamento e consultas','Trocar rácios por preços de mercado.','orcamento'],['4 · Executar','Adjudicações e autos','Registar o contrato e os desvios em obra.','execucao']];
+    g.innerHTML='<h3>Como usar a plataforma</h3><div class="g-steps">'+S.map(s=>'<div class="g-step" data-to="'+s[3]+'"><span class="g-n">'+s[0]+'</span><span class="g-t">'+s[1]+'</span><span class="g-d">'+s[2]+'</span></div>').join('')+'</div>';
+    g.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
+    const pu=vr.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',g); else vr.prepend(g);
+  }
+  function all(){ Object.keys(TX).forEach(build); guide(); }
+  all();
+  // abrir «Como funciona» automaticamente na primeira visita a cada separador
+  window.__howtoOnView=function(v){ try{ build(v); guide();
+      const k='pr_howto_'+v; if(TX[v]&&!localStorage.getItem(k)){ const pu=document.querySelector('#view-'+v+' .purpose'); const tg=pu&&pu.querySelector('.toggle'); if(pu&&!pu.classList.contains('open')&&tg){ foldPurpose(tg); } localStorage.setItem(k,'1'); }
+    }catch(e){} };
+})();
+
+APP_REGISTAR('11-ux','2.6.1');
