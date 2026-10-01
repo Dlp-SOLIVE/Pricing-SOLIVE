@@ -28,11 +28,11 @@ function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classLi
   const grp=t=>uxEl('div',{class:'navgrp'},t);
   const items=[
     mk('nav-resumo','resumo','Resumo do projeto'),
-    grp('1 · Estimar'), mk('nav-estimador','estimador','Estimativa para o BP'),
+    grp('1 · Estimar'), mk('nav-programa','programa','Programa e tipologias'), mk('nav-estimador','estimador','Estimativa para o BP'),
     grp('2 · Rever projeto'), mk('nav-analisador','analisador','Revisão do MQ'),
     grp('3 · Orçamentar'), mk('nav-orcamento','orcamento','Orçamento'), mk('nav-consultas','consultas','Consultas ao mercado'), mk('nav-precomq','precomq','Orçamentar MQ'),
     grp('4 · Executar'), mk('nav-execucao','execucao','Adjudicações e desvios'), mk('nav-verificar','verificar','Autos de medição'),
-    grp('Conhecimento'), mk('nav-comparar','comparar','Benchmark'), mk('nav-racios','racios','Rácios de custo real'), mk('nav-biblioteca','biblioteca','Biblioteca'),
+    grp('Conhecimento'), mk('nav-comparar','comparar','Benchmark'), mk('nav-racios','racios','Rácios de custo real'), mk('nav-kit','kit','Kit-tipo por tipologia'), mk('nav-biblioteca','biblioteca','Biblioteca'),
     uxEl('div',{class:'navsep'}),
     mk('nav-admin','admin','Administração')
   ];
@@ -194,7 +194,7 @@ async function uxRenderResumo(){
   const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
   const addIc=(el,n)=>{ if(!el||el.querySelector('[class^="icon-"]')) return; el.insertAdjacentHTML('afterbegin',ic(n)); };
   // menu
-  const NAV={resumo:'layout-dashboard',estimador:'calculator',analisador:'file-search',orcamento:'wallet',consultas:'send',precomq:'list-checks',execucao:'hard-hat',verificar:'clipboard-check',comparar:'git-compare',racios:'chart-column',biblioteca:'library',admin:'settings',ajuda:'circle-help'};
+  const NAV={programa:'layout-grid',kit:'boxes',resumo:'layout-dashboard',estimador:'calculator',analisador:'file-search',orcamento:'wallet',consultas:'send',precomq:'list-checks',execucao:'hard-hat',verificar:'clipboard-check',comparar:'git-compare',racios:'chart-column',biblioteca:'library',admin:'settings',ajuda:'circle-help'};
   Object.entries(NAV).forEach(([k,n])=>addIc(document.getElementById('nav-'+k),n));
   addIc(document.getElementById('btnLogout'),'log-out');
   // títulos curtos + subtítulo (a explicação longa fica em «Como funciona»)
@@ -292,4 +292,4 @@ async function uxRenderResumo(){
     }catch(e){} };
 })();
 
-APP_REGISTAR('11-ux','2.7.2');
+APP_REGISTAR('11-ux','2.8.0');

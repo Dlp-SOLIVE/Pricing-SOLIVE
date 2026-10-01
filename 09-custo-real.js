@@ -1296,4 +1296,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','2.7.2');
+APP_REGISTAR('09-custo-real','2.8.0');

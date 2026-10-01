@@ -333,4 +333,4 @@ function exportOrcamento(){
   XLSX.writeFile(wb,("Orcamento_"+ORC_META.nome).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('05-orcamentacao','2.7.2');
+APP_REGISTAR('05-orcamentacao','2.8.0');

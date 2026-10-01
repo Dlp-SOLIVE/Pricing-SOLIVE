@@ -114,7 +114,7 @@ function toast(msg){ alertx(msg,true) }   /* um só canal de feedback: o banner 
 
 /* ================= NAVEGAÇÃO ================= */
 function showView(v){
-  ['resumo','analisador','estimador','orcamento','consultas','verificar','racios','precomq','comparar','biblioteca','execucao','admin'].forEach(x=>{
+  ['resumo','programa','analisador','estimador','orcamento','consultas','verificar','racios','precomq','comparar','biblioteca','kit','execucao','admin'].forEach(x=>{
     const ve=document.getElementById('view-'+x); if(ve) ve.classList.toggle('hidden', v!==x);
     const nb=document.getElementById('nav-'+x); if(nb) nb.classList.toggle('on', v===x);
   });
@@ -126,6 +126,8 @@ function showView(v){
   if(v==='estimador') document.getElementById('estAno').value=document.getElementById('estAno').value||new Date().getFullYear();
   if(v==='orcamento') refreshOrcamento();
   if(v==='execucao') gxRender();
+  if(v==='programa'){ try{ tpRenderPrograma(); }catch(e){ console.warn(e); } }
+  if(v==='kit'){ try{ tpRenderKit(); }catch(e){ console.warn(e); } }
   /* o que antes eram 6 embrulhos sucessivos, agora em sequência explícita */
   try{ if(typeof ctxRender==='function') ctxRender(); }catch(e){}
   if(v==='precomq'){ try{ vfMQFillProjects(); }catch(e){} }
@@ -134,4 +136,4 @@ function showView(v){
   try{ if(typeof window.__howtoOnView==='function') window.__howtoOnView(v); }catch(e){}
 }
 
-APP_REGISTAR('01-base','2.7.2');
+APP_REGISTAR('01-base','2.8.0');

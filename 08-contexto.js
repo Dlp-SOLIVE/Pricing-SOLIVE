@@ -116,10 +116,12 @@ async function ctxDefinir(nome){
 /* Trocar de projeto tem de repercutir-se na vista aberta, senão fica-se a olhar
    para os números do projeto anterior sem nada o indicar. */
 async function refrescarVistaAtual(){
-  const v=['analisador','estimador','orcamento','consultas','comparar','biblioteca','execucao']
+  const v=['programa','kit','analisador','estimador','orcamento','consultas','comparar','biblioteca','execucao']
     .find(x=>{const e=document.getElementById('view-'+x);return e&&!e.classList.contains('hidden')});
   if(!v) return;
   try{
+    if(v==='programa'){ await tpRenderPrograma(); }
+    if(v==='kit'){ await tpRenderKit(); }
     if(v==='biblioteca'){
       ['verProj'].forEach(preencherProjSelect);   // estes sim funcionam por nome
       renderVersoes();
@@ -465,4 +467,4 @@ function confereProjeto(wbk,nomeAtivo){
     'Continuar grava os dados no projeto ativo e substitui o que lá estiver.\n\nTens a certeza?');
 }
 
-APP_REGISTAR('08-contexto','2.7.2');
+APP_REGISTAR('08-contexto','2.8.0');
