@@ -54,6 +54,11 @@ function gpRender(){
   gpConfirmCheck();
   gpPreview();
 }
+/* orçamentos (tabela única, Fase 6) contados por tipo */
+async function gpCountTipo(projId,tipo){
+  const {count,error}=await sb.from('orcamento').select('*',{count:'exact',head:true}).eq('projeto_id',projId).eq('tipo',tipo);
+  return error?'?':(count||0);
+}
 async function gpCount(tbl,col,val){
   const {count,error}=await sb.from(tbl).select('*',{count:'exact',head:true}).eq(col,val);
   return error?'?':(count||0);
@@ -64,7 +69,7 @@ async function gpCount(tbl,col,val){
 /* Desde a Fase 1 todas as tabelas ligam ao projeto por projeto_id: conta-se por aí. */
 async function gpLigacoes(projId){
   const n=async(t)=>{ const {count,error}=await sb.from(t).select('*',{count:'exact',head:true}).eq('projeto_id',projId); return error?'?':(count||0); };
-  const out={imp:await n('custo_import'), prod:await n('orcamento_producao'), leg:await n('orcamento_legendre'), adj:await n('adjudicacoes'), lin:0};
+  const out={imp:await n('custo_import'), prod:await gpCountTipo(projId,'producao'), leg:0, adj:await n('adjudicacoes'), lin:0};
   try{ const {data}=await sb.from('custo_import').select('id').eq('projeto_id',projId);
     const ids=(data||[]).map(r=>r.id);
     if(ids.length){ const {count}=await sb.from('custo_linha').select('*',{count:'exact',head:true}).in('import_id',ids); out.lin=count||0; } }catch(e){}
@@ -86,11 +91,11 @@ async function gpPreview(){
   const nAnal=await gpCount('analises','projeto_id',proj.id);
   const nPU=await gpCount('precos_unitarios','projeto_id',proj.id);
   const nCons=await gpCount('consultas','projeto_id',proj.id);
-  const nVer=await gpCount('orcamento_versoes','projeto_id',proj.id);
-  const nOrc=await gpCount('orcamentos','projeto_id',proj.id);
+  const nVer=await gpCountTipo(proj.id,'versao');
+  const nOrc=await gpCountTipo(proj.id,'atual');
   const nReais=await gpCount('precos_reais','projeto_id',proj.id);
   const L=await gpLigacoes(proj.id);
-  box.innerHTML = `Vai eliminar: <b>${nAnal}</b> análises &middot; <b>${nFase}</b> fases &middot; <b>${nCap}</b> capítulos &middot; <b>${nPU}</b> preços unitários &middot; <b>${nCons}</b> consultas &middot; <b>${nVer}</b> versões &middot; <b>${nOrc}</b> orçamento &middot; <b>${L.imp}</b> autos verificados (<b>${L.lin}</b> linhas de custo) &middot; <b>${L.prod+L.leg}</b> linha(s) de orçamento transferido &middot; <b>${L.adj}</b> adjudicações (e as suas variações) &middot; e o próprio projeto.<br>Biblioteca de custos reais deste projeto: <b>${nReais}</b> linha(s) &mdash; só apagadas se marcares a opção acima.`;
+  box.innerHTML = `Vai eliminar: <b>${nAnal}</b> análises &middot; <b>${nFase}</b> fases &middot; <b>${nCap}</b> capítulos &middot; <b>${nPU}</b> preços unitários &middot; <b>${nCons}</b> consultas &middot; <b>${nVer}</b> versões &middot; <b>${nOrc}</b> orçamento &middot; <b>${L.imp}</b> autos verificados (<b>${L.lin}</b> linhas de custo) &middot; <b>${L.prod+L.leg}</b> orçamento(s) transferido(s) &middot; <b>${L.adj}</b> adjudicações (e as suas variações) &middot; e o próprio projeto.<br>Biblioteca de custos reais deste projeto: <b>${nReais}</b> linha(s) &mdash; só apagadas se marcares a opção acima.`;
 }
 function gpConfirmCheck(){
   const nome=(document.getElementById('gpProj')||{}).value||"";
@@ -130,4 +135,4 @@ async function loadMappings(){
   MAPPINGS=data||[];
 }
 
-APP_REGISTAR('03-auth-projetos','3.2.0');
+APP_REGISTAR('03-auth-projetos','3.3.0');

@@ -124,8 +124,13 @@ const TAXO_BASE={
  "PAISAGISMO":               {driver:"exterior",exp:1.00,idx:"mo", racional:"Comanda-se pela área exterior livre (lote menos implantação), não pela área construída."},
  "DIVERSOS":                 {driver:"abc",exp:1.00,idx:"mat",racional:"Rubrica residual — escala com a dimensão global."}
 };
+/* capítulos de acabamento: a estimativa converte-os pelo índice de segmento (Fase 6) */
+const SEG_SENS_BASE=['COZINHAS','EQUIPAMENTOS SANITÁRIOS','CARPINTARIAS','VÃOS','CERÂMICOS','PAVIMENTOS DIVERSOS','REVESTIMENTOS DE PAVIMENTOS','REVESTIMENTOS DE PAREDES','PEDRA','CANTARIAS','SERRALHARIAS'];
+Object.keys(TAXO_BASE).forEach(k=>{ TAXO_BASE[k].sens=SEG_SENS_BASE.includes(k); });
 let TAXO=JSON.parse(JSON.stringify(TAXO_BASE));
-let REGRAS_CAP=[];   /* regras de reconhecimento acrescentadas pelo utilizador */
+let REGRAS_CAP=[];   /* todas as regras de mapeamento (tabela regra_mapeamento, Fase 6) */
+let LEGENDRE_MAP={}; /* capítulo (normalizado) → categoria Legendre */
+let REGRAS_FONTE='embutidas';
 
 /* Índices de inflação diferenciados. A inflação da construção não é uniforme:
    mão-de-obra, material e MEP divergiram fortemente nos últimos anos. */
@@ -332,16 +337,18 @@ async function loadBenchmarks(){
   BENCH={};
   const addRef=(cap,u,q,abc,nome)=>{ if(!q||!abc)return; const k=cap+"|"+normUn(u);
     (BENCH[k]=BENCH[k]||{vals:[],projs:[]}); BENCH[k].vals.push(q/abc); BENCH[k].projs.push(nome); };
-  Object.entries(REF.qty).forEach(([cap,us])=>Object.entries(us).forEach(([u,q])=>addRef(cap,u,q,REF.gfa,"L'Urbain")));
-  if(!SESSION)return;
-  for(const p of PROJETOS){
-    if(!p.metricas||!p.gfa)continue;
+  /* Fase 6: as quantidades vêm de todos os projetos gravados (incluindo o de referência);
+     os valores embutidos do L'Urbain só servem sem sessão ou se o L'Urbain ainda não tiver métricas na base. */
+  let urbainNaBase=false;
+  if(SESSION) for(const p of PROJETOS){
+    if(!p.metricas||!p.gfa||!Object.keys(p.metricas).length)continue;
+    if(norm(p.nome).includes("URBAIN")) urbainNaBase=true;
     Object.entries(p.metricas).forEach(([k,v])=>{
       const cap=k.replace(/\s*\([^)]*\)\s*$/,"").trim();
-      if(norm(p.nome).includes("URBAIN"))return;   /* já entrou pela referência */
       addRef(cap,v.un||"",v.q,p.gfa,p.nome);
     });
   }
+  if(!urbainNaBase) Object.entries(REF.qty).forEach(([cap,us])=>Object.entries(us).forEach(([u,q])=>addRef(cap,u,q,REF.gfa,"L'Urbain")));
 }
 function benchmark(cap,u){
   const b=BENCH[cap+"|"+normUn(u)];
@@ -456,8 +463,6 @@ function cstTab(t){
 async function refreshConsultas(){
   const selCap=document.getElementById('cstCap');
   if(selCap&&!selCap.options.length) selCap.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
-  const tc=document.getElementById('taxCap');
-  if(tc&&!tc.options.length) tc.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
   if(SESSION){
     document.getElementById('cstProjList').innerHTML=PROJETOS.map(p=>`<option value="${esc(p.nome)}">`).join("");
     await loadConsultas();
@@ -651,12 +656,11 @@ function renderFornHist(){
    a anterior e não havia rasto por trás de um trespasse congelado. */
 async function gravarVersao(nome,comentario){
   if(!SESSION)return null;
-  const {data:ult}=await sbq(sb.from('orcamento_versoes').select('versao').eq('projeto_nome',nome)
-    .order('versao',{ascending:false}).limit(1),"Ler versões");
-  const v=(ult&&ult.length?ult[0].versao:0)+1;
+  let ult=[]; try{ ult=await orcVersoes(nome,1); }catch(e){ alertx("Ler versões: "+(e.message||e)); return null; }
+  const v=(ult.length?ult[0].versao:0)+1;
   const total=ORC_ROWS.reduce((s,r)=>s+(r.valor||0),0);
   const solido=ORC_ROWS.filter(r=>ORC_EST[r.estado]&&ORC_EST[r.estado].solido).reduce((s,r)=>s+(r.valor||0),0);
-  const {error}=await sbq(sb.from('orcamento_versoes').insert({
+  const {error}=await sbq(orcGravarVersao({
     projeto_nome:nome, versao:v, comentario:comentario||null,
     total:Math.round(total), consolidado:total?Math.round(solido/total*100):0,
     meta:ORC_META, linhas:ORC_ROWS, criado:new Date().toISOString()
@@ -674,8 +678,7 @@ async function renderVersoes(){
   const nome=sel.value; box.innerHTML="";
   document.getElementById('verDiffBox').classList.add('hidden');
   if(!SESSION||!nome){document.getElementById('verEmpty').classList.remove('hidden');return}
-  const {data}=await sbq(sb.from('orcamento_versoes').select('*').eq('projeto_nome',nome)
-    .order('versao',{ascending:false}),"Ler versões");
+  let data=[]; try{ data=await orcVersoes(nome); }catch(e){ alertx("Ler versões: "+(e.message||e)); }
   VERSOES=data||[];
   document.getElementById('verEmpty').classList.toggle('hidden',VERSOES.length>0);
   VERSOES.forEach((v,i)=>{
@@ -765,21 +768,37 @@ async function loadTaxonomia(){
   if(!SESSION)return;
   const {data}=await sbq(sb.from('taxonomia').select('*'),"Ler taxonomia");
   if(data&&data.length){
-    data.forEach(t=>{ TAXO[t.cap]={driver:t.driver,exp:+t.expoente,idx:t.indice,racional:t.racional||""} });
+    data.forEach(t=>{ TAXO[t.cap]={driver:t.driver,exp:+t.expoente,idx:t.indice,racional:t.racional||"",sens:!!t.sensivel_segmento} });
     CAPS=data.slice().sort((a,b)=>(a.ordem??999)-(b.ordem??999)).map(t=>t.cap);
     /* separadores que constroem listas a partir dos capítulos têm de ser reconstruídos */
-    const cc=document.getElementById('cstCap'), tc=document.getElementById('taxCap');
+    const cc=document.getElementById('cstCap');
     if(cc) cc.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
-    if(tc) tc.innerHTML=capsOrd().map(c=>`<option>${esc(c)}</option>`).join("");
   }
-  const {data:r}=await sbq(sb.from('taxonomia_regras').select('*').order('id'),"Ler regras de capítulo");
-  if(r){ REGRAS_CAP=r; aplicarRegrasCap(); }
+  await regrasCarregar();
 }
-function aplicarRegrasCap(){
-  /* as regras do utilizador entram à frente das regras embutidas */
-  REGRAS_CAP.slice().reverse().forEach(r=>{
-    try{ CAP_MAP.unshift([new RegExp(r.expressao,"i"), r.cap]); }catch(e){ console.warn("regra inválida",r); }
-  });
+/* Fase 6 — uma só tabela de regras de mapeamento:
+     texto    → expressão sobre descrição/nome de folha → capítulo (substitui CAP_MAP + taxonomia_regras)
+     capitulo → capítulo de origem → capítulo da taxonomia (substitui ALIAS_CAP + mapa_capitulo)
+     legendre → capítulo → categoria Legendre (substitui mapa_legendre)
+   As listas em memória (CAP_MAP, ALIAS_CAP) são reconstruídas a partir da tabela,
+   pela prioridade; se a tabela ainda não existir, ficam as regras embutidas. */
+async function regrasCarregar(){
+  const r=await sb.from('regra_mapeamento').select('*').order('prioridade').order('id');
+  if(r.error){ REGRAS_FONTE='embutidas'; REGRAS_CAP=[]; console.warn('regra_mapeamento',r.error.message); return; }
+  REGRAS_FONTE='base'; REGRAS_CAP=r.data||[];
+  regrasAplicar();
+}
+function regrasAplicar(){
+  const at=REGRAS_CAP.filter(x=>x.ativo!==false);
+  const tx=at.filter(x=>x.tipo==='texto'), ca=at.filter(x=>x.tipo==='capitulo'), lg=at.filter(x=>x.tipo==='legendre');
+  CAP_MAP.length=0;
+  tx.forEach(x=>{ try{ CAP_MAP.push([new RegExp(x.padrao,'i'),x.destino]); }catch(e){ console.warn('regra inválida',x); } });
+  /* se as embutidas não estiverem na base (SQL por correr ou apagadas à mão), entram no fim */
+  if(!REGRAS_CAP.some(x=>x.tipo==='texto'&&x.origem==='embutida')) CAP_MAP_BASE.forEach(x=>CAP_MAP.push(x));
+  Object.keys(ALIAS_CAP).forEach(k=>delete ALIAS_CAP[k]);
+  ca.forEach(x=>{ if(!(x.padrao in ALIAS_CAP)) ALIAS_CAP[x.padrao]=x.destino; });
+  if(!REGRAS_CAP.some(x=>x.tipo==='capitulo'&&x.origem==='embutida')) Object.entries(ALIAS_CAP_BASE).forEach(([k,v])=>{ if(!(k in ALIAS_CAP)) ALIAS_CAP[k]=v; });
+  LEGENDRE_MAP={}; lg.forEach(x=>{ const k=norm(x.padrao); if(!(k in LEGENDRE_MAP)) LEGENDRE_MAP[k]=x.destino; });
 }
 function renderTaxonomia(){
   const nd=document.getElementById('novoCapDrv');
@@ -801,6 +820,7 @@ function renderTaxonomia(){
         <option value="mat" ${t.idx==='mat'?'selected':''}>Material</option>
         <option value="mep" ${t.idx==='mep'?'selected':''}>MEP / equipamento</option>
       </select></td>
+      <td style="text-align:center"><input type="checkbox" title="Acabamento: só se compara no mesmo segmento, ou convertido pelo índice de segmento" ${t.sens?'checked':''} onchange="(TAXO['${cap.replace(/'/g,"\\'")}']||{}).sens=this.checked"></td>
       <td style="max-width:320px"><textarea data-r="${esc(cap)}" class="taxRac" rows="2"
         style="width:100%;font-size:12px;color:#79726F;padding:5px 7px;min-height:0"
         placeholder="Porque é que este capítulo escala assim">${esc(t.racional||"")}</textarea>
@@ -811,14 +831,23 @@ function renderTaxonomia(){
   tb.querySelectorAll('.taxRac').forEach(t=>t.addEventListener('input',e=>{
     const c=e.target.dataset.r; if(TAXO[c]) TAXO[c].racional=e.target.value;
   }));
+  renderRegras();
+}
+const REGRA_TIPOS={texto:'Texto → capítulo',capitulo:'Capítulo de origem → capítulo',legendre:'Capítulo → categoria Legendre'};
+function renderRegras(){
   const tr2=document.getElementById('tbRegras'); if(!tr2)return;
-  tr2.innerHTML="";
-  REGRAS_CAP.forEach(r=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="mono">${esc(r.expressao)}</td><td>${esc(r.cap)}</td>
-      <td><button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarRegraCap(${r.id})">✕</button></td>`;
-    tr2.appendChild(tr);
-  });
+  const tipo=(document.getElementById('rgFiltro')||{}).value||'';
+  const q=norm((document.getElementById('rgProcura')||{}).value||'');
+  const nota=document.getElementById('rgNota');
+  if(nota) nota.textContent=REGRAS_FONTE==='base'?(REGRAS_CAP.length+' regras na base · as de cima aplicam-se primeiro'):'A tabela de regras ainda não existe na base — a usar as regras embutidas. Corre o F6_01_consolidacao.sql.';
+  const lista=REGRAS_CAP.filter(r=>(!tipo||r.tipo===tipo)&&(!q||norm(r.padrao+' '+r.destino).includes(q)));
+  tr2.innerHTML=lista.map(r=>`<tr style="${r.ativo===false?'opacity:.5':''}"><td>${esc(REGRA_TIPOS[r.tipo]||r.tipo)}</td><td class="mono">${esc(r.padrao)}</td><td>${esc(r.destino)}</td>
+      <td class="num">${r.prioridade}</td><td>${esc(r.origem||'')}</td>
+      <td><label style="display:inline-flex;gap:4px;align-items:center;font-size:12px"><input type="checkbox" ${r.ativo!==false?'checked':''} onchange="regraAtivar(${r.id},this.checked)"> ativa</label></td>
+      <td>${r.origem==='embutida'?'':`<button class="btn ghost" style="padding:3px 8px;font-size:12px" onclick="apagarRegraCap(${r.id})">✕</button>`}</td></tr>`).join('')
+    ||'<tr><td colspan="7" class="hint">Sem regras para este filtro.</td></tr>';
+  const dl=document.getElementById('rgDestinos');
+  if(dl) dl.innerHTML=capsOrd().map(c=>`<option value="${esc(c)}">`).join('');
 }
 function reporTaxonomia(){
   if(!confirmar("Repor todos os drivers, expoentes e racionais nos valores do standard?\n\nPerdes as alterações que fizeste nesta tabela."))return;
@@ -829,7 +858,7 @@ function reporTaxonomia(){
 async function saveTaxonomia(){
   if(!SESSION)return alertx("Inicia sessão para gravar a taxonomia.");
   const linhas=CAPS.map((cap,i)=>{const t=TAXO[cap]||TAXO_DEFAULT;
-    return {cap,ordem:i,driver:t.driver,expoente:t.exp,indice:t.idx,racional:t.racional||null}});
+    return {cap,ordem:i,driver:t.driver,expoente:t.exp,indice:t.idx,racional:t.racional||null,sensivel_segmento:!!t.sens}});
   const {error}=await sbq(sb.from('taxonomia').upsert(linhas,{onConflict:'cap'}),"Gravar taxonomia");
   if(!error){CALIB_CACHE=null;alertx("Taxonomia gravada. O estimador passa a usar estes drivers.",true)}
 }
@@ -855,34 +884,41 @@ async function apagarCapitulo(cap){
 }
 async function addRegraCap(){
   if(!SESSION)return alertx("Inicia sessão para acrescentar regras.");
-  const expressao=document.getElementById('taxRegex').value.trim().toUpperCase();
-  const cap=document.getElementById('taxCap').value;
-  if(!expressao)return alertx("Escreve a expressão a reconhecer.");
-  const {error}=await sbq(sb.from('taxonomia_regras').insert({expressao,cap}),"Gravar regra");
+  if(REGRAS_FONTE!=='base')return alertx("Falta correr o F6_01_consolidacao.sql no Supabase.");
+  const tipo=(document.getElementById('rgTipo')||{}).value||'texto';
+  const padrao=document.getElementById('taxRegex').value.trim().toUpperCase();
+  const destino=(document.getElementById('taxCap').value||'').trim();
+  if(!padrao)return alertx("Escreve o texto a reconhecer.");
+  if(!destino)return alertx("Escreve ou escolhe o destino.");
+  if(tipo==='texto'){ try{ new RegExp(padrao,'i'); }catch(e){ return alertx("A expressão não é válida: "+e.message); } }
+  const {error}=await sbq(sb.from('regra_mapeamento').insert({tipo,padrao,destino,prioridade:10,origem:'utilizador'}),"Gravar regra");
   if(error)return;
   document.getElementById('taxRegex').value="";
-  await loadTaxonomia(); renderTaxonomia();
-  alertx("Regra acrescentada. Aplica-se a partir do próximo mapa analisado.",true);
+  await regrasCarregar(); renderRegras();
+  alertx("Regra acrescentada. Aplica-se a partir do próximo ficheiro lido.",true);
+}
+async function regraAtivar(id,on){
+  const {error}=await sbq(sb.from('regra_mapeamento').update({ativo:!!on}).eq('id',id),"Gravar regra");
+  if(error) return;
+  await regrasCarregar(); renderRegras();
 }
 async function _apagarRegraCap(id){
-  await sbq(sb.from('taxonomia_regras').delete().eq('id',id),"Apagar regra");
-  await loadTaxonomia(); renderTaxonomia();
+  await sbq(sb.from('regra_mapeamento').delete().eq('id',id),"Apagar regra");
+  await regrasCarregar(); renderRegras();
 }
 
 
 /* ---------- 13. VISTAS DA BIBLIOTECA ---------- */
 function toggleGloss(){ const g=document.getElementById('glossBox'); if(g) g.classList.toggle('hidden'); }
-function libTab(t){
-  ['tax','gerir','ver'].forEach(x=>{
-    document.getElementById('lib-pane-'+x).classList.toggle('hidden',x!==t);
-    document.getElementById('lib-tab-'+x).classList.toggle('on',x===t);
-  });
-  if(t==='ver'){ preencherProjSelect('verProj');
-    const sv=document.getElementById('verProj');
-    if(sv&&CTX.nome){const o=[...sv.options].find(x=>norm(x.value)===norm(CTX.nome)); if(o)sv.value=o.value}
-    renderVersoes(); }
-  if(t==='tax') renderTaxonomia();
-  if(t==='gerir') gpRender();
+/* Fase 6: os antigos sub-separadores da Biblioteca passaram a vistas próprias
+   (Administração › Projetos e versões / Taxonomia e regras). libTab fica por compatibilidade. */
+function libTab(t){ showView(t==='tax'?'biblioteca':'admin'); }
+function adminRender(){
+  preencherProjSelect('verProj');
+  const sv=document.getElementById('verProj');
+  if(sv&&CTX.nome){const o=[...sv.options].find(x=>norm(x.value)===norm(CTX.nome)); if(o)sv.value=o.value}
+  renderVersoes();
+  try{ gpRender(); }catch(e){ console.warn(e); }
 }
 function preencherProjSelect(id){
   const s=document.getElementById(id); if(!s)return;
@@ -1021,9 +1057,20 @@ function runSelfTests(){
 }
 
 /* ---------- 15. ARRANQUE ---------- */
+/* Fase 6: se o SQL F6_01 ainda não foi corrido, avisar logo (orçamentos e regras dependem dele) */
+async function verificarEsquemaF6(){
+  const falta=[];
+  for(const t of ['orcamento','regra_mapeamento','segmento_indice']){
+    try{ const r=await sb.from(t).select('*',{count:'exact',head:true}); if(r.error) falta.push(t); }catch(e){ falta.push(t); }
+  }
+  if(falta.length) alertx("Falta correr o F6_01_consolidacao.sql no Supabase (tabelas em falta: "+falta.join(", ")+"). Sem ele não se gravam orçamentos nem regras de mapeamento.");
+}
 async function afterLogin(){
   await _afterLogin();
   await loadTaxonomia();
+  await segIndicesCarregar();
+  await refCarregar();
+  await verificarEsquemaF6();
   await loadPU();
   await loadBenchmarks();
   await refreshConsultas();
@@ -1063,4 +1110,4 @@ restoreEstInputs();
 loadBenchmarks();
 if(new URLSearchParams(location.search).get('test')==='1') runSelfTests();
 
-APP_REGISTAR('07-motor','3.2.0');
+APP_REGISTAR('07-motor','3.3.0');

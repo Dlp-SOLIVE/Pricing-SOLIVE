@@ -3,7 +3,7 @@
    Versão: ver APP_REGISTAR no fim do ficheiro (tem de ser igual à do index.html). */
 
 const AJUDA_AREAS=[['estimar','Estimar'],['orcamentar','Orçamentar'],['consultas','Consultas'],['execucao','Execução'],['custoreal','Custo Real'],['biblioteca','Biblioteca'],['geral','Cuidados']];
-const AJUDA_VIEW2AREA={importar:'geral',estimador:'estimar',analisador:'orcamentar',precomq:'orcamentar',orcamento:'orcamentar',consultas:'consultas',execucao:'execucao',verificar:'custoreal',racios:'custoreal',comparar:'custoreal',biblioteca:'biblioteca'};
+const AJUDA_VIEW2AREA={importar:'geral',admin:'biblioteca',config:'biblioteca',estimador:'estimar',analisador:'orcamentar',precomq:'orcamentar',orcamento:'orcamentar',consultas:'consultas',execucao:'execucao',verificar:'custoreal',racios:'custoreal',comparar:'custoreal',biblioteca:'biblioteca'};
 function ajudaVistaAtiva(){
   for(const v in AJUDA_VIEW2AREA){ const el=document.getElementById('view-'+v); if(el && !el.classList.contains('hidden')) return AJUDA_VIEW2AREA[v]; }
   return 'geral';
@@ -20,4 +20,4 @@ function abrirAjuda(){ const o=document.getElementById('ajudaOverlay'); if(!o)re
 function fecharAjuda(){ const o=document.getElementById('ajudaOverlay'); if(o) o.classList.add('hidden'); }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharAjuda(); });
 
-APP_REGISTAR('10-ajuda','3.2.0');
+APP_REGISTAR('10-ajuda','3.3.0');

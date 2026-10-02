@@ -307,8 +307,10 @@ function tpPrecoElemento(el,seg){
   for(const [lbl,f] of camadas){
     const c=naUn.filter(f);
     if(c.length){
-      const ps=c.map(r=>+r.preco_unit);
-      return {pu:tpMed(ps),fonte:lbl+' · mediana de '+c.length,n:c.length,min:Math.min(...ps),max:Math.max(...ps),
+      /* Fase 6: elemento de acabamento com preços de outro segmento → convertidos pelo índice de segmento */
+      let conv=0;
+      const ps=c.map(r=>{ const f=(el.sensivel_segmento&&r.segmento&&typeof segFator==='function')?segFator(r.segmento,seg):1; if(f!==1) conv++; return +r.preco_unit*f; });
+      return {pu:tpMed(ps),fonte:lbl+' · mediana de '+c.length+(conv?' · '+conv+' convertido(s) pelo índice de segmento':''),n:c.length,min:Math.min(...ps),max:Math.max(...ps),
               cands:c.sort((a,b)=>(+a.preco_unit)-(+b.preco_unit)).slice(0,12),alt};
     }
   }
@@ -353,4 +355,4 @@ function tpExportar(){
   XLSX.writeFile(wb,("Elementos_"+e.projeto).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('12-tipologias','3.2.0');
+APP_REGISTAR('12-tipologias','3.3.0');

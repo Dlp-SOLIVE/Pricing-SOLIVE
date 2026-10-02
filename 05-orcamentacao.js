@@ -2,6 +2,47 @@
    Orçamentação: quadro com semáforo de consolidação e contingência.
    Versão: ver APP_REGISTAR no fim do ficheiro (tem de ser igual à do index.html). */
 
+/* ================= ORÇAMENTOS · ACESSO ÚNICO (Fase 6) =================
+   Um só modelo na base: tabela `orcamento` com tipo 'atual' (o orçamento em curso),
+   'versao' (versões gravadas) e 'producao' (o orçamento transferido/congelado para a
+   Produção, por capítulo e por categoria Legendre). Todo o código passa por aqui;
+   ninguém lê nem escreve as tabelas antigas (orcamentos, orcamento_versoes,
+   orcamento_producao, orcamento_legendre). */
+async function orcLerAtual(nome){
+  const r=await sb.from('orcamento').select('*').eq('tipo','atual').eq('projeto_nome',nome).maybeSingle();
+  if(r.error) throw r.error; return r.data||null;
+}
+async function orcGravarAtual(nome,meta,linhas){
+  const total=(linhas||[]).reduce((s,x)=>s+(+x.valor||0),0);
+  const row={projeto_nome:nome,tipo:'atual',meta,linhas,total:Math.round(total),atualizado:new Date().toISOString()};
+  const ex=await sb.from('orcamento').select('id').eq('tipo','atual').eq('projeto_nome',nome).maybeSingle();
+  if(ex.error) return {error:ex.error};
+  return ex.data ? await sb.from('orcamento').update(row).eq('id',ex.data.id)
+                 : await sb.from('orcamento').insert(row);
+}
+async function orcVersoes(nome,limite){
+  let q=sb.from('orcamento').select('*').eq('tipo','versao').eq('projeto_nome',nome).order('versao',{ascending:false});
+  if(limite) q=q.limit(limite);
+  const r=await q; if(r.error) throw r.error; return r.data||[];
+}
+async function orcGravarVersao(v){ return await sb.from('orcamento').insert(Object.assign({tipo:'versao',atualizado:new Date().toISOString()},v)); }
+async function orcProducaoTodos(){
+  const r=await sb.from('orcamento').select('projeto_nome,capitulos,legendre,ficheiro,criado').eq('tipo','producao');
+  if(r.error) throw r.error; return r.data||[];
+}
+async function orcProducaoLer(nome){
+  const todos=await orcProducaoTodos();
+  return todos.find(x=>norm(x.projeto_nome)===norm(nome))||null;
+}
+async function orcProducaoGravar(nome,capitulos,ficheiro){
+  const total=Object.values(capitulos||{}).reduce((s,x)=>s+(+x||0),0);
+  const row={projeto_nome:nome,tipo:'producao',capitulos,total:Math.round(total*100)/100,ficheiro,atualizado:new Date().toISOString()};
+  const ex=await sb.from('orcamento').select('id').eq('tipo','producao').eq('projeto_nome',nome).maybeSingle();
+  if(ex.error) return {error:ex.error};
+  return ex.data ? await sb.from('orcamento').update(row).eq('id',ex.data.id)
+                 : await sb.from('orcamento').insert(Object.assign(row,{criado:new Date().toISOString()}));
+}
+
 /* ================= ORÇAMENTAÇÃO (semáforo de consolidação) ================= */
 function detectSummary(rows){
   let hr=-1;
@@ -65,14 +106,14 @@ async function _saveOrcBoard(){
   if(!SESSION){toast("Inicia sessão para gravar o orçamento em curso.");return}
   if(!ORC_ROWS.length){toast("Nada para gravar — arranca o orçamento primeiro.");return}
   const nome=(ORC_META.nome||document.getElementById('orcNome').value.trim()||"Projeto");
-  const {error}=await sb.from('orcamentos').upsert({projeto_nome:nome,meta:ORC_META,linhas:ORC_ROWS,atualizado:new Date().toISOString()},{onConflict:'projeto_nome'});
-  if(error){alertx("Erro a gravar o orçamento: "+error.message+"\n(Corre o supabase_update_orcamentos.sql se ainda não o fizeste.)");return}
+  const {error}=await orcGravarAtual(nome,ORC_META,ORC_ROWS);
+  if(error){alertx("Erro a gravar o orçamento: "+error.message+"\n(Confirma que o F6_01_consolidacao.sql foi corrido no Supabase.)");return}
   ORC_DIRTY=false; renderOrcKpis();
   toast("Orçamento em curso gravado — "+nome+".");
 }
 async function loadOrcBoard(nome){
   if(!SESSION||!nome)return false;
-  const {data}=await sb.from('orcamentos').select('*').eq('projeto_nome',nome).maybeSingle();
+  let data=null; try{ data=await orcLerAtual(nome); }catch(e){ console.warn('orcLerAtual',e); }
   if(!data)return false;
   ORC_META=data.meta||{nome};
   ORC_ROWS=(data.linhas||[]).map(r=>Object.assign(r,{estado:migrarEstado(r.estado)}));
@@ -333,4 +374,4 @@ function exportOrcamento(){
   XLSX.writeFile(wb,("Orcamento_"+ORC_META.nome).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('05-orcamentacao','3.2.0');
+APP_REGISTAR('05-orcamentacao','3.3.0');

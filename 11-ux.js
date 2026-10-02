@@ -12,17 +12,8 @@ function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classLi
 
 (function uxMount(){
   const nav=document.querySelector('header nav'); if(!nav) return;
-  // novos ecrãs
-  const main=document.querySelector('main');
-  if(main && !document.getElementById('view-resumo')){
-    const vr=uxEl('div',{id:'view-resumo',class:'hidden'}, uxPurpose('Projeto ativo','Resumo do projeto','Em que ponto está o projeto ativo em cada fase do ciclo e o que falta fazer. Os números vêm do que já foi gravado: análises do MQ, orçamento em curso, consultas e adjudicações.')+'<div id="rsBody"></div>');
-    main.insertBefore(vr, main.firstChild);
-    const va=uxEl('div',{id:'view-admin',class:'hidden'}, uxPurpose('Administração','Projetos, versões e fases','Eliminar projetos e consultar as versões gravadas do orçamento. Separado da Biblioteca para evitar ações irreversíveis por engano.'));
-    main.appendChild(va);
-    ['lib-pane-gerir','lib-pane-ver'].forEach(id=>{const p=document.getElementById(id); if(p) va.appendChild(p);});
-    ['lib-tab-gerir','lib-tab-ver'].forEach(id=>{const b=document.getElementById(id); if(b) b.setAttribute('data-uxhide','');});
-  }
-  // barra lateral: 5 áreas (Fase 2). Os separadores de cada área desenham-se em showView.
+  /* Fase 6: os ecrãs (Resumo, Administração, Segmentos e referência), os textos dos botões e
+     as opções avançadas do Estimador estão diretamente no index.html; aqui só se monta o menu. */
   const B=id=>document.getElementById(id);
   const items=AREAS.filter(a=>a.k!=='admin').map(a=>{ const b=uxEl('button',{id:'nava-'+a.k,type:'button'}); b.textContent=a.t; b.onclick=()=>abrirArea(a.k); return b; });
   items.push(uxEl('div',{class:'navsep'}));
@@ -32,56 +23,25 @@ function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classLi
   const out=B('btnLogout');
   nav.innerHTML=''; items.forEach(i=>nav.appendChild(i)); if(out) nav.appendChild(out);
   document.querySelectorAll('.purpose .toggle').forEach(b=>{b.textContent='Como funciona';});
-  // Desvios → Executar; Relatório para o topo do Benchmark
-  const dv=B('vfDvCard'), ex=B('view-execucao'); if(dv&&ex) ex.appendChild(dv);
-  const rb=B('vfBoardCard'), cp=B('view-comparar'); if(rb&&cp){const pu=cp.querySelector('.purpose'); if(pu&&pu.nextSibling) cp.insertBefore(rb,pu.nextSibling); else cp.insertBefore(rb,cp.firstChild);}
-  // botões: uma ação principal, restantes secundárias; sem .json
-  document.querySelectorAll('button').forEach(b=>{
-    const t=(b.textContent||'').trim();
-    if(/\(\.json\)/.test(t)) b.setAttribute('data-uxhide','');
-    if(t==='Mapear colunas manualmente'||t==='Analisar pricing sheet completo'){b.classList.remove('navy','red','teal');b.classList.add('uxlink');}
-    if(t==='Analisar mapa de quantidades') t && (b.textContent='Analisar ficheiro');
-    if(t==='Gravar na biblioteca') b.textContent='Gravar análise';
-  });
-  // Estimador: opções avançadas recolhidas
-  const eb=[...document.querySelectorAll('#view-estimador button')].find(b=>(b.getAttribute('onclick')||'').indexOf('runEstimador')===0);
-  if(eb){
-    const grid=eb.closest('.grid'); const card=grid&&grid.closest('.card');
-    if(grid&&card&&!card.querySelector('details.uxadv')){
-      const det=uxEl('details',{class:'uxadv'},'<summary>Opções avançadas <span style="font-weight:400;color:var(--ink-500)">— base de cálculo, fonte dos rácios, inflação, calibração, kit-tipo, soft costs</span></summary>');
-      const g2=uxEl('div',{class:'grid g6'});
-      [...grid.children].forEach(ch=>{ if(!ch.contains(eb)) g2.appendChild(ch); });
-      det.appendChild(g2);
-      const assum=card.querySelector('.assum'); if(assum) det.appendChild(assum);
-      grid.style.gridTemplateColumns='repeat(6,minmax(0,1fr))';
-      card.appendChild(det);
-      const h2=card.querySelector('.step h2'); if(h2) h2.textContent='Calcular';
-      const hint=uxEl('div',{class:'hint'},'Os valores por omissão são os recomendados. Abre as opções avançadas só se precisares de outro método.');
-      grid.parentNode.insertBefore(hint,grid);
-    }
-  }
-  // Revisão do MQ: resultados em separadores
+  // Mapa de quantidades: resultados em separadores
   uxMountTabs();
   // começar no Resumo
   try{ showView('resumo'); }catch(e){}
 })();
 
+/* Separadores dos resultados do MQ. Sem MutationObserver: quem mostra ou esconde um
+   cartão de resultados (runAnalysis, analisarPricingCompleto) chama uxTabSync(). */
 function uxMountTabs(){
   const res=document.getElementById('results'); if(!res||res.querySelector('.uxtabs')) return;
   const cards=[...res.children].filter(c=>c.classList&&c.classList.contains('card'));
   if(cards.length<3) return;
   const pick=re=>cards.find(c=>re.test((c.querySelector('h2')||{}).textContent||''));
-  const T=[['Alertas',pick(/Alertas/)],['Custos',pick(/Custos por cap/)],['Quantidades',pick(/Quantidades f/)],['Rácios',pick(/rácio vs/i)],['Alterações',pick(/Track changes/)]].filter(x=>x[1]);
+  const T=[['Alertas',pick(/Alertas/)],['Custos',pick(/Custos por cap/)],['Quantidades',pick(/Quantidades f/)],['Rácios',pick(/rácio vs/i)],['Alterações',pick(/Alterações face/)]].filter(x=>x[1]);
   const bar=uxEl('div',{class:'uxtabs'});
-  T.forEach(([lbl,card],i)=>{
-    const b=uxEl('button',{},lbl); b.onclick=()=>uxTab(i);
-    bar.appendChild(b);
-    const h2=card.querySelector('h2'); if(h2 && /Track changes/.test(h2.textContent)) h2.firstChild && (h2.firstChild.nodeType===3) && (h2.firstChild.textContent=h2.firstChild.textContent.replace('Track changes vs. revisão anterior','Alterações face à revisão anterior'));
-  });
+  T.forEach(([lbl],i)=>{ const b=uxEl('button',{},lbl); b.onclick=()=>uxTab(i); bar.appendChild(b); });
   cards[0].after(bar);
   window.__uxTabs=T; window.__uxTabBar=bar; window.__uxTabCur=0;
   uxTab(0);
-  new MutationObserver(()=>uxTabSync()).observe(res,{attributes:true,subtree:true,attributeFilter:['class']});
 }
 function uxTabSync(){
   const T=window.__uxTabs, bar=window.__uxTabBar; if(!T||!bar) return;
@@ -122,10 +82,10 @@ async function uxRenderResumo(){
   if(online){
     const proj=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(p=>norm(p.nome)===norm(nome));
     try{ if(proj){ const r=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('id',{ascending:false}).limit(1); an=(r.data&&r.data[0])||null; } }catch(e){}
-    try{ const r=await sb.from('orcamentos').select('*').eq('projeto_nome',nome).maybeSingle(); orc=r.data||null; }catch(e){}
+    try{ orc=await orcLerAtual(nome); }catch(e){}
     try{ if(!CONSULTAS||!CONSULTAS.length) await loadConsultas(); cons=(CONSULTAS||[]).filter(c=>norm(c.projeto)===norm(nome)); }catch(e){}
     try{ const r=await sb.from('adjudicacoes').select('*').eq('projeto',nome); adj=r.data||[]; }catch(e){}
-    try{ const r=await sb.from('orcamento_versoes').select('*').eq('projeto_nome',nome).order('versao',{ascending:false}).limit(1); ver=(r.data&&r.data[0])||null; }catch(e){}
+    try{ ver=(await orcVersoes(nome,1))[0]||null; }catch(e){}
   }
   // orçamento
   const linhas=(orc&&orc.linhas)||[];
@@ -185,27 +145,10 @@ async function uxRenderResumo(){
   AREAS.forEach(a=>addIc(document.getElementById('nava-'+a.k),a.ic));
   addIc(document.getElementById('nav-ajuda'),'circle-help');
   addIc(document.getElementById('btnLogout'),'log-out');
-  // títulos curtos + subtítulo (a explicação longa fica em «Como funciona»)
-  const T={
-    resumo:['Resumo do projeto','Em que ponto está cada fase do projeto ativo'],
-    estimador:['Estimativa para o BP','Custo estimado a partir dos descritores e da biblioteca'],
-    analisador:['Mapa de quantidades','Rever o MQ do projetista e orçamentá-lo com o custo real'],
-    orcamento:['Orçamento','Consolidação por capítulo, com semáforo de fonte do preço'],
-    consultas:['Consultas ao mercado','Registo de consultas e mapa comparativo de propostas'],
-    execucao:['Adjudicações e desvios','Do estimado ao real, capítulo a capítulo'],
-    comparar:['Benchmark','Comparar projetos lado a lado'],
-    biblioteca:['Biblioteca','Rácios e taxonomia acumulados pela Solive'],
-    admin:['Administração','Projetos, versões e fases']
-  };
-  Object.entries(T).forEach(([v,[t,s]])=>{
-    const p=document.querySelector('#view-'+v+' .purpose'); if(!p) return;
-    const h1=p.querySelector('h1'); if(h1) h1.textContent=t;
-    if(!p.querySelector('.subtitle') && h1) h1.insertAdjacentHTML('afterend','<p class="subtitle">'+s+'</p>');
-  });
   document.querySelectorAll('.purpose .toggle').forEach(b=>addIc(b,'circle-help'));
   // ícones nos botões, pelo texto
   const RULES=[[/^exportar|excel|descarregar/i,'download'],[/^gravar|^guardar/i,'save'],[/^importar|^carregar|^largar/i,'upload'],[/arrancar/i,'sparkles'],[/^registar|^adicionar|^novo|^nova|^abrir/i,'plus'],[/^editar/i,'pencil'],[/^eliminar|^apagar/i,'trash-2'],[/^comparar/i,'git-compare'],[/^repor/i,'rotate-ccw'],[/^aplicar/i,'check'],[/^cancelar|^fechar/i,'x'],[/^o que significam/i,'book-open']];
-  const iconize=root=>root.querySelectorAll('.btn,.btnctx').forEach(b=>{
+  const iconize=window.uxIcones=root=>(root||document).querySelectorAll('.btn,.btnctx').forEach(b=>{
     const t=(b.textContent||'').trim(); const r=RULES.find(([re])=>re.test(t)); if(r) addIc(b,r[1]);
     const first=b.firstChild; if(first&&first.nodeType===3&&/^\s*\?\s*/.test(first.nodeValue)&&/\?/.test(first.nodeValue)) first.nodeValue=first.nodeValue.replace(/^\s*\?\s*/,'');
   });
@@ -222,13 +165,8 @@ async function uxRenderResumo(){
     box.querySelector('button').onclick=e=>{ const i=document.getElementById('ctxNome'); if(i){ i.focus(); } try{ toggleCtxLista(e); }catch(err){} };
     const pu=view.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',box); else view.prepend(box);
   });
-  const sync=()=>{ let has=false; try{ has=!!(CTX&&CTX.nome); }catch(e){} document.body.classList.toggle('no-project',!has); };
-  try{ const _r=ctxRender; ctxRender=function(){ const out=_r.apply(this,arguments); sync(); return out; }; }catch(e){}
-  sync();
-  // conteúdo desenhado depois (tabelas, modais): voltar a pôr ícones
-  let pend=false; const target=document.querySelector('main')||document.body;
-  const mo=new MutationObserver(()=>{ if(pend) return; pend=true; requestAnimationFrame(()=>{ mo.disconnect(); iconize(document); pend=false; mo.observe(target,{childList:true,subtree:true}); }); });
-  mo.observe(target,{childList:true,subtree:true});
+  try{ document.body.classList.toggle('no-project',!(CTX&&CTX.nome)); }catch(e){}
+  /* conteúdo desenhado depois (tabelas, modais): showView volta a pôr os ícones na vista aberta — sem MutationObserver */
 })();
 
 /* ═══════════ Explicações por separador (para que serve · passos · resultado · ciclo) ═══════════ */
@@ -238,6 +176,9 @@ async function uxRenderResumo(){
   TX.analisador={"s":"Rever o MQ do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços. O mesmo ficheiro serve depois para o orçamentar.","st":["Carrega o MQ (.xlsx) no cartão do topo — ou larga-o em Importar, que o traz para aqui.","Escolhe a folha e carrega em «Analisar ficheiro». Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca.","Passa a «Orçamentar o MQ» para teres um preço por linha."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"precomq"};
   TX.precomq={"s":"Preencher o mapa de quantidades com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Carrega o MQ no cartão do topo (é o mesmo do separador «Rever o MQ»).","Define o uplift de instalação e a base de custo (todas as obras, só uma, ou um segmento).","Carrega em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"};
   TX.importar={"s":"Um só sítio para largar qualquer ficheiro","p":"Largas o Excel e a plataforma reconhece o que é — mapa de quantidades, auto de medição, pricing sheet, proposta, resumo do orçamento, orçamento transferido, ficheiro de compras ou preços adjudicados da Legendre-PO — e leva-o para o ecrã certo.","st":["Confirma o projeto ativo na barra do topo (o ficheiro de compras não precisa).","Larga o ficheiro .xlsx/.xlsm na zona de importação.","Confirma o tipo que a plataforma sugere, ou escolhe outro em «Não é isso?».","Continua no ecrã para onde o ficheiro foi levado."],"r":"O ficheiro processado no ecrã certo, sem teres de saber onde ele entra."};
+  TX.biblioteca={"s":"Capítulos, drivers de escala e regras de mapeamento","p":"Configurar como a plataforma classifica e escala os custos: a taxonomia de capítulos (driver, expoente, inflação, sensibilidade ao segmento) e todas as regras que levam um texto do Excel a um capítulo ou a uma categoria Legendre.","st":["Revê o driver e o expoente de cada capítulo — é o motor da Estimativa.","Marca os capítulos de acabamento como sensíveis ao segmento.","Quando um ficheiro usa uma designação que a plataforma não reconhece, acrescenta a regra em «Regras de mapeamento».","Grava a taxonomia."],"r":"Estimativas e leituras de ficheiros coerentes, configuradas num só sítio."};
+  TX.config={"s":"Índice entre segmentos e projeto de referência","p":"Definir quanto vale cada segmento face ao médio (para converter preços quando falta histórico no segmento do projeto) e qual é o projeto de referência.","st":["Carrega em «Calcular sugestão a partir da biblioteca» para ver o que os dados indicam.","Ajusta os índices e carrega em «Gravar índices».","Escolhe o projeto de referência e carrega em «Gravar referência»."],"r":"Preços de outros segmentos convertidos de forma explícita e uma referência escolhida por ti."};
+  TX.admin={"s":"Versões gravadas do orçamento e eliminação de projetos","p":"Tarefas de manutenção, separadas das restantes para evitar ações irreversíveis por engano.","st":["Escolhe o projeto em «Versões do orçamento» para ver as versões gravadas e as diferenças entre elas.","Para eliminar um projeto, escolhe-o em «Gerir / eliminar projetos», confirma as contagens e escreve o nome exato."],"r":"Uma lista de projetos limpa e o histórico de versões à mão."};
   const NAMES={"estimador":"Estimativa para o BP","analisador":"Mapa de quantidades","orcamento":"Orçamento","consultas":"Consultas ao mercado","precomq":"Orçamentar o MQ","execucao":"Adjudicações e desvios","verificar":"Autos de medição"};
   const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
@@ -282,4 +223,4 @@ async function uxRenderResumo(){
     }catch(e){} };
 })();
 
-APP_REGISTAR('11-ux','3.2.0');
+APP_REGISTAR('11-ux','3.3.0');

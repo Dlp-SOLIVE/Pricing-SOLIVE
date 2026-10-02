@@ -230,6 +230,7 @@ const ALIAS_CAP={
   "SEGURANÇA CONTRA INCÊNDIOS EM EDIFÍCIOS":"SCIE",
   "INFRAESTRUTURAS DE TELECOMUNICAÇÕES EM EDIFÍCIOS":"ITED"
 };
+const ALIAS_CAP_BASE=Object.assign({},ALIAS_CAP);
 /* garante que o capítulo devolvido existe mesmo na lista ativa */
 /* compara ignorando conectores e plurais: "REVESTIMENTO PAVIMENTOS",
    "REVESTIMENTOS DE PAVIMENTOS" e "REVESTIMENTO EM PAVIMENTO" passam a
@@ -900,4 +901,4 @@ async function resolveFaseExistente(projeto_id,faseTipo){
   }
 }
 
-APP_REGISTAR('04-analisador','3.2.0');
+APP_REGISTAR('04-analisador','3.3.0');

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/lucide.css">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=3.2.0">
+<link rel="stylesheet" href="app.css?v=3.3.0">
 </head>
 <body>
 <header>
@@ -89,6 +89,12 @@
 </div>
 <main>
 <div id="areaTabs" class="areatabs hidden"></div>
+<!-- ===================== VISTA: RESUMO DO PROJETO ===================== -->
+<div id="view-resumo" class="hidden">
+  <div class="purpose"><div class="eyebrow">Projeto</div><h1>Resumo do projeto</h1><p class="subtitle">Em que ponto está cada fase do projeto ativo</p>
+    <p>Em que ponto está o projeto ativo em cada fase do ciclo e o que falta fazer. Os números vêm do que já foi gravado: análises do MQ, orçamento em curso, consultas e adjudicações.</p></div>
+  <div id="rsBody"></div>
+</div>
 <div class="overlay hidden" id="descOverlay">
   <div class="modal" style="max-width:720px">
     <h3>Descritores do projeto</h3>
@@ -130,7 +136,7 @@
   <div class="purpose red" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Mapa de quantidades</h1>
+    <h1>Mapa de quantidades</h1><p class="subtitle">Rever o MQ do projetista e orçamentá-lo com o custo real</p>
     <p>Carrega o mapa de quantidades que o projetista entregou. A plataforma verifica a <b>coerência interna</b> do mapa e sinaliza capítulos fora do padrão histórico, para orientar a tua revisão. Não substitui o confronto com as peças desenhadas — aponta onde olhar primeiro. Preenche os descritores do projeto: são eles que tornam a comparação rigorosa.</p>
     <div class="io"><span class="in">Entra: MQ do projetista (.xlsx)</span><span class="out">Produz: comentários para projetistas (.xlsx)</span><span class="out">Alimenta: Biblioteca e Comparação</span></div>
   </div>
@@ -147,9 +153,9 @@
       <label style="margin-top:14px">Folha a analisar</label>
       <div class="pills" id="sheetPills"></div>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn red" onclick="runAnalysis()">Analisar mapa de quantidades</button>
-        <button class="btn ghost" onclick="openMapper()">Mapear colunas manualmente</button>
-        <button class="btn teal hidden" id="btnPricingCompleto" onclick="analisarPricingCompleto()" title="Lê as ~33 folhas de capítulo, não só a folha selecionada">Analisar pricing sheet completo</button>
+        <button class="btn red" onclick="runAnalysis()">Analisar ficheiro</button>
+        <button class="btn uxlink" onclick="openMapper()">Mapear colunas manualmente</button>
+        <button class="btn uxlink hidden" id="btnPricingCompleto" onclick="analisarPricingCompleto()" title="Lê as ~33 folhas de capítulo, não só a folha selecionada">Analisar pricing sheet completo</button>
       </div>
       <div class="note hidden" id="mapNote"></div>
     </div>
@@ -187,8 +193,7 @@
         <div><label>Tipo de teste</label><select id="fTipo" onchange="renderFindings()"><option value="">Todos</option></select></div>
         <div><label>Capítulo</label><select id="fCap" onchange="renderFindings()"><option value="">Todos</option></select></div>
         <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn teal hidden" id="btnGravarAnalise" onclick="saveAnalysis()">Gravar na biblioteca</button>
-          <button class="btn ghost" onclick="exportJSON()">Guardar análise (.json)</button>
+          <button class="btn teal hidden" id="btnGravarAnalise" onclick="saveAnalysis()">Gravar análise</button>
           <button class="btn navy" onclick="exportComentarios()">Exportar comentários (.xlsx)</button>
         </div>
       </div>
@@ -234,10 +239,10 @@
 
     <div class="card">
       <h2>Sinais de rácio vs. histórico</h2>
-      <div class="hint">Quantidades agregadas por capítulo comparadas com os rácios do L'Urbain (normalizadas por ABC). Desvios acima de ±50% são <b>sinais a verificar contra as peças desenhadas</b>, não erros confirmados — o mapa mediu a mais, a menos, ou o projeto é simplesmente diferente. Servem para focar a revisão.</div>
+      <div class="hint">Quantidades agregadas por capítulo comparadas com o histórico de todos os projetos gravados (normalizadas por ABC; com um só projeto, o de referência). Desvios acima de ±50% são <b>sinais a verificar contra as peças desenhadas</b>, não erros confirmados — o mapa mediu a mais, a menos, ou o projeto é simplesmente diferente. Servem para focar a revisão.</div>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Capítulo</th><th style="width:56px">Un</th><th style="text-align:right">Qt. no MQ</th><th style="text-align:right">Rácio MQ /m² ABC</th><th style="text-align:right">Rácio L'Urbain /m² ABC</th><th style="text-align:right">Desvio</th></tr></thead>
+        <thead><tr><th>Capítulo</th><th style="width:56px">Un</th><th style="text-align:right">Qt. no MQ</th><th style="text-align:right">Rácio MQ /m² ABC</th><th style="text-align:right">Rácio histórico /m² ABC</th><th style="text-align:right">Desvio</th></tr></thead>
         <tbody id="tbRatios"></tbody>
       </table>
       </div>
@@ -245,7 +250,7 @@
     </div>
 
     <div class="card">
-      <h2>Track changes vs. revisão anterior <span class="tag" id="trackTag"></span>
+      <h2>Alterações face à revisão anterior <span class="tag" id="trackTag"></span>
         <button class="btn navy hidden" id="btnExportTrack" style="float:right;padding:6px 14px" onclick="exportTrack()">Exportar (.xlsx)</button>
       </h2>
       <div class="hint">Compara este mapa com a última análise gravada do mesmo projeto (por nome), artigo a artigo: o que foi adicionado, removido ou alterado (quantidade, unidade ou descrição). Útil para verificar se a revisão do projetista respondeu aos teus comentários.</div>
@@ -270,7 +275,7 @@
   <div class="purpose red" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Estimativa rápida para o Business Plan</h1>
+    <h1>Estimativa para o BP</h1><p class="subtitle">Custo estimado a partir dos descritores e da biblioteca</p>
     <p>Na fase inicial só tens os descritores do projeto e o budget do BP. O estimador aplica os rácios de custo da biblioteca aos teus descritores e devolve uma estimativa por capítulo, com o intervalo do que os projetos históricos implicam — e confronta o total com o teu budget. Idealmente alimentado por custos reais de obra; quanto mais projetos fechados, mais fiável.</p>
     <div class="io"><span class="in">Usa: rácios da Biblioteca</span><span class="in">Entra: descritores + budget do BP</span><span class="out">Produz: estimativa por capítulo com intervalo</span></div>
     <div class="note" style="margin-top:10px">Método <b>top-down</b>: estima a partir dos descritores (ABC, fogos), sem precisar de um mapa de quantidades. <span class="infodot" data-tip="Usa rácios históricos EUR/m2 e EUR/fogo por capítulo, com inflação e calibração. Ideal na fase de Business Plan.">i</span></div>
@@ -287,7 +292,12 @@
   </div>
 
   <div class="card">
-    <div class="step"><div class="n">2</div><h2>Parâmetros do cálculo</h2></div>
+    <div class="step"><div class="n">2</div><h2>Calcular</h2></div>
+    <div class="hint">Os valores por omissão são os recomendados. Abre as opções avançadas só se precisares de outro método.</div>
+    <div class="grid g6" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn red" style="width:100%;justify-content:center" onclick="runEstimador()">Estimar</button></div>
+    </div>
+    <details class="uxadv"><summary>Opções avançadas <span style="font-weight:400;color:var(--ink-500)">— base de cálculo, fonte dos rácios, inflação, calibração, kit-tipo, soft costs</span></summary>
     <div class="grid g6">
       <div style="grid-column:span 2"><label>Base de cálculo</label><select id="estBase">
         <option value="driver">Driver físico por capítulo (recomendado)</option>
@@ -312,7 +322,6 @@
       <div style="grid-column:span 2"><label>Soft costs</label><select id="estSoft">
         <option value="off">Só hard costs</option>
         <option value="on">Acrescentar camada de soft costs</option></select></div>
-      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn red" style="width:100%;justify-content:center" onclick="runEstimador()">Estimar</button></div>
     </div>
     <div class="assum">
       <b>Pressupostos deste cálculo</b>
@@ -325,6 +334,7 @@
         <li><b>Intervalo:</b> é o envelope mínimo–máximo dos projetos na base, não um intervalo de confiança estatístico.</li>
       </ul>
     </div>
+    </details>
   </div>
 
   <div id="estResults" class="hidden">
@@ -376,7 +386,7 @@
   <div class="purpose red" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Orçamentar com semáforo de consolidação</h1>
+    <h1>Orçamento</h1><p class="subtitle">Consolidação por capítulo, com semáforo de fonte do preço</p>
     <p>Cada capítulo começa em estimativa por rácio (vermelho) e vai ganhando solidez à medida que consultas o mercado e recebes propostas. Marca o estado de cada capítulo e vê, a qualquer momento, quanto do orçamento já é sólido e quanto ainda é aposta. A cor segue a melhor evidência disponível: rácio → em consulta → proposta antiga → proposta firme → compromisso do subempreiteiro. O compromisso é o máximo que se consegue nesta fase: a empreitada só é contratada pela equipa de Produção, depois da transferência.</p>
     <div class="io"><span class="in">Arranca de: estimativa por rácios</span><span class="out">Produz: orçamento com índice de consolidação</span></div>
   </div>
@@ -459,7 +469,7 @@
   <div class="purpose amber" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Consultas ao mercado e mapa comparativo de propostas</h1>
+    <h1>Consultas ao mercado</h1><p class="subtitle">Registo de consultas e mapa comparativo de propostas</p>
     <p>É aqui que o orçamento deixa de ser rácio e passa a ser preço de mercado. Regista a quem consultaste e quando, lança as propostas recebidas e compara-as lado a lado por capítulo. A proposta que escolheres passa diretamente para o orçamento com o semáforo aceso — e fica no histórico do fornecedor para consultas futuras.</p>
     <div class="io"><span class="in">Entra: consultas e propostas de subempreiteiros</span><span class="out">Produz: mapa comparativo + adjudicação</span><span class="out">Alimenta: Orçamentação e histórico de fornecedores</span></div>
   </div>
@@ -536,7 +546,7 @@
   <div class="purpose" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Portão de execução &mdash; do estimado ao real, sem perder o rasto</h1>
+    <h1>Adjudicações e desvios</h1><p class="subtitle">Do estimado ao real, capítulo a capítulo</p>
     <p>Regista o <b>preço adjudicado</b> de cada pacote quando fechas com o subempreiteiro, e as <b>varia&ccedil;&otilde;es</b> que surgem em obra &mdash; cada uma com um <b>motivo</b>. Assim a biblioteca aprende do pre&ccedil;o de contrato (limpo), e o desvio de execu&ccedil;&atilde;o vira contingência medida, n&atilde;o um palpite. &Eacute; o mecanismo que protege a margem.</p>
     <div class="io"><span class="in">Entra: adjudica&ccedil;&otilde;es + varia&ccedil;&otilde;es</span><span class="out">Serve: r&aacute;cios limpos + contingência</span></div>
   </div>
@@ -594,14 +604,14 @@
   <div class="purpose amber" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Comparar projetos lado a lado</h1>
-    <p>Confronta os projetos da biblioteca em descritores, custos e quantidades físicas, tudo normalizado por m² de ABC, por fogo ou por implantação. Serve para perceber onde um projeto novo se afasta do histórico e para calibrar estimativas. O L'Urbain está sempre presente como referência.</p>
+    <h1>Benchmark</h1><p class="subtitle">Comparar projetos lado a lado</p>
+    <p>Confronta os projetos da biblioteca em descritores, custos e quantidades físicas, tudo normalizado por m² de ABC, por fogo ou por implantação. Serve para perceber onde um projeto novo se afasta do histórico e para calibrar estimativas. O projeto de referência (Administração › Segmentos e referência) aparece na primeira coluna.</p>
     <div class="io"><span class="in">Usa: projetos gravados na Biblioteca</span><span class="out">Produz: leitura comparativa de rácios</span></div>
   </div>
 
   <div class="card">
     <h2>Análise comparativa entre projetos</h2>
-    <div class="hint">Projetos em colunas, indicadores em linhas. Os descritores do envelope vêm do que introduziste; as quantidades físicas e os rácios são calculados a partir dos mapas analisados e gravados. O L'Urbain está sempre presente como referência.</div>
+    <div class="hint">Projetos em colunas, indicadores em linhas. Os descritores do envelope vêm do que introduziste; as quantidades físicas e os rácios são calculados a partir dos mapas analisados e gravados. O projeto de referência (Administração › Segmentos e referência) aparece na primeira coluna.</div>
     <div class="note" id="cmpOffline"></div>
     <div style="overflow-x:auto" id="cmpWrap">
     <table id="cmpTable">
@@ -617,9 +627,9 @@
   <div class="purpose" data-fold>
     <button class="toggle" onclick="foldPurpose(this)">esconder</button>
     <div class="eyebrow">O que fazer aqui</div>
-    <h1>Biblioteca de rácios — o conhecimento acumulado da Solive</h1>
+    <h1>Taxonomia e regras</h1><p class="subtitle">Capítulos, drivers de escala e regras de mapeamento</p>
     <p>É o repositório central que consultas ao preparar um orçamento novo: rácios de custo e de quantidades por capítulo, para cada projeto e cada fase. Não se preenche aqui diretamente — cada projeto entra automaticamente a partir do <b>Analisador</b> (descritores e quantidades, ao gravar uma análise) e do <b>Fecho de Obra</b> (custos reais). Quantos mais projetos fechares, mais rigorosa fica a estimativa.</p>
-    <div class="io"><span class="in">Entra: Analisador + Fecho de Obra</span><span class="out">Serve: orçamentação e Comparação</span></div>
+    
   </div>
 
   <button class="btn ghost" style="margin:2px 0 8px" onclick="toggleGloss()">? O que significam estes termos?</button>
@@ -627,17 +637,12 @@
     <h4>Guia rápido &mdash; grandezas e referências</h4>
     <dl>
       <dt>Preços unitários (orçamento)</dt><dd>Mediana histórica do preço por família de artigo, reunida de vários projetos e autos. Serve para <b>estimar</b> quando ainda não há custo real.</dd>
-      <dt>Custo real (L&rsquo;Urbain)</dt><dd>O custo <b>efetivamente pago</b> pela construtora neste projeto &mdash; de subempreitadas e fornecimentos. É <b>custo</b>, não preço de venda.</dd>
+      <dt>Custo real</dt><dd>O custo <b>efetivamente pago</b> pela construtora neste projeto &mdash; de subempreitadas e fornecimentos. É <b>custo</b>, não preço de venda.</dd>
       <dt>Aplicar a MQ</dt><dd>Pegar num mapa de quantidades novo e atribuir-lhe preços (orçamento ou custo real) para obter uma estimativa.</dd>
       <dt>Âmbito: F&amp;A / mão de obra / fornecimento</dt><dd><b>F&amp;A</b> = fornecimento e aplicação (custo instalado completo). <b>Mao de obra</b> = só aplicação (material comprado a parte). <b>Fornecimento</b> = só material.</dd>
       <dt>Composto</dt><dd>Custo instalado montado a partir de componentes: <b>mão de obra + material</b> (ex.: assentamento + ceramica).</dd>
       <dt>Mediana &middot; P10&ndash;P90 &middot; dispersão</dt><dd>Estatística dos preços: a <b>mediana</b> é o valor central; <b>P10&ndash;P90</b> a banda habitual; a <b>dispersão</b> indica quão variável é o preço.</dd>
     </dl>
-  </div>
-  <div class="subtabs">
-    <button id="lib-tab-tax" class="on" onclick="libTab('tax')">Taxonomia e drivers</button>
-    <button id="lib-tab-gerir" onclick="libTab('gerir')">Gerir projetos</button>
-    <button id="lib-tab-ver" onclick="libTab('ver')">Vers&otilde;es e fases</button>
   </div>
 
   <div id="lib-pane-tax">
@@ -649,7 +654,7 @@
       <div class="hint">Esta tabela é o motor do estimador. Para cada capítulo define-se a grandeza física que comanda o custo (<b>driver</b>), o <b>expoente de escala</b> (1 = cresce proporcionalmente; &lt;1 = tem componente fixa) e o <b>índice de inflação</b> aplicável. Editável aqui e gravada na base — não é preciso republicar a plataforma.</div>
       <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>Capítulo</th><th style="width:230px">Driver</th><th style="width:110px;text-align:right">Expoente</th><th style="width:180px">Índice de inflação</th><th>Racional</th><th style="width:52px"></th></tr></thead>
+        <thead><tr><th>Capítulo</th><th style="width:230px">Driver</th><th style="width:110px;text-align:right">Expoente</th><th style="width:180px">Índice de inflação</th><th style="width:90px">Sensível ao segmento</th><th>Racional</th><th style="width:52px"></th></tr></thead>
         <tbody id="tbTax"></tbody>
       </table>
       </div>
@@ -666,22 +671,34 @@
       </div>
 
       <div class="card" style="margin-top:16px;background:#fafbfd">
-        <h2 style="font-size:13px">Regras de reconhecimento de capítulo</h2>
-        <div class="hint">Quando o mapa de um projetista usa uma designação que a plataforma não reconhece, acrescenta aqui a regra. Fica gravada e passa a aplicar-se a todos os mapas seguintes.</div>
+        <h2 style="font-size:13px">Regras de mapeamento</h2>
+        <div class="hint">Todas as regras que levam um texto do Excel a um capítulo, num só sítio: <b>texto → capítulo</b> (descrições e nomes de folha, MQ e pricing sheets), <b>capítulo de origem → capítulo</b> (nomes de capítulo usados por gabinetes e subempreiteiros; os confirmados nos autos entram aqui sozinhos) e <b>capítulo → categoria Legendre</b> (desvios na vista Legendre). As tuas regras aplicam-se antes das embutidas. As embutidas não se apagam — desligam-se.</div>
         <div class="grid g6">
-          <div style="grid-column:span 3"><label>Texto ou expressão a reconhecer</label><input type="text" id="taxRegex" placeholder="ex.: REDES PREDIAIS"></div>
-          <div style="grid-column:span 2"><label>Capítulo standard</label><select id="taxCap"></select></div>
+          <div style="grid-column:span 2"><label>Tipo</label><select id="rgTipo"><option value="texto">Texto → capítulo</option><option value="capitulo">Capítulo de origem → capítulo</option><option value="legendre">Capítulo → categoria Legendre</option></select></div>
+          <div style="grid-column:span 2"><label>Texto a reconhecer</label><input type="text" id="taxRegex" placeholder="ex.: REDES PREDIAIS"></div>
+          <div><label>Destino</label><input type="text" id="taxCap" list="rgDestinos" placeholder="capítulo ou categoria"><datalist id="rgDestinos"></datalist></div>
           <div style="display:flex;align-items:end"><button class="btn navy" style="width:100%;justify-content:center" onclick="addRegraCap()">Acrescentar</button></div>
         </div>
-        <div style="overflow-x:auto;margin-top:12px">
-        <table><thead><tr><th>Expressão</th><th>Capítulo</th><th style="width:60px"></th></tr></thead><tbody id="tbRegras"></tbody></table>
+        <div style="display:flex;gap:10px;align-items:end;margin-top:14px;flex-wrap:wrap">
+          <div><label>Mostrar</label><br><select id="rgFiltro" onchange="renderRegras()"><option value="">Todas</option><option value="texto">Texto → capítulo</option><option value="capitulo">Capítulo de origem → capítulo</option><option value="legendre">Capítulo → categoria Legendre</option></select></div>
+          <div><label>Procurar</label><br><input type="text" id="rgProcura" oninput="renderRegras()" placeholder="texto ou capítulo" style="min-width:220px"></div>
+          <span class="hint" id="rgNota" style="margin:0 0 8px"></span>
+        </div>
+        <div style="overflow-x:auto;margin-top:8px;max-height:460px;overflow-y:auto">
+        <table><thead><tr><th style="width:210px">Tipo</th><th>Texto a reconhecer</th><th>Destino</th><th style="width:80px;text-align:right">Prioridade</th><th style="width:100px">Origem</th><th style="width:80px"></th><th style="width:50px"></th></tr></thead><tbody id="tbRegras"></tbody></table>
         </div>
       </div>
     </div>
   </div>
 
 
-  <div id="lib-pane-gerir" class="hidden">
+</div>
+
+<!-- ===================== VISTA: ADMINISTRAÇÃO · PROJETOS E VERSÕES ===================== -->
+<div id="view-admin" class="hidden">
+  <div class="purpose"><div class="eyebrow">Administração</div><h1>Projetos e versões</h1><p class="subtitle">Versões gravadas do orçamento e eliminação de projetos</p>
+    <p>Eliminar projetos e consultar as versões gravadas do orçamento. Separado do resto para evitar ações irreversíveis por engano.</p></div>
+  <div id="lib-pane-gerir">
     <div class="card">
       <h2>Gerir / eliminar projetos</h2>
       <div class="hint">Elimina um projeto e <b>todos os dados associados</b> &mdash; an&aacute;lises, fases, cap&iacute;tulos, pre&ccedil;os unit&aacute;rios, consultas, vers&otilde;es, or&ccedil;amento, autos de medi&ccedil;&atilde;o verificados, or&ccedil;amento transferido e adjudica&ccedil;&otilde;es. A&ccedil;&atilde;o <b>irrevers&iacute;vel</b>: exporta primeiro. As bibliotecas partilhadas (taxonomia, r&aacute;cios) <b>n&atilde;o</b> s&atilde;o tocadas.</div>
@@ -700,7 +717,7 @@
     </div>
   </div>
 
-  <div id="lib-pane-ver" class="hidden">
+  <div id="lib-pane-ver">
     <div class="card">
       <h2>Vers&otilde;es do or&ccedil;amento <span class="badge" id="verTag" style="background:#eef2f8;color:var(--navy);font-weight:500">&mdash;</span></h2>
       <div class="hint">Cada &quot;Gravar em curso&quot; na Or&ccedil;amenta&ccedil;&atilde;o cria uma vers&atilde;o com o total, a % consolidada e o coment&aacute;rio que escreveste. Aqui v&ecirc;s o hist&oacute;rico, comparas duas vers&otilde;es capítulo a capítulo e repes qualquer uma no quadro de or&ccedil;amenta&ccedil;&atilde;o.</div>
@@ -722,10 +739,16 @@
       </div>
     </div>
   </div>
+</div>
 
+<!-- ===================== VISTA: ADMINISTRAÇÃO · SEGMENTOS E REFERÊNCIA ===================== -->
+<div id="view-config" class="hidden">
+  <div class="purpose"><div class="eyebrow">Administração</div><h1>Segmentos e referência</h1><p class="subtitle">Índice entre segmentos e projeto de referência</p>
+    <p>Duas definições que afetam todas as estimativas: quanto vale cada segmento face ao médio (para converter preços quando falta histórico) e qual é o projeto de referência.</p></div>
+  <div id="cfgBody"></div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.2.0</span> <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.3.0</span> <span id="selfTestFooter"></span></footer>
 
 <!-- ====== BOTÃO DE AJUDA (autoexplicativo) ====== -->
 <button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
@@ -780,7 +803,7 @@
 </div><div class="ajuda-sec" data-area="biblioteca" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Biblioteca — o conhecimento acumulado</h3>
 <p style="margin:0 0 10px">Os preços reais e unitários, a taxonomia e as versões. É o que cresce a cada obra e alimenta as estimativas.</p>
-<p style="margin:0;color:#a06000"><b>Gerir projetos:</b> aqui eliminas um projeto e todos os seus dados. É <b>irreversível</b> — faz export (backup) antes, confirma as contagens, e escreve o nome para confirmar.</p>
+<p style="margin:0 0 10px">A configuração (taxonomia, regras de mapeamento, índice de segmento e projeto de referência) está em <b>Administração</b>.</p><p style="margin:0;color:#a06000"><b>Gerir projetos</b> (Administração › Projetos e versões): aqui eliminas um projeto e todos os seus dados. É <b>irreversível</b> — faz export (backup) antes, confirma as contagens, e escreve o nome para confirmar.</p>
 </div><div class="ajuda-sec" data-area="geral" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Cuidados importantes</h3>
 <ul style="margin:0;padding-left:18px">
@@ -800,22 +823,22 @@
 <script>
 /* Versão da plataforma: muda em CADA entrega e tem de ser igual em todos os ficheiros
    *.js (linha APP_REGISTAR no fim de cada um). O 99-arranque.js confirma. */
-window.APP={versao:"3.2.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
+window.APP={versao:"3.3.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
 window.APP_REGISTAR=function(nome,versao){ APP.carregados[nome]=versao; };
 </script>
-<script src="01-base.js?v=3.2.0"></script>
-<script src="02-execucao.js?v=3.2.0"></script>
-<script src="03-auth-projetos.js?v=3.2.0"></script>
-<script src="04-analisador.js?v=3.2.0"></script>
-<script src="05-orcamentacao.js?v=3.2.0"></script>
-<script src="06-estimador-comparar.js?v=3.2.0"></script>
-<script src="07-motor.js?v=3.2.0"></script>
-<script src="08-contexto.js?v=3.2.0"></script>
-<script src="09-custo-real.js?v=3.2.0"></script>
-<script src="10-ajuda.js?v=3.2.0"></script>
-<script src="11-ux.js?v=3.2.0"></script>
-<script src="12-tipologias.js?v=3.2.0"></script>
-<script src="13-importar.js?v=3.2.0"></script>
-<script src="99-arranque.js?v=3.2.0"></script>
+<script src="01-base.js?v=3.3.0"></script>
+<script src="02-execucao.js?v=3.3.0"></script>
+<script src="03-auth-projetos.js?v=3.3.0"></script>
+<script src="04-analisador.js?v=3.3.0"></script>
+<script src="05-orcamentacao.js?v=3.3.0"></script>
+<script src="06-estimador-comparar.js?v=3.3.0"></script>
+<script src="07-motor.js?v=3.3.0"></script>
+<script src="08-contexto.js?v=3.3.0"></script>
+<script src="09-custo-real.js?v=3.3.0"></script>
+<script src="10-ajuda.js?v=3.3.0"></script>
+<script src="11-ux.js?v=3.3.0"></script>
+<script src="12-tipologias.js?v=3.3.0"></script>
+<script src="13-importar.js?v=3.3.0"></script>
+<script src="99-arranque.js?v=3.3.0"></script>
 </body>
 </html>

@@ -90,6 +90,7 @@ document.addEventListener('click',e=>{
   if(box&&!box.classList.contains('hidden')&&!e.target.closest('#ctxLista')&&e.target.id!=='ctxSeta') box.classList.add('hidden');
 });
 function ctxRender(){
+  document.body.classList.toggle('no-project',!CTX.nome);
   const bar=document.getElementById('ctxDesc'); if(bar) bar.innerHTML=ctxResumoHTML();
   const inp=document.getElementById('ctxNome'); if(inp&&inp.value!==CTX.nome) inp.value=CTX.nome;
   const tag=document.getElementById('ctxNew');
@@ -177,6 +178,92 @@ function segLabel(v){ const s=SEGMENTOS.find(x=>x.v===v); return s? (s.g===s.l?s
 function segOptions(sel){ return '<option value="">— não definido —</option>'+
   SEGMENTOS.map(s=>`<option value="${s.v}"${s.v===sel?' selected':''}>${esc(s.g===s.l?s.l:s.g+" — "+s.l)}</option>`).join(""); }
 function lurbainNaBase(){ return !!(SESSION && PROJETOS.some(p=>norm(p.nome).includes("URBAIN"))) }
+
+/* ═══════════ FASE 6 · índice de segmento e projeto de referência ═══════════
+   Índice relativo por segmento (médio = 1). Quando falta histórico no segmento do
+   projeto, um preço de outro segmento converte-se por índice destino / índice origem,
+   e fica assinalado. Valores na tabela segmento_indice; editáveis em
+   Administração › Segmentos e referência. */
+const SEG_IDX_BASE={medio:1, medio_alto:1.15, premium:1.35};
+let SEG_IDX=Object.assign({},SEG_IDX_BASE), SEG_IDX_FONTE='omissão';
+async function segIndicesCarregar(){
+  try{ const r=await sb.from('segmento_indice').select('*'); if(r.error) throw r.error;
+    (r.data||[]).forEach(x=>{ if(+x.indice>0) SEG_IDX[x.segmento]=+x.indice; }); SEG_IDX_FONTE=(r.data||[]).length?'base':'omissão';
+  }catch(e){ console.warn('segmento_indice',e.message||e); }
+}
+function segFator(de,para){
+  if(!de||!para||de===para) return 1;
+  const a=SEG_IDX[de], b=SEG_IDX[para]; return (a>0&&b>0)?b/a:1;
+}
+/* Projeto de referência: marcado na base (projetos.referencia). Na falta, o L'Urbain;
+   sem sessão, os valores embutidos (REF). */
+function refProjeto(){
+  const P=(typeof PROJETOS!=='undefined'?PROJETOS:[]);
+  return P.find(p=>p.referencia)||P.find(p=>norm(p.nome).includes("URBAIN"))||null;
+}
+function refNome(){ const p=refProjeto(); return p?p.nome:REF.projeto; }
+let REF_DADOS=null;   /* {nome, abc, fogos, caps:{cap: custo real}} do projeto de referência */
+async function refCarregar(){
+  REF_DADOS=null;
+  const p=refProjeto(); if(!p||!SESSION) return;
+  try{
+    const li=await lerLinhasCusto(q=>q.eq('fonte','auto').eq('projeto_id',p.id),'capitulo,total');
+    const caps={}; li.forEach(l=>{ const c=l.capitulo||'(sem capítulo)'; caps[c]=(caps[c]||0)+(Number(l.total)||0); });
+    const abc=+p.gfa||(norm(p.nome).includes("URBAIN")?REF.gfa:null);
+    if(Object.keys(caps).length) REF_DADOS={nome:p.nome,abc,fogos:+p.fogos||null,caps};
+  }catch(e){ console.warn('refCarregar',e); }
+}
+/* sugestão de índices a partir da biblioteca: artigos com a mesma descrição e unidade
+   em dois segmentos → mediana da razão dos preços */
+async function segSugerir(){
+  const vl=await lerLinhasCusto(q=>q.eq('nivel','artigo').gt('preco_unit',0),'descricao,unidade,preco_unit,segmento,fonte');
+  const g={};
+  vl.filter(r=>r.segmento&&['auto','subempreitada','composto','auto_pu'].includes(r.fonte)).forEach(r=>{
+    const k=norm(r.descricao||'').slice(0,70)+'|'+norm(r.unidade||''); (g[k]=g[k]||{}); (g[k][r.segmento]=g[k][r.segmento]||[]).push(+r.preco_unit); });
+  const med=a=>{ const s=a.slice().sort((x,y)=>x-y); const n=s.length; return n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2; };
+  const par=(a,b)=>{ const rs=[]; Object.values(g).forEach(x=>{ if(x[a]&&x[b]) rs.push(med(x[b])/med(x[a])); }); return rs.length?{r:med(rs),n:rs.length}:null; };
+  return {'medio→medio_alto':par('medio','medio_alto'),'medio_alto→premium':par('medio_alto','premium'),'medio→premium':par('medio','premium')};
+}
+async function cfgRender(){
+  const box=document.getElementById('cfgBody'); if(!box) return;
+  if(!SESSION){ box.innerHTML='<div class="note">Inicia sessão para ver e alterar estas definições.</div>'; return; }
+  await segIndicesCarregar();
+  const P=(typeof PROJETOS!=='undefined'?PROJETOS:[]); const rp=refProjeto();
+  box.innerHTML='<div class="card"><h2>Índice de segmento</h2>'
+    +'<div class="hint">Quanto custa, em média, o mesmo trabalho em cada segmento, relativo ao médio (= 1). Usa-se quando falta histórico no segmento do projeto: um preço de outro segmento é multiplicado por <span class="mono">índice do segmento do projeto ÷ índice do segmento de origem</span>, e o valor aparece assinalado como convertido. Só se aplica aos elementos e capítulos de acabamento (marcados como sensíveis ao segmento na taxonomia).</div>'
+    +'<div class="grid g6" style="margin-top:10px">'+SEGMENTOS.map(s=>'<div><label>'+esc(s.l)+'</label><input type="text" inputmode="decimal" id="cfgIdx_'+s.v+'" value="'+String(SEG_IDX[s.v]).replace('.',',')+'"'+(s.v==='medio'?' disabled title="base"':'')+'></div>').join('')
+    +'<div style="display:flex;align-items:end"><button class="btn navy" onclick="cfgGravarIndices()">Gravar índices</button></div></div>'
+    +'<div class="hint" id="cfgSug" style="margin-top:8px">'+(SEG_IDX_FONTE==='base'?'':'<b>Valores por omissão</b> — ainda não gravados. ')+'<a style="cursor:pointer;text-decoration:underline" onclick="cfgSugerir()">Calcular sugestão a partir da biblioteca</a></div></div>'
+    +'<div class="card"><h2>Projeto de referência</h2>'
+    +'<div class="hint">O projeto contra o qual a Revisão do MQ e os Rácios de custo real comparam quando o histórico é curto, e que entra sempre no Benchmark. Até aqui era o L’Urbain, escrito no código; agora escolhe-se aqui.</div>'
+    +'<div style="display:flex;gap:10px;align-items:end;margin-top:10px;flex-wrap:wrap"><div><label>Projeto</label><br><select id="cfgRef" style="min-width:260px">'
+    +P.map(p=>'<option value="'+p.id+'"'+(rp&&rp.id===p.id?' selected':'')+'>'+esc(p.nome)+(p.segmento?' · '+esc(segLabel(p.segmento)):'')+'</option>').join('')+'</select></div>'
+    +'<button class="btn navy" onclick="cfgGravarReferencia()">Gravar referência</button></div>'
+    +'<div class="hint" style="margin-top:8px">'+(rp?(rp.referencia?'Referência atual: <b>'+esc(rp.nome)+'</b>.':'Ainda não há referência marcada na base — a usar <b>'+esc(rp.nome)+'</b> por omissão.'):'Sem projetos na base.')+(REF_DADOS?' Custo real carregado: '+Object.keys(REF_DADOS.caps).length+' capítulos.':'')+'</div></div>';
+}
+async function cfgSugerir(){
+  const el=document.getElementById('cfgSug'); if(el) el.textContent='A calcular…';
+  try{
+    const s=await segSugerir(); const f=x=>x?('×'+fmt(x.r,2)+' ('+x.n+' artigos comparáveis)'):'sem artigos comparáveis';
+    el.innerHTML='Sugestão a partir da biblioteca — médio → médio-alto: <b>'+f(s['medio→medio_alto'])+'</b> · médio-alto → premium: <b>'+f(s['medio_alto→premium'])+'</b> · médio → premium: <b>'+f(s['medio→premium'])+'</b>. Com poucos artigos, é uma indicação, não uma regra.';
+  }catch(e){ if(el) el.textContent='Não consegui calcular: '+(e.message||e); }
+}
+async function cfgGravarIndices(){
+  const rows=SEGMENTOS.map(s=>{ const v=s.v==='medio'?1:tpNum((document.getElementById('cfgIdx_'+s.v)||{}).value); return {segmento:s.v,indice:v,atualizado:new Date().toISOString()}; });
+  if(rows.some(r=>!(r.indice>0))) return alertx('Os índices têm de ser números maiores que zero (ex.: 1,15).');
+  const {error}=await sbq(sb.from('segmento_indice').upsert(rows,{onConflict:'segmento'}),"Gravar índices de segmento");
+  if(error) return;
+  await segIndicesCarregar(); TP_LIB=null;
+  alertx('Índices de segmento gravados.',true); cfgRender();
+}
+async function cfgGravarReferencia(){
+  const id=+(document.getElementById('cfgRef')||{}).value; if(!id) return;
+  let r=await sbq(sb.from('projetos').update({referencia:false}).eq('referencia',true),"Limpar referência"); if(r.error) return;
+  r=await sbq(sb.from('projetos').update({referencia:true}).eq('id',id),"Gravar referência"); if(r.error) return;
+  (typeof PROJETOS!=='undefined'?PROJETOS:[]).forEach(p=>{ p.referencia=(p.id===id); });
+  await refCarregar(); try{ await loadBenchmarks(); }catch(e){}
+  alertx('Projeto de referência: '+refNome()+'.',true); cfgRender();
+}
 let SNAP=null, SNAP_T=0;
 async function snapshot(force){
   if(!SESSION) return {fases:[],caps:[]};
@@ -262,7 +349,7 @@ async function calibracaoDesvios(){
 
 function renderComparar(){ return comBusy("A comparar projetos…",()=>_renderComparar()) }
 function runEstimador(){ return comBusy("A calcular a estimativa…",()=>_runEstimador()) }
-function runAnalysis(){ busy(true,"A analisar o mapa de quantidades…"); try{ return _runAnalysis() } finally { busy(false) } }
+function runAnalysis(){ busy(true,"A analisar o mapa de quantidades…"); try{ return _runAnalysis() } finally { busy(false); try{ uxTabSync(); }catch(e){} } }
 
 /* ---------- 4. Ergonomia ---------- */
 
@@ -404,6 +491,7 @@ async function analisarPricingCompleto(){
     " artigos em "+Object.keys(porCap).length+" capítulos. As quantidades é que contam — "+
     "os valores destas folhas são custo da construtora e não entram nos rácios da biblioteca."+
     (semCap.length?" Folhas não reconhecidas: "+semCap.join(", "):""),true);
+  try{ uxTabSync(); }catch(e){}
 }
 let PRICING_ARTS=[];
 /* Gravar a análise do MQ — passos por ordem:
@@ -467,4 +555,4 @@ function confereProjeto(wbk,nomeAtivo){
     'Continuar grava os dados no projeto ativo e substitui o que lá estiver.\n\nTens a certeza?');
 }
 
-APP_REGISTAR('08-contexto','3.2.0');
+APP_REGISTAR('08-contexto','3.3.0');

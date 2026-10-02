@@ -96,6 +96,9 @@ const CAP_MAP = [
  [/PAISAGISMO|ARRANJOS EXTERIORES/,"PAISAGISMO"],[/DIVERSOS/,"DIVERSOS"]
 ];
 
+/* cópia das regras embutidas: as regras ativas vêm da tabela regra_mapeamento (Fase 6) */
+const CAP_MAP_BASE = CAP_MAP.slice();
+
 const UNIT_RULES = [
  {re:/impermeabiliza[çc][ãa]o|pintura de paredes|pintura de te[ct]|reboco|betonilha|gesso cartonado|assentamento de mosaico|revestimento cer[âa]mico|isolamento t[ée]rmico|lajeta|lajes? flutuante/i, skip:/pontos|zonas singulares|caleira|rufo|remate|refor[çc]o|sanca|moldura|vedaç|divis[óo]ria/i, esperado:["m²","m2"], msg:"trabalho medido em área"},
  {re:/\brufo|rodap[ée]|caleira|perfil met|calha|tubo de queda|junta de dilata|remate linear|corrim[ãa]o/i, esperado:["m","ml"], msg:"trabalho de natureza linear"},
@@ -121,12 +124,12 @@ const AREAS=[
   {k:'importar',  t:'Importar',      ic:'upload',           tabs:[['importar','Importar ficheiro']]},
   {k:'orcamentar',t:'Orçamentar',    ic:'wallet',           tabs:[['estimador','Estimativa para o BP'],['analisador','Mapa de quantidades'],['orcamento','Orçamento'],['consultas','Consultas ao mercado']]},
   {k:'obra',      t:'Obra',          ic:'hard-hat',         tabs:[['execucao','Adjudicações e desvios'],['verificar','Autos de medição']]},
-  {k:'biblioteca',t:'Biblioteca',    ic:'library',          tabs:[['racios','Rácios de custo real'],['kit','Kit-tipo e preços'],['comparar','Benchmark'],['biblioteca','Histórico e taxonomia']]},
-  {k:'admin',     t:'Administração', ic:'settings',         tabs:[['admin','Projetos e versões']]}
+  {k:'biblioteca',t:'Biblioteca',    ic:'library',          tabs:[['racios','Rácios de custo real'],['kit','Kit-tipo e preços'],['comparar','Benchmark']]},
+  {k:'admin',     t:'Administração', ic:'settings',         tabs:[['admin','Projetos e versões'],['biblioteca','Taxonomia e regras'],['config','Segmentos e referência']]}
 ];
 /* vistas que aparecem dentro do separador de outra (o MQ tem Rever e Orçamentar) */
 const VISTA_SEPARADOR={precomq:'analisador'};
-const VISTAS=['resumo','programa','importar','analisador','precomq','estimador','orcamento','consultas','execucao','verificar','racios','kit','comparar','biblioteca','admin'];
+const VISTAS=['resumo','programa','importar','analisador','precomq','estimador','orcamento','consultas','execucao','verificar','racios','kit','comparar','biblioteca','admin','config'];
 const AREA_ULTIMA={};
 function areaDaVista(v){ const t=VISTA_SEPARADOR[v]||v; return AREAS.find(a=>a.tabs.some(x=>x[0]===t))||null; }
 function abrirArea(k){ const a=AREAS.find(x=>x.k===k); if(!a) return; showView(AREA_ULTIMA[k]||a.tabs[0][0]); }
@@ -164,11 +167,16 @@ function showView(v){
   if(v==='programa'){ try{ tpRenderPrograma(); }catch(e){ console.warn(e); } }
   if(v==='kit'){ try{ tpRenderKit(); }catch(e){ console.warn(e); } }
   if(v==='importar'){ try{ impEstadoPO(); }catch(e){ console.warn(e); } }
+  if(v==='admin'){ try{ adminRender(); }catch(e){ console.warn(e); } }
+  if(v==='config'){ try{ cfgRender(); }catch(e){ console.warn(e); } }
   try{ if(typeof ctxRender==='function') ctxRender(); }catch(e){}
   if(v==='precomq'){ try{ vfMQFillProjects(); }catch(e){} }
   if(v==='comparar'){ try{ vfDvFillProjects(); }catch(e){} }
   try{ if(typeof ctxSeguirSeletores==='function') ctxSeguirSeletores(v); }catch(e){}
   try{ if(typeof window.__howtoOnView==='function') window.__howtoOnView(v); }catch(e){}
+  /* ícones nos botões desenhados depois (tabelas, cartões): uma passagem explícita, sem observadores */
+  const ic=()=>{ try{ if(typeof window.uxIcones==='function') window.uxIcones(document.getElementById('view-'+v)); }catch(e){} };
+  setTimeout(ic,60); setTimeout(ic,900);
 }
 
-APP_REGISTAR('01-base','3.2.0');
+APP_REGISTAR('01-base','3.3.0');

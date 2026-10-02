@@ -40,9 +40,15 @@ async function _runEstimador(){
 
   /* rácio por capítulo = total histórico / driver histórico, escalado por (driver_alvo/driver_hist)^expoente */
   const perCap={};
+  /* Fase 6: capítulos de acabamento vindos de projetos de outro segmento convertem-se pelo índice de segmento */
+  const segAlvo=((typeof tpProj==='function'&&tpProj())||{}).segmento||((typeof CTX!=='undefined'&&CTX.D)||{}).segmento||null;
+  const segConv={};
   projData.forEach(pd=>{
-    Object.entries(pd.caps).forEach(([cap,total])=>{
+    Object.entries(pd.caps).forEach(([cap,total0])=>{
       const t=TAXO[cap]||TAXO_DEFAULT;
+      const sf=(t.sens&&segAlvo&&pd.D&&pd.D.segmento)?segFator(pd.D.segmento,segAlvo):1;
+      if(sf!==1){ (segConv[cap]=segConv[cap]||new Set()).add(pd.D.segmento); }
+      const total=total0*sf;
       const f=fatorInflacao(infl,inflModo,t.idx,alvo-pd.ano);
       const dh=driverValue(t.driver,pd.D), dt=driverValue(t.driver,D);
       let val=null, modo=null, rc=null;
@@ -123,10 +129,12 @@ async function _runEstimador(){
   const nQt=rows.filter(r=>r.fonte==='qt').length, nDrv=rows.filter(r=>r.fonte==='drv').length;
   const nota=document.getElementById('estNota');
   const partes=[];
-  if(projData.length<=1) partes.push("<b>Base com 1 projeto</b> — sem dispersão real. O intervalo é nulo e a estimativa depende inteiramente do L'Urbain. Fecha obras e grava orçamentos para ganhar fiabilidade.");
+  if(projData.length<=1) partes.push("<b>Base com 1 projeto</b> — sem dispersão real. O intervalo é nulo e a estimativa depende inteiramente desse projeto. Fecha obras e grava orçamentos para ganhar fiabilidade.");
   else partes.push("Estimativa central por mediana; intervalo = envelope mín–máx dos "+projData.length+" projetos na base. Não é um intervalo estatístico — é o que os projetos reais implicam.");
   if(nQt) partes.push("<b>"+nQt+" capítulo(s)</b> estimados por quantidade × preço unitário da biblioteca — o método mais preciso disponível.");
   if(nDrv) partes.push(nDrv+" capítulo(s) escalados pelo seu driver físico próprio.");
+  const nConv=Object.keys(segConv).length;
+  if(nConv) partes.push("<b>"+nConv+" capítulo(s) de acabamento</b> com projetos de outro segmento convertidos para "+esc(segLabel(segAlvo))+" pelo índice de segmento ("+[...new Set(Object.values(segConv).flatMap(s=>[...s]))].map(s=>esc(segLabel(s))+" ×"+fmt(segFator(s,segAlvo),2)).join(", ")+").");
   const nKit=rows.filter(r=>r.fonte==='kit').length, nKitP=rows.filter(r=>r.kit&&r.kit.parcial).length;
   if(kitOn){
     if(kitEst&&kitEst.erro==='sem_mix') partes.push("<b>Kit-tipo não usado</b>: o projeto ainda não tem mix de tipologias — define-o em <a style=\"cursor:pointer;text-decoration:underline\" onclick=\"showView('programa')\">Programa e tipologias</a>.");
@@ -255,6 +263,9 @@ async function _renderComparar(){
       }
       cols.push(col);
     }
+    /* Fase 6: o projeto de referência na primeira coluna */
+    const rp=(typeof refProjeto==='function')?refProjeto():null;
+    if(rp) cols.sort((a,b)=>(b.id===rp.id)-(a.id===rp.id));
   } else {
     off.className='note red'; off.textContent="Sem sessão — a mostrar apenas a referência L'Urbain. Inicia sessão para comparar os projetos da biblioteca.";
     cols=[ref];
@@ -315,4 +326,4 @@ async function _renderComparar(){
   });
 }
 
-APP_REGISTAR('06-estimador-comparar','3.2.0');
+APP_REGISTAR('06-estimador-comparar','3.3.0');

@@ -150,7 +150,11 @@ async function vfGravar(sheetName){
     const withId=linhas.map(l=>({...l,import_id:impId}));
     const li=await sb.from('custo_linha').insert(withId);
     if(li.error) throw li.error;
-    if(mapas.length) await sb.from('mapa_capitulo').upsert(mapas,{onConflict:'capitulo_origem,capitulo_canonico',ignoreDuplicates:true});
+    /* o mapeamento confirmado passa a regra (tipo capitulo) e serve as leituras seguintes */
+    const novas=mapas.filter(m=>m.capitulo_origem&&m.capitulo_canonico&&m.capitulo_origem!==m.capitulo_canonico)
+      .map(m=>({tipo:'capitulo',padrao:m.capitulo_origem,destino:m.capitulo_canonico,prioridade:500,origem:'autos'}));
+    if(novas.length){ const rr=await sb.from('regra_mapeamento').upsert(novas,{onConflict:'tipo,padrao,destino',ignoreDuplicates:true});
+      if(!rr.error){ try{ await regrasCarregar(); }catch(e){} } }
     toast("Custo gravado: "+linhas.length+" linhas · "+vfMoeda(header.total_calculado));
     const btn=document.getElementById('vfgrav_'+sheetName.replace(/\W/g,''));
     if(btn){ btn.textContent="✓ Gravado"; btn.disabled=true; }
@@ -190,7 +194,7 @@ function vfVerificarFile(){
         const canon=vfCanon();
         const opts=cap=>{ const g=vfGuess(cap); return '<option value="">— escolher —</option>'+
           canon.map(c=>'<option'+(vfNorm(c)===vfNorm(g)?' selected':'')+'>'+esc(c)+'</option>').join(''); };
-        mapHtml='<div style="margin-top:10px"><b>Mapear capítulos para a taxonomia L\u2019Urbain</b>'
+        mapHtml='<div style="margin-top:10px"><b>Mapear capítulos para a taxonomia</b>'
           +'<table style="margin-top:6px;font-size:13px"><tr><th>Capítulo no ficheiro</th><th>Capítulo canónico</th></tr>'
           +v.chapters.map((c,idx)=>'<tr><td>'+esc(c)+'</td><td><select id="vfmap_'+key+'_'+idx+'" style="min-width:220px">'+opts(c)+'</select></td></tr>').join('')
           +'</table>'
@@ -223,7 +227,7 @@ function vfVerificarFile(){
     div.id='view-verificar'; div.className='hidden';
     div.innerHTML=
       '<h2 style="color:#201C1D">Verificar e Gravar Auto de Medição</h2>'
-      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia L\u2019Urbain, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo anterior.</div>'
+      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo anterior.</div>'
       +'<div class="card" style="margin-top:10px"><label>Ficheiro do auto (.xlsx)</label> '
       +'<input type="file" id="vfFile" accept=".xlsx"> '
       +'<button class="btn navy" onclick="vfVerificarFile()">Verificar</button></div>'
@@ -236,6 +240,8 @@ function vfVerificarFile(){
    ETAPA 4 — RÁCIOS a partir do custo real gravado
    ========================================================================== */
 function vfRefEurM2(cap){
+  /* Fase 6: custo real do projeto de referência escolhido na base; sem ele, os valores embutidos */
+  try{ if(REF_DADOS&&REF_DADOS.abc){ const k=Object.keys(REF_DADOS.caps).find(x=>vfNorm(x)===vfNorm(cap)); if(k) return REF_DADOS.caps[k]/REF_DADOS.abc; if(Object.keys(REF_DADOS.caps).length>3) return null; } }catch(e){}
   try{ const c=REF.capitulos.find(x=>vfNorm(x.cap)===vfNorm(cap)); if(c&&REF.gfa) return c.total/REF.gfa; }catch(e){}
   return null;
 }
@@ -353,7 +359,7 @@ function vfDrill(cap){
   if(host){
     const rx=document.createElement('div'); rx.id='view-racios'; rx.className='hidden';
     rx.innerHTML='<h2 style="color:#201C1D">Rácios por Elemento (custo real)</h2>'
-      +'<div class="note">€/m² e €/fogo a partir do custo gravado, por capítulo canónico, comparados com a referência L\u2019Urbain. Cada linha é rastreável até aos subcontratos.</div>'
+      +'<div class="note">€/m² e €/fogo a partir do custo gravado, por capítulo canónico, comparados com o projeto de referência (escolhido em Administração › Segmentos e referência). Cada linha é rastreável até aos subcontratos.</div>'
       +'<div class="card" style="margin-top:10px"><label>Projeto</label> <select id="rxProj" onchange="vfLoadRatios()" style="min-width:200px"><option value="">Todos os projetos</option></select> &nbsp;'
       +'<label>Segmento</label> <select id="rxSeg" onchange="vfLoadRatios()" style="min-width:200px"><option value="">Todos os segmentos</option></select> &nbsp;'
       +'<button class="btn navy" onclick="vfLoadRatios()">Calcular</button></div>'
@@ -980,7 +986,7 @@ async function vfDvFillProjects(){
   const sel=document.getElementById('dvProj'); if(!sel||typeof sb==='undefined'||!sb) return;
   const set={};
   try{ const a=await sb.from('custo_import').select('projeto_ref'); (a.data||[]).forEach(r=>{ if(r.projeto_ref) set[r.projeto_ref]=1; }); }catch(e){}
-  try{ const b=await sb.from('orcamento_producao').select('projeto_ref'); (b.data||[]).forEach(r=>{ if(r.projeto_ref) set[r.projeto_ref]=1; }); }catch(e){}
+  try{ (await orcProducaoTodos()).forEach(r=>{ if(r.projeto_nome) set[r.projeto_nome]=1; }); }catch(e){}
   const projs=Object.keys(set).sort(); const cur=sel.value;
   sel.innerHTML='<option value="">—</option>'+projs.map(p=>'<option'+(vfNorm(p)===vfNorm(cur)?' selected':'')+'>'+esc(p)+'</option>').join('');
 }
@@ -1016,9 +1022,8 @@ async function vfDvFreeze(){
   if(!d||!d.proj) return;
   if(typeof sb==='undefined'||!sb){ out.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
   try{
-    await sb.from('orcamento_producao').delete().eq('projeto_ref',d.proj);
-    const rows=Object.keys(d.chapters).map(c=>({projeto_ref:d.proj,capitulo_canonico:c,total_orcado:Math.round(d.chapters[c]*100)/100,ficheiro:d.ficheiro}));
-    for(let i=0;i<rows.length;i+=500){ const ins=await sb.from('orcamento_producao').insert(rows.slice(i,i+500)); if(ins.error) throw ins.error; }
+    const caps={}; Object.keys(d.chapters).forEach(c=>{ caps[c]=Math.round(d.chapters[c]*100)/100; });
+    const r=await orcProducaoGravar(d.proj,caps,d.ficheiro); if(r.error) throw r.error;
     await vfDvRender();
   }catch(err){ out.innerHTML='<div class="note">Erro a congelar: '+esc(err.message||String(err))+'</div>'; }
 }
@@ -1032,8 +1037,8 @@ async function vfDvRender(){
   if(!out) return;
   if(!proj){ out.innerHTML=''; return; }
   if(typeof sb==='undefined'||!sb){ out.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
-  let orc={}; try{ const o=await sb.from('orcamento_producao').select('capitulo_canonico,total_orcado').eq('projeto_ref',proj);
-    (o.data||[]).forEach(r=>{ orc[vfNorm(r.capitulo_canonico)]={cap:r.capitulo_canonico,v:Number(r.total_orcado)||0}; }); }catch(e){}
+  let orc={}; try{ const o=await orcProducaoLer(proj);
+    Object.entries((o&&o.capitulos)||{}).forEach(([c,v])=>{ orc[vfNorm(c)]={cap:c,v:Number(v)||0}; }); }catch(e){}
   if(!Object.keys(orc).length){ out.innerHTML='<div class="note">Sem orçamento transferido congelado para <b>'+esc(proj)+'</b>. Importa o ficheiro do orçamento acima e congela.</div>'; return; }
   const impIds={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) impIds[r.id]=1; }); }catch(e){}
   let real={};
@@ -1092,10 +1097,10 @@ async function vfDvRenderLegendre(){
   if(!out) return;
   if(!proj){ out.innerHTML=''; return; }
   if(typeof sb==='undefined'||!sb){ out.innerHTML='<div class="note">Precisas de sessão iniciada.</div>'; return; }
-  let orc={}; try{ const o=await sb.from('orcamento_legendre').select('legendre_categoria,total_transferido').eq('projeto_ref',proj);
-    (o.data||[]).forEach(r=>{ orc[r.legendre_categoria]=(orc[r.legendre_categoria]||0)+(Number(r.total_transferido)||0); }); }catch(e){}
+  let orc={}; try{ const o=await orcProducaoLer(proj);
+    Object.entries((o&&o.legendre)||{}).forEach(([k,v])=>{ orc[k]=(orc[k]||0)+(Number(v)||0); }); }catch(e){}
   if(!Object.keys(orc).length){ out.innerHTML='<div class="note">Sem orçamento Legendre congelado para <b>'+esc(proj)+'</b>. Corre o <b>etapa_legendre.sql</b> no Supabase.</div>'; return; }
-  let map={}; try{ const m=await sb.from('mapa_legendre').select('capitulo_solive,legendre_categoria'); (m.data||[]).forEach(r=>{ map[vfNorm(r.capitulo_solive)]=r.legendre_categoria; }); }catch(e){}
+  const map={}; Object.entries(LEGENDRE_MAP||{}).forEach(([k,v])=>{ map[vfNorm(k)]=v; });
   let sub={}; try{ const sq=await sb.from('mapa_legendre_sub').select('import_id,legendre_categoria'); (sq.data||[]).forEach(r=>{ sub[r.import_id]=r.legendre_categoria; }); }catch(e){}
   const impIds={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) impIds[r.id]=1; }); }catch(e){}
   let real={}, semMapa=0, nOver=0;
@@ -1154,7 +1159,7 @@ async function vfLegSubRender(){
   p.innerHTML='<div class="note">A carregar subcontratos…</div>';
   const imps={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref,subempreiteiro,contrato'); (qi.data||[]).forEach(r=>{ if(vfNorm(r.projeto_ref)===vfNorm(proj)) imps[r.id]={sub:r.subempreiteiro||'',contr:r.contrato||'',tot:0,caps:{}}; }); }catch(e){}
   for(let from=0; from<200000; from+=1000){ const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(from,from+999); if(q.error) break; const b=q.data||[]; b.forEach(r=>{ const im=imps[r.import_id]; if(im){ const t=Number(r.total)||0; im.tot+=t; const k=r.capitulo_canonico||'—'; im.caps[k]=(im.caps[k]||0)+t; } }); if(b.length<1000) break; }
-  let map={}; try{ const m=await sb.from('mapa_legendre').select('capitulo_solive,legendre_categoria'); (m.data||[]).forEach(r=>{ map[vfNorm(r.capitulo_solive)]=r.legendre_categoria; }); }catch(e){}
+  const map={}; Object.entries(LEGENDRE_MAP||{}).forEach(([k,v])=>{ map[vfNorm(k)]=v; });
   let sub={}; try{ const sq=await sb.from('mapa_legendre_sub').select('import_id,legendre_categoria'); (sq.data||[]).forEach(r=>{ sub[r.import_id]=r.legendre_categoria; }); }catch(e){}
   const rows=Object.keys(imps).map(id=>{ const im=imps[id]; const domCap=Object.keys(im.caps).sort((a,b)=>im.caps[b]-im.caps[a])[0]||''; const def=map[vfNorm(domCap)]||''; return {id,sub:im.sub,contr:im.contr,tot:im.tot,domCap,def,cur:sub[id]||''}; }).sort((a,b)=>b.tot-a.tot);
   if(!rows.length){ p.innerHTML='<div class="note">Sem subcontratos gravados para este projeto.</div>'; return; }
@@ -1175,14 +1180,15 @@ async function vfLegSubSave(){ const out=document.getElementById('legSubOut'); c
   catch(err){ if(out) out.textContent='Erro: '+esc(err.message||String(err)); }
 }
 (function vfMountDesvios(){
-  const host=document.getElementById('view-comparar');
-  if(!host||document.getElementById('vfDvCard')) return;
+  /* Relatório → topo do Benchmark (Comparar); Desvios → Obra › Adjudicações e desvios */
+  const host=document.getElementById('view-comparar'), exe=document.getElementById('view-execucao');
+  if(!host||!exe||document.getElementById('vfDvCard')) return;
   // Relatório para a Administração (Board)
   const rb=document.createElement('div'); rb.id='vfBoardCard'; rb.className='card'; rb.style.marginTop='14px';
   rb.innerHTML='<h2 style="color:#201C1D">Relatório resumo</h2>'
    +'<div class="note">Um resumo de <b>uma página (PDF)</b> com os dados mais relevantes: custo real por projeto, rácios €/m² e €/fogo, rigor dos orçamentos (desvios) e a estrutura de custo. Gerado a partir dos dados atuais.</div>'
    +'<button class="btn navy" style="margin-top:8px" onclick="vfBoardReport()">Gerar relatório (PDF)</button> <span id="rbOut" class="note"></span>';
-  host.appendChild(rb);
+  const pu=host.querySelector(':scope > .purpose'); if(pu) pu.after(rb); else host.prepend(rb);
   const div=document.createElement('div'); div.id='vfDvCard'; div.className='card'; div.style.marginTop='14px';
   div.innerHTML='<h2 style="color:#201C1D">Desvios — Orçamento transferido vs Real</h2>'
    +'<div class="note">Compara, por capítulo, o <b>orçamento que transferiste para a Produção</b> (custo, sem margem) com o <b>custo real executado</b> (autos). Mostra quão rigorosa foi a estimativa e onde os desvios vieram de trabalhos a mais ou alterações de projeto.</div>'
@@ -1192,7 +1198,7 @@ async function vfLegSubSave(){ const out=document.getElementById('legSubOut'); c
    +'</div>'
    +'<div class="subtabs" style="margin-top:10px"><button id="dvmode-solive" class="on" onclick="vfDvSetMode(\'solive\')">As minhas categorias</button><button id="dvmode-legendre" onclick="vfDvSetMode(\'legendre\')">Categorias Legendre (monitorização)</button></div>'
    +'<div id="dvOut" style="margin-top:12px"></div>';
-  host.appendChild(div);
+  exe.appendChild(div);
 })();
 
 /* ==========================================================================
@@ -1282,7 +1288,7 @@ async function vfBoardReport(){
   try{
     let lines=[]; for(let f=0;f<200000;f+=1000){ const q=await sb.from('custo_linha').select('import_id,capitulo_canonico,total').range(f,f+999); if(q.error)break; const b=q.data||[]; lines=lines.concat(b); if(b.length<1000)break; }
     const imp={}; try{ const qi=await sb.from('custo_import').select('id,projeto_ref,segmento'); (qi.data||[]).forEach(r=>{ imp[r.id]={proj:r.projeto_ref,seg:r.segmento}; }); }catch(e){}
-    const orc={}; try{ const qo=await sb.from('orcamento_producao').select('projeto_ref,capitulo_canonico,total_orcado'); (qo.data||[]).forEach(r=>{ const k=vfNorm(r.projeto_ref); (orc[k]=orc[k]||{}); const ck=vfNorm(r.capitulo_canonico); orc[k][ck]=(orc[k][ck]||0)+(Number(r.total_orcado)||0); }); }catch(e){}
+    const orc={}; try{ (await orcProducaoTodos()).forEach(r=>{ const k=vfNorm(r.projeto_nome); (orc[k]=orc[k]||{}); Object.entries(r.capitulos||{}).forEach(([c,v])=>{ const ck=vfNorm(c); orc[k][ck]=(orc[k][ck]||0)+(Number(v)||0); }); }); }catch(e){}
     const realProj={}, realProjCap={}, capTot={}, segOf={};
     lines.forEach(l=>{ const im=imp[l.import_id]; if(!im||!im.proj) return; const proj=im.proj; { const sp=(typeof segDoProjeto==='function')?segDoProjeto(proj):null; if(sp) segOf[proj]=segLabel(sp); else if(im.seg) segOf[proj]=im.seg; }
       const c=l.capitulo_canonico||'(sem capítulo)'; const t=Number(l.total)||0;
@@ -1318,4 +1324,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.2.0');
+APP_REGISTAR('09-custo-real','3.3.0');
