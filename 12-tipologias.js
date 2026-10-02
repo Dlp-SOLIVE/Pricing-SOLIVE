@@ -146,7 +146,7 @@ async function tpRenderKit(){
   const [k,o]=await Promise.all([
     sbq(sb.from('kit_tipo').select('*'),"Ler kit-tipo"),
     sbq(sb.from('v_racio_tipologia').select('*'),"Ler rácios por tipologia")]);
-  TP_KIT=k.data||[]; TP_OBS=o.data||[];
+  TP_KIT=k.data||[]; TP_OBS=o.data||[]; TP_KIT_T=Date.now();
   const tips=TP_TIPOLOGIAS;
   const obsDe=(el,tip)=>{
     // elementos sensíveis ao segmento: só projetos do mesmo segmento; os outros: todos
@@ -186,13 +186,19 @@ async function tpKitGravar(){
   await tpRenderKit();
 }
 /* mix do projeto ativo × (padrão do kit ou, na falta, observado) = quantidades */
-async function tpEstimarAtivo(segKit){
-  const out=document.getElementById('tkEstimar'); if(!out) return;
-  const p=tpProj();
-  if(!p){ out.innerHTML='<div class="note">Escolhe o projeto ativo para calcular as quantidades.</div>'; return; }
+/* Cálculo puro (sem desenhar): quantidades e preço de cada elemento para o projeto p.
+   Usado pelo ecrã Kit-tipo e pela Estimativa para o BP. Devolve {erro:'sem_mix'} se o
+   projeto ainda não tiver mix de tipologias. */
+let TP_KIT_T=0;
+async function tpCalcular(p,segKit){
+  if(!TP_ELEM.length) await tpLoadElem();
+  if(!TP_KIT_T||Date.now()-TP_KIT_T>60000){
+    const [k,o]=await Promise.all([sbq(sb.from('kit_tipo').select('*'),"Ler kit-tipo"),sbq(sb.from('v_racio_tipologia').select('*'),"Ler rácios por tipologia")]);
+    TP_KIT=k.data||[]; TP_OBS=o.data||[]; TP_KIT_T=Date.now();
+  }
   const seg=p.segmento||segKit;
   const {data:mix}=await sbq(sb.from('projeto_tipologia').select('*').eq('projeto_id',p.id),"Ler mix");
-  if(!mix||!mix.length){ out.innerHTML='<div class="note">O projeto <b>'+esc(p.nome)+'</b> ainda não tem mix de tipologias. Define-o em <a onclick="showView(\'programa\')" style="cursor:pointer;text-decoration:underline">Programa e tipologias</a>.</div>'; return; }
+  if(!mix||!mix.length) return {erro:'sem_mix',p,seg};
   const linhas=[];
   TP_ELEM.forEach(el=>{
     if(el.base==='projeto'){
@@ -222,6 +228,28 @@ async function tpEstimarAtivo(segKit){
   await tpLoadPrecos();
   const nFogos=mix.reduce((s,m)=>s+(+m.n_fogos||0),0);
   linhas.forEach(l=>{ l.preco=tpPrecoElemento(l.el,seg); l.total=(l.qt!=null&&l.preco.pu!=null)?l.qt*l.preco.pu:null; });
+  return {p,seg,mix,linhas,nFogos};
+}
+/* Para a Estimativa: total dos elementos por capítulo do projeto ativo. */
+async function tpElementosPorCapitulo(){
+  const p=tpProj(); if(!p) return {erro:'sem_projeto'};
+  const r=await tpCalcular(p,p.segmento||'premium'); if(r.erro) return r;
+  const porCap={};
+  r.linhas.forEach(l=>{
+    if(!l.el.capitulo||!(l.qt>0)) return;
+    const cap=(typeof normalizaCap==='function'&&normalizaCap(l.el.capitulo))||l.el.capitulo;
+    const o=porCap[cap]||(porCap[cap]={valor:0,itens:[],semPreco:[]});
+    if(l.total!=null){ o.valor+=l.total; o.itens.push(l); } else o.semPreco.push(l.el.nome);
+  });
+  return {p:r.p,seg:r.seg,nFogos:r.nFogos,porCap};
+}
+async function tpEstimarAtivo(segKit){
+  const out=document.getElementById('tkEstimar'); if(!out) return;
+  const p=tpProj();
+  if(!p){ out.innerHTML='<div class="note">Escolhe o projeto ativo para calcular as quantidades.</div>'; return; }
+  const R=await tpCalcular(p,segKit);
+  if(R.erro){ out.innerHTML='<div class="note">O projeto <b>'+esc(p.nome)+'</b> ainda não tem mix de tipologias. Define-o em <a onclick="showView(\'programa\')" style="cursor:pointer;text-decoration:underline">Programa e tipologias</a>.</div>'; return; }
+  const {seg,linhas,nFogos}=R;
   window.__tpEstim={projeto:p.nome,segmento:seg,linhas,nFogos};
   const totGeral=linhas.reduce((s,l)=>s+(l.total||0),0);
   const semPreco=linhas.filter(l=>l.qt!=null&&l.qt>0&&l.preco.pu==null).length;
@@ -325,4 +353,4 @@ function tpExportar(){
   XLSX.writeFile(wb,("Elementos_"+e.projeto).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('12-tipologias','3.1.0');
+APP_REGISTAR('12-tipologias','3.2.0');

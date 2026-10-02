@@ -14,6 +14,7 @@ async function _runEstimador(){
   const usarPU=document.getElementById('estPU').value==='auto';
   const calibOn=document.getElementById('estCalib').value==='on';
   const softOn=document.getElementById('estSoft').value==='on';
+  const kitOn=((document.getElementById('estKit')||{}).value||'auto')==='auto';
 
   if(base==='abc'&&!D.abc){return alertx("Introduz a ABC (ou muda a base de cálculo).")}
   if(base==='fogo'&&!D.fogos){return alertx("Introduz o nº de fogos para a base €/fogo.")}
@@ -29,6 +30,13 @@ async function _runEstimador(){
   }
   const calib=calibOn?await calibracaoDesvios():{};
   const puEst=usarPU?estimativaPorPU(D):null;
+  /* Kit-tipo (Fase 4b): nos capítulos com elementos (cozinhas, carpintarias, AVAC, elevadores…)
+     o valor vem do mix de tipologias × quantidades do kit × preço do elemento. */
+  let kitEst=null;
+  if(kitOn){ try{ kitEst=await tpElementosPorCapitulo(); }catch(e){ console.warn('kit',e); kitEst={erro:'falha'}; } }
+  const kitCaps=(kitEst&&kitEst.porCap)||{};
+  const kitDe=cap=>{ const k=Object.keys(kitCaps).find(x=>norm(x)===norm(cap)); return k?kitCaps[k]:null; };
+  const KIT_MIN=0.6;   // abaixo de 60% do rácio, os elementos não representam o capítulo inteiro
 
   /* rácio por capítulo = total histórico / driver histórico, escalado por (driver_alvo/driver_hist)^expoente */
   const perCap={};
@@ -69,11 +77,28 @@ async function _runEstimador(){
       central=pu.valor; lo=pu.lo; hi=pu.hi; fonte='qt';
     }
     const k=calib[cap];
-    const kf=(calibOn&&k&&k.n>=1)?k.fator:1;
+    let kf=(calibOn&&k&&k.n>=1)?k.fator:1;
     central*=kf; lo*=kf; hi*=kf;
+    const kit=kitDe(cap); let kitInfo=null;
+    if(kit&&kit.valor>0&&fonte!=='qt'){
+      const cob=central>0?kit.valor/central:1;
+      kitInfo={valor:kit.valor,racio:central,cob,itens:kit.itens,semPreco:kit.semPreco};
+      if(cob>=KIT_MIN){ central=kit.valor; lo=Math.min(lo,kit.valor); hi=Math.max(hi,kit.valor); fonte='kit'; kf=1; }
+      else kitInfo.parcial=true;
+    }
+    if(kit) kit.usado=true;
     rows.push({cap,n:ests.length,rc:med(lst.map(x=>x.rc).filter(v=>v!=null)),
-               central,lo,hi,fonte,drv:t.driver,exp:t.exp,kf,kn:k?k.n:0});
+               central,lo,hi,fonte,drv:t.driver,exp:t.exp,kf,kn:k?k.n:0,kit:kitInfo});
     tC+=central; tLo+=lo; tHi+=hi;
+  });
+
+  /* capítulos de elementos sem histórico na base: entram só pelo kit */
+  Object.entries(kitCaps).forEach(([cap,kit])=>{
+    if(kit.usado||!(kit.valor>0)) return;
+    const t=TAXO[cap]||TAXO_DEFAULT;
+    rows.push({cap,n:0,rc:null,central:kit.valor,lo:kit.valor,hi:kit.valor,fonte:'kit',drv:t.driver,exp:t.exp,kf:1,kn:0,
+               kit:{valor:kit.valor,racio:null,cob:null,itens:kit.itens,semPreco:kit.semPreco}});
+    tC+=kit.valor; tLo+=kit.valor; tHi+=kit.valor;
   });
 
   const baseLbl={driver:"driver físico",abc:"€/m² ABC",fogo:"€/fogo",media:"média ABC+fogo"}[base];
@@ -102,18 +127,29 @@ async function _runEstimador(){
   else partes.push("Estimativa central por mediana; intervalo = envelope mín–máx dos "+projData.length+" projetos na base. Não é um intervalo estatístico — é o que os projetos reais implicam.");
   if(nQt) partes.push("<b>"+nQt+" capítulo(s)</b> estimados por quantidade × preço unitário da biblioteca — o método mais preciso disponível.");
   if(nDrv) partes.push(nDrv+" capítulo(s) escalados pelo seu driver físico próprio.");
+  const nKit=rows.filter(r=>r.fonte==='kit').length, nKitP=rows.filter(r=>r.kit&&r.kit.parcial).length;
+  if(kitOn){
+    if(kitEst&&kitEst.erro==='sem_mix') partes.push("<b>Kit-tipo não usado</b>: o projeto ainda não tem mix de tipologias — define-o em <a style=\"cursor:pointer;text-decoration:underline\" onclick=\"showView('programa')\">Programa e tipologias</a>.");
+    else if(kitEst&&kitEst.erro==='sem_projeto') partes.push("Kit-tipo não usado: o projeto ainda não está gravado.");
+    else if(nKit||nKitP) partes.push((nKit?"<b>"+nKit+" capítulo(s)</b> calculados pelo kit-tipo (mix de tipologias × quantidade por fogo × preço do elemento, sem ajuste de inflação). ":"")+(nKitP?nKitP+" capítulo(s) com elementos que cobrem menos de "+Math.round(KIT_MIN*100)+"% do rácio ficaram pelo rácio (o kit aparece ao lado como referência).":""));
+  }
   if(calibOn){const nc=rows.filter(r=>r.kn>0).length; partes.push(nc?("Calibração aplicada em "+nc+" capítulo(s) com histórico de desvio orçamento→real."):"Calibração ligada mas sem obras fechadas suficientes — sem efeito.");}
   if(softOn) partes.push("Soft costs: <b>"+fmt(soft,0)+" €</b> · total para o BP <b>"+fmt(totalBP,0)+" €</b>.");
   nota.innerHTML=partes.join(" ");
 
   const tb=document.getElementById('tbEst'); tb.innerHTML="";
   rows.forEach(r=>{
-    const chip={qt:'<span class="srcchip src-qt">QT×PU</span>',drv:'<span class="srcchip src-drv">DRIVER</span>',lin:'<span class="srcchip src-lin">ABC</span>'}[r.fonte];
+    let chip={qt:'<span class="srcchip src-qt">QT×PU</span>',drv:'<span class="srcchip src-drv">DRIVER</span>',lin:'<span class="srcchip src-lin">ABC</span>',kit:'<span class="srcchip src-kit">KIT</span>'}[r.fonte];
+    if(r.kit){
+      const det=r.kit.itens.map(l=>l.el.nome+': '+fmt(l.qt,1)+' '+l.el.unidade+' × '+fmt(l.preco.pu,0)+' € = '+fmt(l.total,0)+' €').join('\n')
+        +(r.kit.semPreco.length?'\nSem preço: '+r.kit.semPreco.join(', '):'')+(r.kit.racio!=null?'\nPelo rácio do capítulo: '+fmt(r.kit.racio,0)+' €':'');
+      chip+='<div class="hint" style="margin:3px 0 0;font-size:11.5px;cursor:help" title="'+esc(det)+'">'+(r.kit.parcial?'kit '+fmt(r.kit.valor,0)+' € · cobre '+Math.round(r.kit.cob*100)+'%':(r.kit.racio!=null?'rácio seria '+fmt(r.kit.racio,0)+' €':'só kit (sem histórico)'))+'</div>';
+    }
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${esc(r.cap)}</td><td class="num">${r.n}</td>
       <td><span class="drvchip">${esc(DRIVER_LBL[r.drv]||r.drv)}</span>${r.exp!==1?`<span class="drvchip exp" title="expoente de escala">^${r.exp}</span>`:""}</td>
       <td>${chip}</td>
-      <td class="num">${fmt(r.rc,2)}</td>
+      <td class="num">${r.rc!=null?fmt(r.rc,2):'—'}</td>
       <td class="num" style="color:${r.kf!==1?'var(--warn)':'#c4ccd8'}">${r.kf!==1?"×"+fmt(r.kf,2):"—"}</td>
       <td class="num" style="font-weight:600">${fmt(r.central,0)}</td>
       <td class="num" style="color:#8794a8">${fmt(r.lo,0)}</td>
@@ -149,11 +185,12 @@ function exportEstimativa(){
     ["Expoente < 1 significa que o capítulo tem componente fixa e cresce menos que proporcionalmente à dimensão."],
     ["Fonte QT×PU = estimado por quantidade medida × preço unitário da biblioteca (método mais preciso)."],
     ["Fonte DRIVER = rácio do capítulo escalado pelo driver físico. Fonte ABC = recurso a m² por falta de driver."],
+    ["Fonte KIT-TIPO = mix de tipologias × quantidade por fogo (ficha / kit-tipo / observado) × preço do elemento na biblioteca."],
     [],
     ["Capítulo","Nº projetos","Driver","Expoente","Fonte","Rácio central","Calibração","Estimativa (€)","Mínimo (€)","Máximo (€)"]];
-  const fonteLbl={qt:"QT×PU",drv:"DRIVER",lin:"ABC"};
+  const fonteLbl={qt:"QT×PU",drv:"DRIVER",lin:"ABC",kit:"KIT-TIPO"};
   const body=E.rows.map(r=>[r.cap,r.n,DRIVER_LBL[r.drv]||r.drv,r.exp,fonteLbl[r.fonte],
-    Math.round(r.rc*100)/100,r.kf!==1?Math.round(r.kf*100)/100:"",
+    r.rc!=null?Math.round(r.rc*100)/100:"",r.kf!==1?Math.round(r.kf*100)/100:"",
     Math.round(r.central),Math.round(r.lo),Math.round(r.hi)]);
   body.push(["TOTAL HARD COSTS","","","","","","",Math.round(E.tC),Math.round(E.tLo),Math.round(E.tHi)]);
   if(E.softOn&&SOFT_ROWS.length){
@@ -278,4 +315,4 @@ async function _renderComparar(){
   });
 }
 
-APP_REGISTAR('06-estimador-comparar','3.1.0');
+APP_REGISTAR('06-estimador-comparar','3.2.0');

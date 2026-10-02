@@ -157,7 +157,7 @@ function estDescritores(){
           implantacao:g('estImpl'), lote:g('estLote'), fogos:g('estFogos'),
           pisosA:g('estPisosA'), pisosB:g('estPisosB'), park:g('estPark')};
 }
-function estInputs(){const o={};['estNome','estAbc','estFogos','estAcima','estAbaixo','estImpl','estLote','estPisosA','estPisosB','estPark','estBudget','estBase','estFonte','estInfl','estAno','estInflModo','estPU','estCalib','estSoft'].forEach(id=>{const e=document.getElementById(id);if(e)o[id]=e.value});return o}
+function estInputs(){const o={};['estNome','estAbc','estFogos','estAcima','estAbaixo','estImpl','estLote','estPisosA','estPisosB','estPark','estBudget','estBase','estFonte','estInfl','estAno','estInflModo','estPU','estCalib','estSoft','estKit'].forEach(id=>{const e=document.getElementById(id);if(e)o[id]=e.value});return o}
 function restoreEstInputs(){const o=readLocal('est');if(!o)return;Object.entries(o).forEach(([id,v])=>{const e=document.getElementById(id);if(e&&v!=="")e.value=v})}
 
 /* Valor do driver. Cadeia de recurso explícita: se a grandeza própria não estiver
@@ -1063,4 +1063,4 @@ restoreEstInputs();
 loadBenchmarks();
 if(new URLSearchParams(location.search).get('test')==='1') runSelfTests();
 
-APP_REGISTAR('07-motor','3.1.0');
+APP_REGISTAR('07-motor','3.2.0');

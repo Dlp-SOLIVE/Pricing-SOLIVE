@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/lucide.css">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=3.1.0">
+<link rel="stylesheet" href="app.css?v=3.2.0">
 </head>
 <body>
 <header>
@@ -306,6 +306,9 @@
       <div style="grid-column:span 2"><label>Calibração pelo desvio histórico</label><select id="estCalib">
         <option value="off">Desligada — estimativa em bruto</option>
         <option value="on">Ligada — corrigir pelo desvio orçamento→real</option></select></div>
+      <div style="grid-column:span 2"><label>Elementos por tipologia (kit-tipo)</label><select id="estKit">
+        <option value="auto">Usar nos capítulos com elementos (recomendado)</option>
+        <option value="off">Não usar — só rácios de capítulo</option></select></div>
       <div style="grid-column:span 2"><label>Soft costs</label><select id="estSoft">
         <option value="off">Só hard costs</option>
         <option value="on">Acrescentar camada de soft costs</option></select></div>
@@ -318,6 +321,7 @@
         <li><b>Expoente de escala:</b> capítulos com componente fixa relevante (estaleiro, elevadores, SCIE) crescem menos que proporcionalmente. Aplica-se <span class="mono">(driver_novo / driver_histórico)^expoente</span>, com expoente &lt; 1.</li>
         <li><b>Inflação:</b> cada rácio é levado ao ano-alvo por <span class="mono">(1+i)^(anos)</span>. No modo diferenciado, capítulos de mão-de-obra intensiva, de material e de MEP usam taxas distintas.</li>
         <li><b>Calibração:</b> se ligada, cada capítulo é multiplicado pela mediana histórica de <span class="mono">real / orçamento</span> — corrige o enviesamento sistemático das tuas próprias estimativas.</li>
+        <li><b>Kit-tipo:</b> nos capítulos com elementos (cozinhas, carpintarias, AVAC, elevadores…), se o projeto tiver mix de tipologias, o valor é <span class="mono">Σ fogos × quantidade por fogo × preço do elemento</span>. Só substitui o rácio quando os elementos valem pelo menos 60% dele — abaixo disso não representam o capítulo inteiro e ficam como referência.</li>
         <li><b>Intervalo:</b> é o envelope mínimo–máximo dos projetos na base, não um intervalo de confiança estatístico.</li>
       </ul>
     </div>
@@ -344,6 +348,7 @@
         <span><span class="srcchip src-qt">QT×PU</span> quantidade do MQ × preço unitário da biblioteca</span>
         <span><span class="srcchip src-drv">DRIVER</span> rácio do capítulo pelo seu driver físico</span>
         <span><span class="srcchip src-lin">ABC</span> recurso a m² de ABC por falta de driver</span>
+        <span><span class="srcchip src-kit">KIT</span> mix de tipologias × kit-tipo × preço do elemento</span>
       </div>
       <div style="overflow-x:auto">
       <table>
@@ -720,7 +725,7 @@
 
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.1.0</span> <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.2.0</span> <span id="selfTestFooter"></span></footer>
 
 <!-- ====== BOTÃO DE AJUDA (autoexplicativo) ====== -->
 <button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
@@ -795,22 +800,22 @@
 <script>
 /* Versão da plataforma: muda em CADA entrega e tem de ser igual em todos os ficheiros
    *.js (linha APP_REGISTAR no fim de cada um). O 99-arranque.js confirma. */
-window.APP={versao:"3.1.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
+window.APP={versao:"3.2.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
 window.APP_REGISTAR=function(nome,versao){ APP.carregados[nome]=versao; };
 </script>
-<script src="01-base.js?v=3.1.0"></script>
-<script src="02-execucao.js?v=3.1.0"></script>
-<script src="03-auth-projetos.js?v=3.1.0"></script>
-<script src="04-analisador.js?v=3.1.0"></script>
-<script src="05-orcamentacao.js?v=3.1.0"></script>
-<script src="06-estimador-comparar.js?v=3.1.0"></script>
-<script src="07-motor.js?v=3.1.0"></script>
-<script src="08-contexto.js?v=3.1.0"></script>
-<script src="09-custo-real.js?v=3.1.0"></script>
-<script src="10-ajuda.js?v=3.1.0"></script>
-<script src="11-ux.js?v=3.1.0"></script>
-<script src="12-tipologias.js?v=3.1.0"></script>
-<script src="13-importar.js?v=3.1.0"></script>
-<script src="99-arranque.js?v=3.1.0"></script>
+<script src="01-base.js?v=3.2.0"></script>
+<script src="02-execucao.js?v=3.2.0"></script>
+<script src="03-auth-projetos.js?v=3.2.0"></script>
+<script src="04-analisador.js?v=3.2.0"></script>
+<script src="05-orcamentacao.js?v=3.2.0"></script>
+<script src="06-estimador-comparar.js?v=3.2.0"></script>
+<script src="07-motor.js?v=3.2.0"></script>
+<script src="08-contexto.js?v=3.2.0"></script>
+<script src="09-custo-real.js?v=3.2.0"></script>
+<script src="10-ajuda.js?v=3.2.0"></script>
+<script src="11-ux.js?v=3.2.0"></script>
+<script src="12-tipologias.js?v=3.2.0"></script>
+<script src="13-importar.js?v=3.2.0"></script>
+<script src="99-arranque.js?v=3.2.0"></script>
 </body>
 </html>
