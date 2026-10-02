@@ -58,7 +58,7 @@ function ctxAplicar(){
   saveLocal('ctx',CTX);
 }
 function ctxResumoHTML(){
-  if(!CTX.nome) return '<span class="miss">Sem projeto ativo — escolhe ou escreve um nome na barra de topo.</span>';
+  if(!CTX.nome) return '<span class="miss">Sem projeto ativo — escolhe ou escreve um nome em «Projeto ativo», no menu lateral.</span>';
   const partes=CTX_CAMPOS.filter(([k])=>CTX.D[k]!=null)
     .map(([k,l,u])=>`${l} <b>${fmt(CTX.D[k],0)}${u?" "+u:""}</b>`);
   const seg = CTX.D.segmento
@@ -71,14 +71,19 @@ function toggleCtxLista(ev){
   const box=document.getElementById('ctxLista'); if(!box)return;
   if(!box.classList.contains('hidden')){ box.classList.add('hidden'); return; }
   box.innerHTML="";
+  /* Fase 6: «Novo projeto» no topo da lista — limpa o nome para escrever o do projeto novo */
+  const novo=document.createElement('button'); novo.type='button'; novo.className='lg-proj-novo';
+  novo.innerHTML='<i class="icon-plus" aria-hidden="true"></i>Novo projeto';
+  novo.onclick=()=>{ box.classList.add('hidden'); const i=document.getElementById('ctxNome'); if(i){ i.value=''; i.placeholder='Escreve o nome do projeto novo'; i.focus(); } };
+  box.appendChild(novo);
   if(!PROJETOS.length){
-    box.innerHTML='<div style="padding:10px 12px;font-size:13px;color:#8794a8">Ainda não há projetos gravados. Escreve um nome para criar.</div>';
+    box.insertAdjacentHTML('beforeend','<div class="lg-proj-vazio">Ainda não há projetos gravados. Escreve um nome para criar.</div>');
   } else {
     PROJETOS.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(p=>{
       const d=document.createElement('div');
-      d.style.cssText="padding:8px 12px;font-size:13px;color:var(--ink);cursor:pointer;border-radius:6px";
-      d.onmouseover=()=>d.style.background='#F0F3F8'; d.onmouseout=()=>d.style.background='';
-      d.innerHTML=esc(p.nome)+(p.segmento?'<span style="color:var(--teal);font-size:12px"> · '+esc(segLabel(p.segmento))+'</span>':'')+(p.gfa?'<span style="color:#8794a8;font-size:12px"> · '+fmt(p.gfa,0)+' m²</span>':'');
+      d.className='lg-proj-op'+(norm(p.nome)===norm(CTX.nome)?' on':''); d.tabIndex=0; d.setAttribute('role','button');
+      d.innerHTML='<b>'+esc(p.nome)+'</b><span>'+[p.segmento?esc(segLabel(p.segmento)):'',p.gfa?fmt(p.gfa,0)+' m²':''].filter(Boolean).join(' · ')+'</span>';
+      d.onkeydown=e=>{ if(e.key==='Enter') d.click(); };
       d.onclick=()=>{ box.classList.add('hidden'); document.getElementById('ctxNome').value=p.nome; ctxDefinir(p.nome); };
       box.appendChild(d);
     });
@@ -87,7 +92,7 @@ function toggleCtxLista(ev){
 }
 document.addEventListener('click',e=>{
   const box=document.getElementById('ctxLista');
-  if(box&&!box.classList.contains('hidden')&&!e.target.closest('#ctxLista')&&e.target.id!=='ctxSeta') box.classList.add('hidden');
+  if(box&&!box.classList.contains('hidden')&&!e.target.closest('#ctxLista')&&!e.target.closest('#ctxSeta')) box.classList.add('hidden');
 });
 function ctxRender(){
   document.body.classList.toggle('no-project',!CTX.nome);
@@ -95,10 +100,12 @@ function ctxRender(){
   const inp=document.getElementById('ctxNome'); if(inp&&inp.value!==CTX.nome) inp.value=CTX.nome;
   const tag=document.getElementById('ctxNew');
   if(tag) tag.classList.toggle('hidden', !(CTX.nome&&CTX.novo));
+  try{ if(typeof lgProjMeta==='function') lgProjMeta(); }catch(e){}
   const eco=CTX.nome
     ? `<span class="pn">${esc(CTX.nome)}</span>${CTX.novo?'<span class="tag">novo</span>':''}<span style="color:#c4ccd8;margin:0 4px">|</span> ${ctxResumoHTML()}`
     : ctxResumoHTML();
   ['anEcho','estEcho','orcEcho'].forEach(id=>{const e=document.getElementById(id); if(e) e.innerHTML=eco});
+  try{ if(typeof estPainelDescritores==='function') estPainelDescritores(); }catch(e){}
   ['verProj','mcProj'].forEach(id=>{
     const sel=document.getElementById(id);
     if(sel&&CTX.nome){const o=[...sel.options].find(x=>norm(x.text)===norm(CTX.nome)||norm(x.value)===norm(CTX.nome)); if(o) sel.value=o.value;}
@@ -117,10 +124,11 @@ async function ctxDefinir(nome){
 /* Trocar de projeto tem de repercutir-se na vista aberta, senão fica-se a olhar
    para os números do projeto anterior sem nada o indicar. */
 async function refrescarVistaAtual(){
-  const v=['programa','kit','analisador','estimador','orcamento','consultas','comparar','biblioteca','execucao']
+  const v=['resumo','programa','kit','analisador','estimador','orcamento','consultas','comparar','biblioteca','execucao']
     .find(x=>{const e=document.getElementById('view-'+x);return e&&!e.classList.contains('hidden')});
   if(!v) return;
   try{
+    if(v==='resumo'){ await uxRenderResumo(); }
     if(v==='programa'){ await tpRenderPrograma(); }
     if(v==='kit'){ await tpRenderKit(); }
     if(v==='biblioteca'){
@@ -363,6 +371,15 @@ function renderFindings(){
   const tot=FINDINGS.length, res=FINDINGS.filter(f=>f.resolvido).length;
   const t=document.getElementById('findTag');
   if(t) t.textContent=tot?`${res} de ${tot} tratados`:"";
+  /* Fase 6: filtro por severidade em botões (com contagem) — escrevem no seletor #fSev */
+  const ch=document.getElementById('fSevChips'), sel=document.getElementById('fSev');
+  if(ch&&sel){
+    const n=s=>FINDINGS.filter(f=>!s||f.sev===s).length;
+    ch.innerHTML=[['','Todos'],['erro','Erros'],['aviso','Avisos'],['info','Notas']].map(([k,l])=>
+      '<button type="button" class="lg-chip'+(sel.value===k?' on':'')+'" data-sev="'+k+'" aria-pressed="'+(sel.value===k)+'">'+l+' <b>'+n(k)+'</b></button>').join('');
+    ch.querySelectorAll('[data-sev]').forEach(b=>b.onclick=()=>{ sel.value=b.dataset.sev; renderFindings(); });
+  }
+  try{ lgGuiaAtualizar('analisador'); }catch(e){}
 }
 
 /* confirmação antes de apagar ou substituir */
@@ -481,7 +498,7 @@ async function analisarPricingCompleto(){
   const cardAl=document.getElementById('tbFindings')?document.getElementById('tbFindings').closest('.card'):null;
   if(cardAl){
     const t=document.getElementById('tbFindings');
-    t.innerHTML='<tr><td colspan="9" style="color:#8794a8;padding:14px">'+
+    t.innerHTML='<tr><td colspan="8" style="color:var(--color-black-70);padding:14px">'+
       'Leitura de pricing sheet — não são gerados alertas de revisão. '+
       'Os alertas aplicam-se a mapas de quantidades entregues pelo projetista.</td></tr>';
     const ne=document.getElementById('noFindings'); if(ne) ne.classList.add('hidden');
@@ -555,4 +572,4 @@ function confereProjeto(wbk,nomeAtivo){
     'Continuar grava os dados no projeto ativo e substitui o que lá estiver.\n\nTens a certeza?');
 }
 
-APP_REGISTAR('08-contexto','3.3.0');
+APP_REGISTAR('08-contexto','3.5.0');

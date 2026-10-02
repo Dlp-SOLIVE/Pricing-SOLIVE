@@ -10,19 +10,142 @@ function uxPurpose(eyebrow,title,text){return '<div class="purpose" data-ux><but
 /* «Como funciona» em vez de esconder/mostrar */
 function foldPurpose(btn){const box=btn.closest('.purpose');const on=box.classList.toggle('open');btn.innerHTML='<i class="icon-'+(on?'x':'circle-help')+'" aria-hidden="true"></i>'+(on?'Fechar':'Como funciona');}
 
+/* ═══════════ Fase 6 · Legendre — shell (menu lateral, cabeçalho, guia) ═══════════ */
+
+/* Cabeçalho de cada ecrã: H1 e botões. O eyebrow é «Área / Separador» (AREAS) e o
+   subtítulo vem de HELP[v].s (10-ajuda.js) quando aqui não há outro.
+   sec/pri = [texto, função global a chamar]; só aparecem se a função existir. */
+const TITULOS={
+  resumo:    {h:'Resumo do projeto', s:'O ponto de situação do projeto ativo e o que falta fazer', sec:['Editar descritores','abrirDescritores','pencil']},
+  importar:  {h:'Importar ficheiro', s:'Um só sítio para largar qualquer Excel'},
+  analisador:{h:'Mapa de quantidades', s:'Rever o MQ do projetista e orçamentá-lo com o custo real', sec:['Gravar análise','saveAnalysis','save'], pri:['Exportar comentários','exportComentarios','download']},
+  precomq:   {h:'Mapa de quantidades', s:'Rever o MQ do projetista e orçamentá-lo com o custo real', pri:['Exportar (.xlsx)','vfExportMQ','download']},
+  estimador: {h:'Estimativa para o BP', s:'Custo estimado a partir dos descritores e da biblioteca', pri:['Exportar (.xlsx)','exportEstimativa','download']},
+  orcamento: {h:'Orçamento', s:'Consolidação por capítulo, com semáforo da fonte do preço', sec:['Exportar (.xlsx)','exportOrcamento','download'], pri:['Gravar versão','saveOrcBoard','save']},
+  execucao:  {h:'Adjudicações e desvios', s:'Preço de contrato por pacote e variações em obra', sec:['Exportar (.xlsx)','gxExportar','download'], pri:['Registar adjudicação','gxRegistarAdjudicacao','plus']}
+};
+/* Guia «Como fazer»: passos curtos por ecrã (o detalhe está na Ajuda).
+   NOTA: textos provisórios — substituir pelos da constante GUIA do protótipo quando disponível. */
+const GUIA={
+  resumo:    ['Escolhe o projeto ativo','Vê o estado de cada fase','Segue para a fase por concluir'],
+  programa:  ['Indica o mix de tipologias','Preenche a ficha por fogo','Grava o programa'],
+  importar:  ['Larga o ficheiro Excel','Confirma o tipo reconhecido','Continua no ecrã de destino'],
+  estimador: ['Confirma os descritores','Indica o budget do BP','Carrega em Estimar','Compara com o BP'],
+  analisador:['Carrega o MQ','Revê os alertas','Comenta e grava a análise','Orçamenta o MQ'],
+  precomq:   ['Carrega o MQ','Define a base de custo','Carrega em Orçamentar','Confirma as linhas de confiança baixa'],
+  orcamento: ['Arranca dos rácios ou do resumo','Atualiza a fonte de cada capítulo','Acompanha a consolidação','Grava a versão'],
+  consultas: ['Abre a consulta do pacote','Regista as propostas','Compara-as','Escolhe a proposta'],
+  execucao:  ['Regista a adjudicação','Regista as variações com motivo','Acompanha o desvio'],
+  verificar: ['Escolhe o projeto e o pacote','Carrega o auto','Revê as diferenças'],
+  racios:    ['Filtra por segmento ou projeto','Consulta o €/m² por capítulo'],
+  kit:       ['Escolhe o segmento e a tipologia','Compara o padrão com o observado','Fixa os preços por elemento'],
+  comparar:  ['Escolhe os projetos','Escolhe a normalização','Lê as diferenças'],
+  biblioteca:['Revê drivers e expoentes','Marca os capítulos sensíveis ao segmento','Acrescenta regras de mapeamento','Grava a taxonomia'],
+  admin:     ['Escolhe o projeto','Consulta as versões gravadas','Elimina só o que já não é preciso'],
+  config:    ['Calcula a sugestão','Ajusta e grava os índices','Escolhe a referência']
+};
+/* Passo atual do guia por ecrã: função que devolve o índice (0 = primeiro). Os passos anteriores
+   aparecem como feitos (✓). Cada ecrã acrescenta a sua regra quando for redesenhado. */
+const GUIA_PASSO={
+  resumo:()=>(typeof CTX!=='undefined'&&CTX.nome)?1:0,
+  importar:()=>(typeof IMP!=='undefined'&&IMP.ficheiro)?1:0,
+  analisador:()=>{ if(typeof workbook==='undefined'||!workbook) return 0; if(!FINDINGS.length) return 1; return FINDINGS.some(f=>f.resolvido)?2:1; },
+  estimador:()=>{ const D=(typeof CTX!=='undefined'&&CTX.D)||{}; if(!(D.abc>0)) return 0; if(!(+(document.getElementById('estBudget')||{}).value>0)&&!EST_LAST) return 1; return EST_LAST?3:2; },
+  orcamento:()=>{ if(typeof ORC_ROWS==='undefined'||!ORC_ROWS.length) return 0; if(ORC_DIRTY) return 3; return ORC_ROWS.some(r=>r.estado!=='racio')?2:1; },
+  execucao:()=>{ if(typeof GX_ROWS==='undefined'||!GX_ROWS.length) return 0; return Object.keys(GX_VARS||{}).length?2:1; },
+  precomq:()=>{ if(typeof MQ_FICHEIRO==='undefined'||!MQ_FICHEIRO) return 0; return (window.__mqResults&&window.__mqResults.length)?3:1; }
+};
+/* vistas que partilham o separador de outra precisam do seu próprio nome no «A seguir» */
+const NOME_PROPRIO={precomq:'Orçamentar o MQ'};
+
+function lgIc(n){ return '<i class="icon-'+n+'" aria-hidden="true"></i>'; }
+function lgEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function lgNomeVista(v){
+  const a=(typeof areaDaVista==='function')?areaDaVista(v):null;
+  const t=VISTA_SEPARADOR[v]||v;
+  const tab=a?((a.tabs.find(x=>x[0]===t)||[])[1]||''):'';
+  return {area:a?a.t:'', tab:tab};
+}
+/* volta a desenhar o cabeçalho (passo atual do guia) se a vista estiver aberta */
+function lgGuiaAtualizar(v){ try{ const e=document.getElementById('view-'+v); if(e&&!e.classList.contains('hidden')) lgCabecalho(v); }catch(e){} }
+function lgGuiaOculto(v){ try{ return localStorage.getItem('guia_oculto_'+v)==='1'; }catch(e){ return false; } }
+function lgGuiaOcultar(v,on){ try{ if(on) localStorage.setItem('guia_oculto_'+v,'1'); else localStorage.removeItem('guia_oculto_'+v); }catch(e){} lgCabecalho(v); }
+
+function lgCabecalho(v,a){
+  const head=document.getElementById('lgHead'); if(!head) return;
+  const bar=document.getElementById('areaTabs'); if(bar&&bar.nextElementSibling!==head) bar.after(head);
+  const nm=lgNomeVista(v);
+  const T=TITULOS[v]||{};
+  const H=(typeof HELP!=='undefined'&&HELP[v])||{};
+  const h1=T.h||nm.tab||nm.area||'';
+  const sub=T.s||H.s||'';
+  const passos=GUIA[v]||[];
+  const oculto=lgGuiaOculto(v);
+  const btn=(def,cls)=>(def&&typeof window[def[1]]==='function')?'<button type="button" class="btn '+cls+' sm" data-noic data-fn="'+def[1]+'">'+(def[2]?lgIc(def[2]):'')+lgEsc(def[0])+'</button>':'';
+  let html='<div class="lg-pagehead"><div class="lg-pagehead-tx">'
+    +'<div class="lg-eyebrow">'+lgEsc(nm.area)+(nm.tab&&nm.tab!==nm.area?' / '+lgEsc(nm.tab):'')+'</div>'
+    +'<h1>'+lgEsc(h1)+'</h1>'+(sub?'<p class="lg-sub">'+lgEsc(sub)+'</p>':'')+'</div>'
+    +'<div class="lg-pagehead-act">'
+    +(passos.length&&oculto?'<button type="button" class="lg-link" data-guia="mostrar">'+lgIc('eye')+'Mostrar guia</button>':'')
+    +btn(T.sec,'ghost')+btn(T.pri,'red')
+    +'</div></div>';
+  if(passos.length&&!oculto){
+    let cur=0; try{ if(GUIA_PASSO[v]) cur=Math.max(0,Math.min(passos.length-1,+GUIA_PASSO[v]()||0)); }catch(e){}
+    const nx=H.n; const nxNome=nx?(NOME_PROPRIO[nx]||lgNomeVista(nx).tab||nx):'';
+    html+='<div class="lg-guide" role="note" aria-label="Como fazer"><span class="lg-guide-lbl">Como fazer</span><ol>'
+      +passos.map((p,i)=>(i?'<li class="arr" aria-hidden="true">→</li>':'')+'<li class="'+(i<cur?'done':(i===cur?'cur':''))+'"'+(i===cur?' aria-current="step"':'')+'><span class="n">'+(i<cur?'✓':(i+1))+'</span>'+lgEsc(p)+'</li>').join('')
+      +'</ol><div class="lg-guide-act">'
+      +(nx?'<button type="button" class="lg-guide-next" data-to="'+nx+'">A seguir: '+lgEsc(nxNome)+' '+lgIc('arrow-right')+'</button>':'')
+      +'<button type="button" class="lg-iconbtn lg-guide-hide" data-guia="ocultar" title="Ocultar o guia neste ecrã" aria-label="Ocultar o guia neste ecrã">'+lgIc('eye-off')+'</button>'
+      +'</div></div>';
+  }
+  head.innerHTML=html;
+  head.querySelectorAll('[data-fn]').forEach(b=>b.onclick=()=>{ try{ window[b.dataset.fn](); }catch(e){ console.warn(e); } });
+  head.querySelectorAll('[data-guia]').forEach(b=>b.onclick=()=>lgGuiaOcultar(v,b.dataset.guia==='ocultar'));
+  head.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>showView(b.dataset.to));
+}
+
+/* menu lateral: áreas (com os separadores da ativa por baixo) e rodapé */
+function lgMontarMenu(){
+  const nav=document.getElementById('lgNav'), foot=document.getElementById('lgFootNav'); if(!nav||!foot) return;
+  const item=a=>'<button type="button" class="lg-nav-item" id="nava-'+a.k+'">'+lgIc(a.ic)+'<span>'+lgEsc(a.t)+'</span></button><div class="lg-nav-sub" id="navsub-'+a.k+'" hidden></div>';
+  nav.innerHTML=AREAS.filter(a=>a.k!=='admin').map(item).join('');
+  const ad=AREAS.find(a=>a.k==='admin');
+  foot.innerHTML=(ad?item(ad):'')+'<button type="button" class="lg-nav-item" id="nav-ajuda">'+lgIc('circle-help')+'<span>Ajuda</span></button>';
+  AREAS.forEach(a=>{ const b=document.getElementById('nava-'+a.k); if(b) b.onclick=()=>abrirArea(a.k); });
+  document.getElementById('nav-ajuda').onclick=()=>{ try{ abrirAjuda(); }catch(e){} };
+  const ver=document.getElementById('lgUserVer'); if(ver&&window.APP) ver.textContent='v'+APP.versao;
+}
+function lgUtilizador(){
+  const u=(typeof SESSION!=='undefined'&&SESSION&&SESSION.user)||null;
+  const nomeEl=document.getElementById('lgUserNome'), av=document.getElementById('lgAvatar'); if(!nomeEl||!av) return;
+  if(!u){ nomeEl.textContent='Sem sessão'; av.textContent='–'; return; }
+  const md=u.user_metadata||{};
+  let nome=md.full_name||md.name||'';
+  if(!nome&&u.email){ nome=u.email.split('@')[0].split(/[._-]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(' '); }
+  nomeEl.textContent=nome||u.email||'Utilizador'; nomeEl.title=u.email||'';
+  const ini=(nome||u.email||'?').split(/\s+/).filter(Boolean); av.textContent=((ini[0]||'?')[0]+((ini.length>1?ini[ini.length-1][0]:'')||'')).toUpperCase();
+}
+/* projeto ativo no menu: uma linha de meta (segmento · ABC · fogos) */
+function lgProjMeta(){
+  const el=document.getElementById('lgProjMeta'); if(!el||typeof CTX==='undefined') return;
+  if(!CTX.nome){ el.textContent='Sem projeto ativo'; return; }
+  const D=CTX.D||{}, p=[];
+  if(D.segmento){ try{ p.push(segLabel(D.segmento)); }catch(e){ p.push(D.segmento); } }
+  if(D.abc>0) p.push(Math.round(D.abc).toLocaleString('pt-PT')+' m² ABC');
+  if(D.fogos>0) p.push(D.fogos+' fogos');
+  el.textContent=p.length?p.join(' · '):'Descritores por preencher';
+  try{ const v=ajudaVistaAtiva(); if(document.getElementById('view-'+v)) lgCabecalho(v); }catch(e){}   // o passo atual do guia pode depender do projeto
+  try{ if(typeof IMP!=='undefined'&&IMP.ficheiro) impMostrar(); }catch(e){}   // Importar: o botão Confirmar depende do projeto ativo
+}
+/* menu em ecrãs estreitos (< 900 px): abre por cima do conteúdo */
+function lgMenuMovel(on){
+  const b=document.body; const abrir=(on===undefined)?!b.classList.contains('lg-nav-open'):!!on;
+  b.classList.toggle('lg-nav-open',abrir);
+}
+
 (function uxMount(){
-  const nav=document.querySelector('header nav'); if(!nav) return;
-  /* Fase 6: os ecrãs (Resumo, Administração, Segmentos e referência), os textos dos botões e
-     as opções avançadas do Estimador estão diretamente no index.html; aqui só se monta o menu. */
-  const B=id=>document.getElementById(id);
-  const items=AREAS.filter(a=>a.k!=='admin').map(a=>{ const b=uxEl('button',{id:'nava-'+a.k,type:'button'}); b.textContent=a.t; b.onclick=()=>abrirArea(a.k); return b; });
-  items.push(uxEl('div',{class:'navsep'}));
-  const ad=uxEl('button',{id:'nava-admin',type:'button'}); ad.textContent='Administração'; ad.onclick=()=>abrirArea('admin'); items.push(ad);
-  const aj=uxEl('button',{id:'nav-ajuda',type:'button'}); aj.textContent='Ajuda'; aj.onclick=()=>{try{abrirAjuda()}catch(e){}};
-  items.push(aj);
-  const out=B('btnLogout');
-  nav.innerHTML=''; items.forEach(i=>nav.appendChild(i)); if(out) nav.appendChild(out);
-  document.querySelectorAll('.purpose .toggle').forEach(b=>{b.textContent='Como funciona';});
+  lgMontarMenu();
   // Mapa de quantidades: resultados em separadores
   uxMountTabs();
   // começar no Resumo
@@ -68,26 +191,35 @@ function ctxSeguirSeletores(v){
     });
 }
 
-/* Resumo do projeto */
+/* Resumo do projeto — Fase 6 · Legendre: faixa de descritores, ciclo do projeto (4 passos),
+   próximas ações por prioridade e orçamento face ao BP. Tudo deriva do que já está gravado. */
+const RS_SEMAFORO=['racio','consulta','antiga','firme','compromisso'];   // ordem da barra de consolidação
+function lgBadge(txt,tom){ return '<span class="lg-badge" data-tone="'+(tom||'neutral')+'">'+lgEsc(txt)+'</span>'; }
+function lgKV(l,v,cls){ return '<div class="lg-kv'+(cls?' '+cls:'')+'"><span>'+l+'</span><b>'+v+'</b></div>'; }
+function lgConsBar(porEst,total){
+  if(!total) return '';
+  return '<div class="lg-consbar" role="img" aria-label="Consolidação por estado">'+RS_SEMAFORO.filter(k=>porEst[k]>0)
+    .map(k=>'<span data-e="'+k+'" style="width:'+(porEst[k]/total*100).toFixed(2)+'%" title="'+lgEsc(((typeof ORC_EST!=='undefined'&&ORC_EST[k])||{}).lbl||k)+': '+uxFmtEur(porEst[k])+'"></span>').join('')+'</div>';
+}
 async function uxRenderResumo(){
   const box=document.getElementById('rsBody'); if(!box) return;
   const nome=(typeof CTX!=='undefined'&&CTX.nome)||'';
-  const h1=document.querySelector('#view-resumo .purpose h1'); if(h1) h1.textContent=nome?('Resumo do projeto · '+nome):'Resumo do projeto';
-  if(!nome){ box.innerHTML='<div class="rs-card"><h3>Escolhe o projeto ativo</h3><div class="hint">Escreve ou escolhe um projeto em «Projeto ativo», na barra de topo. Para um projeto novo, escreve o nome e preenche os descritores.</div></div>'; return; }
-  box.innerHTML='<div class="hint">A carregar…</div>';
+  if(!nome){ box.innerHTML=''; return; }   // o estado vazio (.ux-empty) explica o que fazer
+  box.innerHTML='<div class="lg-loading">A carregar…</div>';
   const online=(typeof SESSION!=='undefined'&&SESSION&&typeof sb!=='undefined'&&sb);
   const D=CTX.D||{};
+  const proj=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(p=>norm(p.nome)===norm(nome))||null;
   const faltam=[['abc','ABC'],['fogos','nº de fogos'],['implantacao','área de implantação'],['pisosA','pisos acima do solo']].filter(([k])=>!(D[k]>0)).map(x=>x[1]);
   let an=null, orc=null, cons=[], adj=[], ver=null;
   if(online){
-    const proj=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(p=>norm(p.nome)===norm(nome));
     try{ if(proj){ const r=await sb.from('analises').select('*').eq('projeto_id',proj.id).order('id',{ascending:false}).limit(1); an=(r.data&&r.data[0])||null; } }catch(e){}
     try{ orc=await orcLerAtual(nome); }catch(e){}
     try{ if(!CONSULTAS||!CONSULTAS.length) await loadConsultas(); cons=(CONSULTAS||[]).filter(c=>norm(c.projeto)===norm(nome)); }catch(e){}
     try{ const r=await sb.from('adjudicacoes').select('*').eq('projeto',nome); adj=r.data||[]; }catch(e){}
     try{ ver=(await orcVersoes(nome,1))[0]||null; }catch(e){}
   }
-  // orçamento
+  if(((typeof CTX!=='undefined'&&CTX.nome)||'')!==nome) return;   // o projeto mudou entretanto
+  /* orçamento */
   const linhas=(orc&&orc.linhas)||[];
   const EST={}; (typeof ORC_ESTADOS!=='undefined'?ORC_ESTADOS:[]).forEach(e=>EST[e.k]=e);
   const mig=e=>{try{return migrarEstado(e)}catch(x){return e}};
@@ -95,46 +227,77 @@ async function uxRenderResumo(){
   const porEst={}; linhas.forEach(r=>{const k=mig(r.estado)||'racio'; porEst[k]=(porEst[k]||0)+(+r.valor||0);});
   const solido=linhas.filter(r=>EST[mig(r.estado)]&&EST[mig(r.estado)].solido).reduce((s,r)=>s+(+r.valor||0),0);
   const pctSol=total?Math.round(solido/total*100):0;
-  const racioLin=linhas.filter(r=>mig(r.estado)==='racio');
+  const racioLin=linhas.filter(r=>mig(r.estado)==='racio'&&(+r.valor||0)>0);
   const racioVal=racioLin.reduce((s,r)=>s+(+r.valor||0),0);
-  const cores={racio:'#C81F35',consulta:'#B9760A',antiga:'#C9C2BF',firme:'#7CC4A0',compromisso:'#1F8A5B',adjudicado:'#1F8A5B'};
-  const bar=total?'<div class="rs-bar">'+Object.keys(cores).filter(k=>porEst[k]).map(k=>'<span style="width:'+(porEst[k]/total*100)+'%;background:'+cores[k]+'"></span>').join('')+'</div>':'';
-  // análise
+  /* análise do MQ */
   const al=(an&&an.payload&&an.payload.alertas)||[];
   const nErr=al.filter(a=>/err/i.test(a.sev)).length, nAv=al.filter(a=>/av|warn/i.test(a.sev)).length;
-  // consultas
+  /* consultas e execução */
   const ec=c=>{try{return estadoConsulta(c).k}catch(e){return ''}};
   const cAtr=cons.filter(c=>ec(c)==='atraso'), cAg=cons.filter(c=>ec(c)==='aguarda'), cRec=cons.filter(c=>ec(c)==='recebida');
-  // execução
   const adjTot=adj.reduce((s,a)=>s+(+a.adjudicado||0),0);
   const dt=d=>d?new Date(d).toLocaleDateString('pt-PT'):'';
-  const st=(v,n,badge,cls,val,sub)=>'<div class="rs-st" onclick="showView(\''+v+'\')"><div class="t"><span>'+n+'</span><span class="rs-b '+cls+'">'+badge+'</span></div><div class="v">'+val+'</div>'+(sub||'')+'</div>';
-  let html='<div class="rs-stages">';
-  html+=st('estimador','1 · Estimar', faltam.length?'Descritores':'Pronto', faltam.length?'rs-warn':'rs-ok', D.abc>0?(Math.round(D.abc).toLocaleString('pt-PT')+' m² ABC'):'Sem ABC', '<div class="s">'+(D.fogos>0?D.fogos+' fogos · ':'')+(faltam.length?'Falta: '+faltam.join(', '):'Descritores completos')+'</div>');
-  html+=st('analisador','2 · Rever projeto', an?(nErr+nAv?'A rever':'Sem alertas'):'Por fazer', an?(nErr+nAv?'rs-warn':'rs-ok'):'rs-none', an?esc(an.ficheiro||an.nome||'MQ analisado'):'—', '<div class="s">'+(an?(al.length+' alertas · '+nErr+' erros · '+nAv+' avisos'):'Ainda sem análise do MQ gravada')+'</div>');
-  html+=st('orcamento','3 · Orçamentar', total?(pctSol>=90?'Consolidado':'Em curso'):'Por iniciar', total?(pctSol>=90?'rs-ok':'rs-info'):'rs-none', total?(pctSol+'% consolidado'):'—', total?(bar+'<div class="s">'+uxFmtM(total)+(D.abc>0?' · '+Math.round(total/D.abc).toLocaleString('pt-PT')+' €/m²':'')+'</div>'):'<div class="s">Sem orçamento em curso gravado</div>');
-  html+=st('execucao','4 · Executar', adj.length?'Em curso':'Por iniciar', adj.length?'rs-info':'rs-none', adj.length?uxFmtM(adjTot):'—', '<div class="s">'+(adj.length?adj.length+' pacote(s) adjudicado(s)':'Começa depois da transferência para a Produção')+'</div>');
-  html+='</div>';
-  // próximas ações
+  const n0=v=>Math.round(v).toLocaleString('pt-PT');
+
+  /* 1 · faixa de descritores */
+  let segTxt=''; try{ segTxt=D.segmento?segLabel(D.segmento):''; }catch(e){ segTxt=D.segmento||''; }
+  const DESC=[['ABC total',D.abc,'m²'],['Acima solo',D.acima,'m²'],['Fogos',D.fogos,''],
+    [D.pisosB?'Pisos (+ enterr.)':'Pisos',(D.pisosA>0||D.pisosB>0)?((D.pisosA||0)+(D.pisosB?' + '+D.pisosB:'')):null,''],['Implantação',D.implantacao,'m²'],['Lote',D.lote,'m²']];
+  let html='<section class="lg-desc">'
+    +'<div class="lg-desc-id">'+(segTxt?lgBadge(segTxt,'inverse'):lgBadge('Segmento por definir','warning'))
+    +((proj&&proj.tipologia)?'<span class="lg-desc-tipo">'+lgEsc(proj.tipologia)+'</span>':'')+'</div>'
+    +'<div class="lg-desc-cols">'+DESC.map(([l,v,u])=>'<div class="lg-desc-c"><div class="lg-eyebrow">'+l+'</div><div class="lg-desc-v">'
+      +(v!=null&&v!==''&&(typeof v!=='number'||v>0)?(typeof v==='number'?n0(v):lgEsc(v))+(u?'<small>'+u+'</small>':''):'<span class="lg-miss">—</span>')+'</div></div>').join('')+'</div>'
+    +'</section>';
+
+  /* 2 · ciclo do projeto */
+  const passos=[
+    {v:'estimador',n:1,t:'Estimar', feito:!faltam.length,
+     badge:faltam.length?['Descritores','warning']:['Concluído','success'],
+     val:D.abc>0?(n0(D.abc)+' m² ABC'):'Sem ABC', sub:(D.fogos>0?D.fogos+' fogos · ':'')+(faltam.length?'Falta: '+faltam.join(', '):'Descritores completos'), cta:faltam.length?'Completar':'Abrir estimativa'},
+    {v:'analisador',n:2,t:'Rever projeto', feito:!!an&&!(nErr+nAv),
+     badge:an?((nErr+nAv)?['A rever','warning']:['Concluído','success']):['Por fazer','neutral'],
+     val:an?(al.length+' alerta'+(al.length===1?'':'s')):'—', sub:an?(nErr+' erros · '+nAv+' avisos · '+(an.ficheiro||an.nome||'MQ analisado')):'Ainda sem análise do MQ gravada', cta:an?'Rever MQ':'Carregar MQ'},
+    {v:'orcamento',n:3,t:'Orçamentar', feito:total>0&&pctSol>=90,
+     badge:total?(pctSol>=90?['Concluído','success']:['Em curso','accent']):['Por iniciar','neutral'],
+     val:total?(pctSol+'% consolidado'):'—', bar:total?lgConsBar(porEst,total):'', sub:total?(uxFmtM(total)+(D.abc>0?' · '+n0(total/D.abc)+' €/m²':'')):'Sem orçamento em curso gravado', cta:total?'Abrir orçamento':'Arrancar'},
+    {v:'execucao',n:4,t:'Executar', feito:false,
+     badge:adj.length?['Em curso','neutral']:['Por iniciar','neutral'],
+     val:adj.length?uxFmtM(adjTot):'—', sub:adj.length?(adj.length+' pacote(s) adjudicado(s)'):'Começa depois da transferência para a Produção', cta:'Abrir execução'}
+  ];
+  const iCur=passos.findIndex(p=>!p.feito);
+  html+='<section class="lg-cycle-wrap"><h2 class="lg-section-title">Ciclo do projeto</h2><div class="lg-cycle">'+passos.map((p,i)=>
+    '<button type="button" class="lg-stage" data-st="'+(p.feito?'done':(i===iCur?'cur':'next'))+'" data-to="'+p.v+'">'
+    +'<span class="lg-stage-h"><span>'+p.n+' · '+p.t+'</span>'+lgBadge(p.badge[0],p.badge[1])+'</span>'
+    +'<span class="lg-stage-v">'+lgEsc(p.val)+'</span>'+(p.bar||'')
+    +'<span class="lg-stage-s">'+lgEsc(p.sub)+'</span>'
+    +'<span class="lg-stage-cta">'+lgEsc(p.cta)+' →</span></button>').join('')+'</div></section>';
+
+  /* 3 · próximas ações (por prioridade) */
   const acts=[];
-  if(cAtr.length) acts.push(['!','#FBE1E5','#C81F35',cAtr.length+' consulta(s) sem resposta fora do prazo',[...new Set(cAtr.map(c=>c.cap))].slice(0,4).join(' · '),'consultas','Abrir consultas']);
-  if(an&&(nErr+nAv)) acts.push(['!','#FBEDD7','#B9760A',(nErr+nAv)+' alertas na última análise do MQ',nErr+' erros · '+nAv+' avisos · '+esc(an.ficheiro||''),'analisador','Rever MQ']);
-  if(racioLin.length) acts.push(['€','#F2EFED','#201C1D',racioLin.length+' capítulo(s) ainda estimados por rácio',uxFmtEur(racioVal)+(total?' · '+Math.round(racioVal/total*100)+'% do orçamento':''),'consultas','Abrir consulta']);
-  if(cAg.length) acts.push(['…','#F2EFED','#201C1D',cAg.length+' consulta(s) a aguardar resposta','Dentro do prazo','consultas','Ver']);
-  if(faltam.length) acts.push(['m²','#F2EFED','#201C1D','Descritores em falta: '+faltam.join(', '),'Sem eles, alguns rácios usam m² de ABC como aproximação',null,'Completar']);
-  if(!total) acts.push(['+','#F2EFED','#201C1D','Arrancar o orçamento','A partir da estimativa por rácios ou de um resumo em Excel','orcamento','Abrir orçamento']);
-  const actHtml=acts.length?acts.map(a=>'<div class="rs-act"><span class="rs-ic" style="background:'+a[1]+';color:'+a[2]+'">'+a[0]+'</span><div class="tx"><b>'+a[3]+'</b><span>'+a[4]+'</span></div><a onclick="'+(a[5]?'showView(\''+a[5]+'\')':'abrirDescritores()')+'">'+a[6]+'</a></div>').join(''):'<div class="hint">Nada pendente neste momento.</div>';
-  // orçamento face ao BP
+  if(cAtr.length) acts.push({ic:'triangle-alert',tom:'danger',t:cAtr.length+' consulta(s) sem resposta fora do prazo',s:[...new Set(cAtr.map(c=>c.cap))].slice(0,4).join(' · '),to:'consultas',b:'Abrir consultas'});
+  if(an&&(nErr+nAv)) acts.push({ic:'circle-alert',tom:'warning',t:(nErr+nAv)+' alertas na última análise do MQ',s:nErr+' erros · '+nAv+' avisos · '+(an.ficheiro||''),to:'analisador',b:'Rever MQ'});
+  if(racioLin.length) acts.push({ic:'wallet',tom:'accent',t:racioLin.length+' capítulo(s) ainda estimados por rácio',s:uxFmtEur(racioVal)+(total?' · '+Math.round(racioVal/total*100)+'% do orçamento':''),to:'consultas',b:'Abrir consulta'});
+  if(cAg.length) acts.push({ic:'hourglass',tom:'neutral',t:cAg.length+' consulta(s) a aguardar resposta',s:'Dentro do prazo',to:'consultas',b:'Ver'});
+  if(faltam.length) acts.push({ic:'ruler',tom:'neutral',t:'Descritores em falta: '+faltam.join(', '),s:'Sem eles, alguns rácios usam m² de ABC como aproximação',fn:'abrirDescritores',b:'Completar'});
+  if(!total) acts.push({ic:'sparkles',tom:'neutral',t:'Arrancar o orçamento',s:'A partir da estimativa por rácios ou de um resumo em Excel',to:'orcamento',b:'Abrir orçamento'});
+  const actHtml=acts.length?acts.map(a=>'<div class="lg-act"><span class="lg-act-ic" data-tone="'+a.tom+'">'+lgIc(a.ic)+'</span><div class="lg-act-tx"><b>'+lgEsc(a.t)+'</b><span>'+lgEsc(a.s)+'</span></div>'
+    +'<button type="button" class="btn ghost sm" data-noic '+(a.to?'data-to="'+a.to+'"':'data-fn="'+a.fn+'"')+'>'+lgEsc(a.b)+'</button></div>').join('')
+    :'<div class="lg-vazio">Nada pendente neste momento.</div>';
+
+  /* 4 · orçamento face ao BP */
   const bp=+(document.getElementById('estBudget')||{}).value||0;
-  let right='<div class="rs-card"><h3>Orçamento</h3>';
-  right+='<div class="rs-kv"><span>Orçamento em curso</span><b>'+(total?uxFmtEur(total):'—')+'</b></div>';
-  right+='<div class="rs-kv"><span>Valor consolidado</span><b>'+(total?uxFmtEur(solido)+' ('+pctSol+'%)':'—')+'</b></div>';
-  if(bp) right+='<div class="rs-kv"><span>Budget do BP (hard costs)</span><b>'+uxFmtEur(bp)+'</b></div><div class="rs-kv" style="border-top:1px solid var(--line);margin-top:4px;padding-top:10px"><span style="color:var(--ink);font-weight:600">Folga face ao BP</span><b style="color:'+(bp-total<0?'#C81F35':'#1F8A5B')+'">'+uxFmtEur(bp-total)+'</b></div>';
-  right+='<div class="rs-kv"><span>Consultas</span><b>'+cons.length+' ('+cRec.length+' com proposta)</b></div>';
-  right+='<div class="hint" style="margin-top:8px">'+(ver?('Última versão gravada: rev. '+ver.versao+(ver.criado_em||ver.created_at?' · '+dt(ver.criado_em||ver.created_at):'')):'Sem versões gravadas')+(orc&&orc.atualizado?' · orçamento atualizado a '+dt(orc.atualizado):'')+'</div></div>';
-  html+='<div class="rs-grid"><div class="rs-card"><h3>Próximas ações</h3>'+actHtml+'</div>'+right+'</div>';
-  if(!online) html='<div class="note" style="margin-bottom:14px">Modo local: inicia sessão para ver os dados gravados deste projeto.</div>'+html;
+  let right=lgKV('Orçamento em curso',total?uxFmtEur(total):'—')+lgKV('Valor consolidado',total?uxFmtEur(solido)+' ('+pctSol+'%)':'—');
+  if(bp){ const f=bp-total; right+=lgKV('Budget do BP (hard costs)',uxFmtEur(bp))+lgKV(f<0?'Excesso face ao BP':'Folga face ao BP','<span class="'+(f<0?'lg-neg':'lg-pos')+'">'+uxFmtEur(Math.abs(f))+'</span>','lg-kv-tot'); }
+  else right+=lgKV('Budget do BP','<span class="lg-miss">Indica-o na Estimativa</span>');
+  right+=lgKV('Consultas',cons.length+' ('+cRec.length+' com proposta)');
+  right+='<p class="lg-meta">'+(ver?('Última versão gravada: rev. '+ver.versao+((ver.criado_em||ver.created_at)?' · '+dt(ver.criado_em||ver.created_at):'')):'Sem versões gravadas')+(orc&&orc.atualizado?' · orçamento atualizado a '+dt(orc.atualizado):'')+'</p>';
+  html+='<div class="lg-cols"><section class="lg-section lg-col-main"><h2 class="lg-section-title">Próximas ações</h2><div class="lg-acts">'+actHtml+'</div></section>'
+    +'<section class="lg-section lg-col-side"><h2 class="lg-section-title">Orçamento face ao BP</h2><div class="lg-pad">'+right+'</div></section></div>';
+  if(!online) html='<div class="lg-note">Modo local: inicia sessão para ver os dados gravados deste projeto.</div>'+html;
   box.innerHTML=html;
+  box.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>showView(b.dataset.to));
+  box.querySelectorAll('[data-fn]').forEach(b=>b.onclick=()=>{ try{ window[b.dataset.fn](); }catch(e){ console.warn(e); } });
 }
 
 /* ═══════════ Entrega 2 · ícones, títulos curtos, zona de ficheiros, estado vazio ═══════════ */
@@ -142,13 +305,11 @@ async function uxRenderResumo(){
   const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
   const addIc=(el,n)=>{ if(!el||el.querySelector('[class^="icon-"]')) return; el.insertAdjacentHTML('afterbegin',ic(n)); };
   // menu
-  AREAS.forEach(a=>addIc(document.getElementById('nava-'+a.k),a.ic));
-  addIc(document.getElementById('nav-ajuda'),'circle-help');
-  addIc(document.getElementById('btnLogout'),'log-out');
   document.querySelectorAll('.purpose .toggle').forEach(b=>addIc(b,'circle-help'));
   // ícones nos botões, pelo texto
   const RULES=[[/^exportar|excel|descarregar/i,'download'],[/^gravar|^guardar/i,'save'],[/^importar|^carregar|^largar/i,'upload'],[/arrancar/i,'sparkles'],[/^registar|^adicionar|^novo|^nova|^abrir/i,'plus'],[/^editar/i,'pencil'],[/^eliminar|^apagar/i,'trash-2'],[/^comparar/i,'git-compare'],[/^repor/i,'rotate-ccw'],[/^aplicar/i,'check'],[/^cancelar|^fechar/i,'x'],[/^o que significam/i,'book-open']];
   const iconize=window.uxIcones=root=>(root||document).querySelectorAll('.btn,.btnctx').forEach(b=>{
+    if(b.hasAttribute('data-noic')) return;   // Fase 6: botões com ícone (ou sem) escolhido pelo ecrã
     const t=(b.textContent||'').trim(); const r=RULES.find(([re])=>re.test(t)); if(r) addIc(b,r[1]);
     const first=b.firstChild; if(first&&first.nodeType===3&&/^\s*\?\s*/.test(first.nodeValue)&&/\?/.test(first.nodeValue)) first.nodeValue=first.nodeValue.replace(/^\s*\?\s*/,'');
   });
@@ -161,66 +322,15 @@ async function uxRenderResumo(){
     const view=document.getElementById('view-'+v); if(!view||view.querySelector('.ux-empty')) return;
     view.classList.add('needs-project');
     const box=document.createElement('div'); box.className='ux-empty';
-    box.innerHTML='<span class="ux-empty-ic">'+ic('folder-open')+'</span><div><h3>Escolhe um projeto para começar</h3><p>Escolhe um projeto existente na barra do topo ou escreve o nome de um novo.</p></div><button class="btn red" type="button">'+ic('folder-search')+'Escolher projeto</button>';
-    box.querySelector('button').onclick=e=>{ const i=document.getElementById('ctxNome'); if(i){ i.focus(); } try{ toggleCtxLista(e); }catch(err){} };
+    box.innerHTML='<span class="ux-empty-ic">'+ic('folder-open')+'</span><div><h3>Escolhe um projeto para começar</h3><p>Escolhe um projeto existente em «Projeto ativo», no menu lateral, ou escreve o nome de um novo.</p></div><button class="btn red" type="button">'+ic('folder-search')+'Escolher projeto</button>';
+    box.querySelector('button').onclick=e=>{ try{ lgMenuMovel(true); }catch(err){} const i=document.getElementById('ctxNome'); if(i){ i.focus(); } try{ toggleCtxLista(e); }catch(err){} };
     const pu=view.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',box); else view.prepend(box);
   });
   try{ document.body.classList.toggle('no-project',!(CTX&&CTX.nome)); }catch(e){}
   /* conteúdo desenhado depois (tabelas, modais): showView volta a pôr os ícones na vista aberta — sem MutationObserver */
 })();
 
-/* ═══════════ Explicações por separador (para que serve · passos · resultado · ciclo) ═══════════ */
-(function uxHowTo(){
-  const TX={"resumo":{"s":"O ponto de situação do projeto ativo e o que falta fazer","p":"Ver, num só ecrã, em que fase está o projeto e qual é o passo seguinte.","st":["Escolhe o projeto na barra do topo (ou escreve o nome de um novo).","Vê o estado de cada fase: estimativa, revisão do MQ, orçamento, consultas e execução.","Segue para o separador da fase que ainda não está concluída."],"r":"Sabes o que já está feito e o que falta."},"estimador":{"s":"Uma primeira estimativa de custo, só com os descritores do projeto","p":"Estimar o custo de construção antes de haver projeto de execução, para validar o budget do Business Plan.","st":["Confirma os descritores do projeto (ABC, fogos, pisos…) em «Editar descritores», no topo.","Ajusta os parâmetros do cálculo (segmento e projetos de referência). Se o projeto tiver mix de tipologias (Projeto › Programa e tipologias), os capítulos com elementos são calculados pelo kit-tipo.","Lê a estimativa por capítulo e compara o total com o budget do BP."],"r":"Custo estimado por capítulo, com o intervalo que os projetos históricos implicam.","w":"Na fase de Business Plan, antes de receberes o mapa de quantidades.","n":"analisador"},"analisador":{"s":"Validar o mapa de quantidades do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços.","st":["Confirma os descritores do projeto: são eles que tornam a comparação rigorosa.","Carrega o MQ (.xlsx). Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"orcamento"},"orcamento":{"s":"Construir o orçamento capítulo a capítulo e ver quanto já é preço firme","p":"Passar de uma estimativa por rácio a um orçamento suportado por preços de mercado.","st":["Arranca dos rácios da biblioteca, ou larga o resumo do orçamento em Excel.","À medida que tens preços, atualiza o estado de cada capítulo: rácio → em consulta → proposta → adjudicado.","Acompanha o semáforo: a percentagem consolidada mostra quanto do orçamento já é sólido."],"r":"Orçamento por capítulo, com a fonte de cada preço à vista.","w":"Depois de revisto o MQ e durante as consultas ao mercado.","n":"consultas"},"consultas":{"s":"Pedir preços ao mercado e escolher a melhor proposta","p":"Registar as consultas aos fornecedores e comparar as propostas lado a lado.","st":["Abre uma consulta por capítulo ou pacote e indica os fornecedores consultados.","Regista as propostas à medida que chegam.","Compara-as no mapa comparativo.","Escolhe a proposta: o preço passa para o Orçamento e fica no histórico do fornecedor."],"r":"Capítulos do orçamento com preço de mercado e histórico de preços por fornecedor.","w":"Quando um capítulo do orçamento ainda está em rácio ou com proposta antiga.","n":"execucao"},"precomq":{"s":"Preencher um mapa de quantidades vazio com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Importa o ficheiro de Compras (.xlsm) — basta uma vez, ou quando houver novas adjudicações.","Define o uplift de instalação e a base de custo (todas as obras ou só uma).","Carrega o MQ vazio e clica em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"},"execucao":{"s":"Registar o que foi adjudicado e as variações em obra","p":"Guardar o preço de contrato de cada pacote e os desvios de execução, com o motivo de cada um.","st":["Quando fechas com um subempreiteiro, regista a adjudicação do pacote.","Durante a obra, regista cada variação e o respetivo motivo.","Acompanha o desvio face ao orçado, capítulo a capítulo."],"r":"Desvios medidos (e não estimados) e uma Biblioteca que aprende com o preço de contrato.","w":"A partir da primeira adjudicação e durante toda a obra.","n":"verificar"},"verificar":{"s":"Conferir os autos de medição com o adjudicado","p":"Confirmar que o que o subempreiteiro mede em cada auto está de acordo com o contrato.","st":["Escolhe o projeto e o pacote.","Carrega ou regista o auto de medição.","Revê as diferenças assinaladas face ao adjudicado antes de aprovar."],"r":"Autos conferidos e diferenças identificadas antes do pagamento.","w":"Todos os meses, quando chegam os autos."},"comparar":{"s":"Comparar projetos entre si, normalizados por m², fogo ou implantação","p":"Perceber onde um projeto se afasta do histórico, em descritores, custos e quantidades.","st":["Escolhe os projetos a comparar — o L’Urbain entra sempre como referência.","Escolhe a normalização (por m² de ABC, por fogo ou por implantação).","Lê as diferenças e usa-as para calibrar a estimativa."],"r":"Comparação lado a lado, pronta a usar num relatório.","w":"Para calibrar uma estimativa ou justificar um desvio."},"racios":{"s":"Os rácios de custo real por capítulo, a partir das obras fechadas","p":"Consultar quanto custou, de facto, cada capítulo nas obras da Solive.","st":["Filtra por segmento ou por projeto.","Consulta o €/m² e o €/unidade de cada capítulo."],"r":"Os rácios que alimentam a Estimativa e o Orçamentar MQ."},"biblioteca":{"s":"O conhecimento acumulado da Solive: rácios, quantidades e taxonomia","p":"Ter num só sítio os rácios de custo e de quantidades de todos os projetos, por capítulo e por fase.","st":["Não se preenche à mão: cada projeto entra ao gravares uma análise na Revisão do MQ e no fecho de obra.","Consulta os rácios por capítulo, projeto e fase.","Mantém a taxonomia de capítulos atualizada (quem administra a plataforma)."],"r":"Estimativas mais rigorosas a cada projeto que fechas."},"admin":{"s":"Gerir projetos, versões gravadas e fases","p":"Tarefas de manutenção, separadas das restantes para evitar ações irreversíveis por engano.","st":["Consulta as versões gravadas do orçamento de cada projeto.","Elimina projetos que já não são precisos — esta ação não se pode anular."],"r":"Uma lista de projetos limpa e o histórico de versões à mão."}};
-  /* Fase 2: textos do Mapa de quantidades (Rever + Orçamentar) e do Importar */
-  TX.analisador={"s":"Rever o MQ do projetista antes de orçamentar","p":"Detetar erros e quantidades fora do padrão no MQ, para comentares ao projetista antes de pedir preços. O mesmo ficheiro serve depois para o orçamentar.","st":["Carrega o MQ (.xlsx) no cartão do topo — ou larga-o em Importar, que o traz para aqui.","Escolhe a folha e carrega em «Analisar ficheiro». Se as colunas não forem reconhecidas, indica-as uma vez no mapeador — o padrão fica memorizado para o mesmo gabinete.","Revê os alertas: capítulos fora do padrão histórico, rácios invulgares e alterações face à revisão anterior.","Grava a análise: os descritores e as quantidades entram na Biblioteca.","Passa a «Orçamentar o MQ» para teres um preço por linha."],"r":"Lista de alertas e comentários para a equipa projetista.","w":"Sempre que recebes um MQ novo ou uma revisão.","n":"precomq"};
-  TX.precomq={"s":"Preencher o mapa de quantidades com os preços reais das tuas obras","p":"Obter uma referência de preço para cada linha do MQ, a partir do custo real já gravado.","st":["Carrega o MQ no cartão do topo (é o mesmo do separador «Rever o MQ»).","Define o uplift de instalação e a base de custo (todas as obras, só uma, ou um segmento).","Carrega em «Orçamentar».","Confirma as linhas preenchidas por rácio de capítulo: vêm assinaladas porque não houve correspondência de texto fiável."],"r":"O MQ com preços unitários de custo real, pronto a descarregar.","w":"Antes de lançar consultas, para saberes que preço esperar.","n":"consultas"};
-  TX.importar={"s":"Um só sítio para largar qualquer ficheiro","p":"Largas o Excel e a plataforma reconhece o que é — mapa de quantidades, auto de medição, pricing sheet, proposta, resumo do orçamento, orçamento transferido, ficheiro de compras ou preços adjudicados da Legendre-PO — e leva-o para o ecrã certo.","st":["Confirma o projeto ativo na barra do topo (o ficheiro de compras não precisa).","Larga o ficheiro .xlsx/.xlsm na zona de importação.","Confirma o tipo que a plataforma sugere, ou escolhe outro em «Não é isso?».","Continua no ecrã para onde o ficheiro foi levado."],"r":"O ficheiro processado no ecrã certo, sem teres de saber onde ele entra."};
-  TX.biblioteca={"s":"Capítulos, drivers de escala e regras de mapeamento","p":"Configurar como a plataforma classifica e escala os custos: a taxonomia de capítulos (driver, expoente, inflação, sensibilidade ao segmento) e todas as regras que levam um texto do Excel a um capítulo ou a uma categoria Legendre.","st":["Revê o driver e o expoente de cada capítulo — é o motor da Estimativa.","Marca os capítulos de acabamento como sensíveis ao segmento.","Quando um ficheiro usa uma designação que a plataforma não reconhece, acrescenta a regra em «Regras de mapeamento».","Grava a taxonomia."],"r":"Estimativas e leituras de ficheiros coerentes, configuradas num só sítio."};
-  TX.config={"s":"Índice entre segmentos e projeto de referência","p":"Definir quanto vale cada segmento face ao médio (para converter preços quando falta histórico no segmento do projeto) e qual é o projeto de referência.","st":["Carrega em «Calcular sugestão a partir da biblioteca» para ver o que os dados indicam.","Ajusta os índices e carrega em «Gravar índices».","Escolhe o projeto de referência e carrega em «Gravar referência»."],"r":"Preços de outros segmentos convertidos de forma explícita e uma referência escolhida por ti."};
-  TX.admin={"s":"Versões gravadas do orçamento e eliminação de projetos","p":"Tarefas de manutenção, separadas das restantes para evitar ações irreversíveis por engano.","st":["Escolhe o projeto em «Versões do orçamento» para ver as versões gravadas e as diferenças entre elas.","Para eliminar um projeto, escolhe-o em «Gerir / eliminar projetos», confirma as contagens e escreve o nome exato."],"r":"Uma lista de projetos limpa e o histórico de versões à mão."};
-  const NAMES={"estimador":"Estimativa para o BP","analisador":"Mapa de quantidades","orcamento":"Orçamento","consultas":"Consultas ao mercado","precomq":"Orçamentar o MQ","execucao":"Adjudicações e desvios","verificar":"Autos de medição"};
-  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const ic=n=>'<i class="icon-'+n+'" aria-hidden="true"></i>';
-  function build(v){
-    const view=document.getElementById('view-'+v); const t=TX[v]; if(!view||!t) return;
-    let pu=view.querySelector('.purpose');
-    if(!pu){ pu=document.createElement('div'); pu.className='purpose'; pu.innerHTML='<div class="eyebrow"></div><h1>'+(NAMES[v]||'')+'</h1>'; view.prepend(pu); }
-    if(pu.dataset.howto) return; pu.dataset.howto='1';
-    let tg=pu.querySelector('.toggle');
-    if(!tg){ tg=document.createElement('button'); tg.className='toggle'; tg.type='button'; tg.onclick=function(){foldPurpose(this)}; pu.prepend(tg); }
-    tg.innerHTML=ic('circle-help')+'Como funciona';
-    let sub=pu.querySelector('.subtitle'); const h1=pu.querySelector('h1');
-    if(!sub&&h1){ h1.insertAdjacentHTML('afterend','<p class="subtitle"></p>'); sub=pu.querySelector('.subtitle'); }
-    if(sub) sub.textContent=t.s;
-    pu.querySelectorAll('p:not(.subtitle)').forEach(p=>p.remove());
-    let html='<div class="ht-lbl">Para que serve</div><p>'+esc(t.p)+'</p><div class="ht-lbl">Passos</div><ol>'+t.st.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>';
-    if(t.r) html+='<div class="ht-lbl">Resultado</div><p>'+esc(t.r)+'</p>';
-    if(t.w) html+='<div class="ht-lbl">Quando usar</div><p>'+esc(t.w)+'</p>';
-    const box=document.createElement('div'); box.className='howto'; box.innerHTML=html;
-    (sub||h1||pu.lastChild).insertAdjacentElement('afterend',box);
-    if(t.n){
-      /* os separadores da área já mostram onde estás; aqui fica só o passo seguinte */
-      const cy=document.createElement('div'); cy.className='cycle';
-      cy.innerHTML='<button type="button" class="next" data-to="'+t.n+'">A seguir: '+esc(NAMES[t.n]||t.n)+' '+ic('arrow-right')+'</button>';
-      cy.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
-      box.insertAdjacentElement('beforebegin',cy);
-    }
-  }
-  function guide(){
-    const vr=document.getElementById('view-resumo'); if(!vr||vr.querySelector('.guide')) return;
-    const g=document.createElement('div'); g.className='guide';
-    const S=[['Importar','Largar um ficheiro','A plataforma reconhece o tipo e leva-o ao ecrã certo.','importar'],['Orçamentar','Estimativa, MQ e orçamento','Do rácio ao preço de mercado, capítulo a capítulo.','estimador'],['Obra','Adjudicações e autos','Registar o contrato e os desvios em obra.','execucao'],['Biblioteca','Rácios, kit-tipo e benchmark','O que as obras feitas ensinam à próxima.','racios']];
-    g.innerHTML='<h3>Como usar a plataforma</h3><div class="g-steps">'+S.map(s=>'<div class="g-step" data-to="'+s[3]+'"><span class="g-n">'+s[0]+'</span><span class="g-t">'+s[1]+'</span><span class="g-d">'+s[2]+'</span></div>').join('')+'</div>';
-    g.querySelectorAll('[data-to]').forEach(b=>b.onclick=()=>{ try{showView(b.dataset.to)}catch(e){} window.scrollTo(0,0); });
-    const pu=vr.querySelector('.purpose'); if(pu) pu.insertAdjacentElement('afterend',g); else vr.prepend(g);
-  }
-  function all(){ Object.keys(TX).forEach(build); guide(); }
-  all();
-  // abrir «Como funciona» automaticamente na primeira visita a cada separador
-  window.__howtoOnView=function(v){ try{ build(v); guide();
-      const k='pr_howto_'+v; if(TX[v]&&!localStorage.getItem(k)){ const pu=document.querySelector('#view-'+v+' .purpose'); const tg=pu&&pu.querySelector('.toggle'); if(pu&&!pu.classList.contains('open')&&tg){ foldPurpose(tg); } localStorage.setItem(k,'1'); }
-    }catch(e){} };
-})();
+/* Fase 6: o bloco «Como usar a plataforma» do Resumo deu lugar ao ciclo do projeto (uxRenderResumo)
+   e ao guia «Como fazer» do cabeçalho; as explicações por separador estão na Ajuda (HELP). */
 
-APP_REGISTAR('11-ux','3.3.0');
+APP_REGISTAR('11-ux','3.5.0');

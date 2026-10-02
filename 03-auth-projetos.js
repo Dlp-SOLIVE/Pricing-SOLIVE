@@ -29,8 +29,10 @@ async function doLogin(){
 async function logout(){await sb.auth.signOut();location.reload()}
 async function _afterLogin(){
   const badge=document.getElementById('connBadge');
-  badge.textContent="Ligado · "+(SESSION.user.email||"");
+  badge.textContent="Ligado";
+  badge.title=SESSION.user.email||"";
   badge.classList.add('on');
+  try{ lgUtilizador(); }catch(e){ console.warn(e); }
   document.getElementById('btnLogout').classList.remove('hidden');
   document.getElementById('btnGravarAnalise').classList.remove('hidden');
   await loadProjetos(); await loadMappings();
@@ -135,4 +137,4 @@ async function loadMappings(){
   MAPPINGS=data||[];
 }
 
-APP_REGISTAR('03-auth-projetos','3.3.0');
+APP_REGISTAR('03-auth-projetos','3.5.0');

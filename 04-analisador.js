@@ -53,6 +53,7 @@ function mqPartilhar(f){
   definirFicheiroInput('mqFile',f);
   try{ if(typeof vfMQMapaLimpar==='function') vfMQMapaLimpar(); }catch(e){}
   const s=document.getElementById('mqFicheiroNome'); if(s) s.innerHTML='Ficheiro: <b>'+esc(f.name)+'</b>';
+  try{ lgGuiaAtualizar('analisador'); lgGuiaAtualizar('precomq'); }catch(e){}
 }
 function mqPartilhaMontar(v){
   if(v!=='analisador'&&v!=='precomq') return;
@@ -665,19 +666,19 @@ function _renderFindings(){
   const tb=document.getElementById('tbFindings'); tb.innerHTML="";
   const rows=FINDINGS.map((f,i)=>({f,i})).filter(({f})=>(!sev||f.sev===sev)&&(!tipo||f.tipo===tipo)&&(!cap||f.it.cap===cap)&&(!soPend||!f.resolvido));
   document.getElementById('noFindings').classList.toggle('hidden',rows.length>0);
-  const sevLabel={erro:"Erro",aviso:"Aviso",info:"Nota"};
+  const sevLabel={erro:["Erro","danger"],aviso:["Aviso","warning"],info:["Nota","info"]};
   rows.forEach(({f,i})=>{
     const tr=document.createElement('tr');
     if(f.resolvido) tr.className='resolved';
-    tr.innerHTML=`<td><input type="checkbox" class="rescb" data-r="${i}" ${f.resolvido?'checked':''} title="Marcar como tratado"></td>
+    const sv=sevLabel[f.sev]||["—","neutral"];
+    tr.innerHTML=`<td><input type="checkbox" class="rescb" data-r="${i}" ${f.resolvido?'checked':''} title="Marcar como tratado" aria-label="Marcar como tratado"></td>
       <td class="mono">${esc(f.it.code||"—")}</td>
-      <td>${esc((f.it.desc||"").slice(0,140))}<div style="color:#8794a8;font-size:12px;margin-top:2px">${esc(f.msg)}</div></td>
+      <td>${esc((f.it.desc||"").slice(0,140))}<span class="lg-sub-l">${esc(f.msg)}</span></td>
+      <td style="font-size:12px">${esc(f.it.cap||f.it.capRaw||"—")}</td>
       <td class="mono">${esc(f.it.un||"—")}</td>
       <td class="num">${f.it.qt==null?"—":fmt(f.it.qt)}</td>
-      <td style="font-size:12px">${esc(f.it.cap||f.it.capRaw||"—")}</td>
-      <td style="font-size:12px">${esc(f.tipo)}</td>
-      <td><span class="sevchip sev-${f.sev}">${sevLabel[f.sev]}</span></td>
-      <td><textarea class="fcomment" data-i="${i}">${esc(f.comentario)}</textarea></td>`;
+      <td><span class="lg-badge" data-tone="${sv[1]}">${sv[0]}</span><span class="lg-sub-l">${esc(f.tipo)}</span></td>
+      <td><textarea class="fcomment" data-i="${i}" aria-label="Comentário para a equipa projetista">${esc(f.comentario)}</textarea></td>`;
     tb.appendChild(tr);
   });
   tb.querySelectorAll('.fcomment').forEach(t=>t.addEventListener('input',e=>{FINDINGS[+e.target.dataset.i].comentario=e.target.value}));
@@ -901,4 +902,4 @@ async function resolveFaseExistente(projeto_id,faseTipo){
   }
 }
 
-APP_REGISTAR('04-analisador','3.3.0');
+APP_REGISTAR('04-analisador','3.5.0');

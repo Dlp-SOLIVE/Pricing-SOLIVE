@@ -45,36 +45,80 @@ async function gxLoad(){
 }
 function gxEUR(n){ return (n==null||isNaN(n))?'—':Number(n).toLocaleString('pt-PT',{maximumFractionDigits:0})+' €'; }
 function gxPct(n){ return (n==null||isNaN(n))?'':((n>0?'+':'')+n.toFixed(1)+'%'); }
+function gxDataPT(d){ if(!d) return '—'; const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/); return m?m[3]+'/'+m[2]+'/'+m[1]:esc(d); }
+function gxVarSoma(id){ return (GX_VARS[id]||[]).reduce((s,v)=>s+(Number(v.valor)||0),0); }
+/* sinal: positivo (custa mais) a vermelho de alerta, negativo (poupança) a verde */
+function gxSinal(v,txt){ return '<span class="'+(v>0.5?'lg-neg':(v<-0.5?'lg-pos':''))+'">'+txt+'</span>'; }
+/* Fase 6: pacotes (Capítulo · Subempreiteiro · Data · Orçado · Contrato · Variações · Desvio) e,
+   à parte, a lista de variações com data, pacote, descrição, motivo e valor com sinal. */
 function gxPaint(){
   const tb=document.getElementById('gxBody'), ft=document.getElementById('gxFoot'), em=document.getElementById('gxEmpty');
   if(!tb) return;
   if(em) em.classList.toggle('hidden', GX_ROWS.length>0);
-  let sE=0,sA=0,sR=0;
-  const col=v=> v==null?'':(v>0.5?'color:var(--red)':(v<-0.5?'color:var(--teal)':''));
+  let sO=0,sC=0,sV=0,sR=0;
   tb.innerHTML = GX_ROWS.map(a=>{
-    const est=Number(a.estimado)||0, adj=Number(a.adjudicado)||0, real=Number(a.real_atual)||0;
-    sE+=est; sA+=adj; sR+=real;
-    const dAdj = est? (adj/est-1)*100 : null;
-    const dExe = adj? (real/adj-1)*100 : null;
+    const orc=Number(a.estimado)||0, con=Number(a.adjudicado)||0, real=Number(a.real_atual)||0, vr=gxVarSoma(a.id);
+    sO+=orc; sC+=con; sV+=vr; sR+=real;
+    const dv=orc?(con+vr-orc):null, dp=orc?(dv/orc*100):null;
+    const nv=(GX_VARS[a.id]||[]).length;
     return `<tr>
-      <td><b>${esc(a.capitulo)}</b>${a.pacote?'<br><span style="color:#888;font-size:12px">'+esc(a.pacote)+'</span>':''}</td>
-      <td>${esc(a.fornecedor||'')}</td>
-      <td style="text-align:right">${gxEUR(est)}</td>
-      <td style="text-align:right"><b>${gxEUR(adj)}</b></td>
-      <td style="text-align:right">${gxEUR(real)}</td>
-      <td style="text-align:right;${col(dAdj)}">${gxPct(dAdj)}</td>
-      <td style="text-align:right;${col(dExe)}">${gxPct(dExe)}</td>
-      <td style="text-align:right"><button class="btn ghost" style="padding:3px 8px" onclick="gxDelAdj(${a.id})" title="Remover adjudicação">&times;</button></td>
-    </tr>`+gxVarRows(a.id);
+      <td><b>${esc(a.capitulo)}</b>${a.pacote?'<span class="lg-sub-l">'+esc(a.pacote)+'</span>':''}</td>
+      <td>${esc(a.fornecedor||'—')}</td>
+      <td>${gxDataPT(a.data_adjudicacao)}</td>
+      <td class="num">${orc?gxEUR(orc):'—'}</td>
+      <td class="num"><b>${gxEUR(con)}</b>${real?'<span class="lg-sub-l">real '+gxEUR(real)+'</span>':''}</td>
+      <td class="num">${nv?gxSinal(vr,(vr>0?'+':'')+gxEUR(vr))+'<span class="lg-sub-l">'+nv+(nv===1?' variação':' variações')+'</span>':'<span class="lg-miss">—</span>'}</td>
+      <td class="num">${dv==null?'<span class="lg-miss">sem orçado</span>':gxSinal(dv,(dv>0?'+':'')+gxEUR(dv))+'<span class="lg-sub-l">'+gxPct(dp)+'</span>'}</td>
+      <td><button class="lg-iconbtn" type="button" onclick="gxDelAdj(${a.id})" title="Remover adjudicação" aria-label="Remover adjudicação"><i class="icon-trash-2" aria-hidden="true"></i></button></td>
+    </tr>`;
   }).join("");
-  const dA = sE?((sA/sE-1)*100):null, dR=sA?((sR/sA-1)*100):null;
-  ft.innerHTML = GX_ROWS.length? `<tr style="font-weight:600;border-top:2px solid var(--navy)">
-    <td>TOTAL</td><td></td>
-    <td style="text-align:right">${gxEUR(sE)}</td>
-    <td style="text-align:right">${gxEUR(sA)}</td>
-    <td style="text-align:right">${gxEUR(sR)}</td>
-    <td style="text-align:right;${col(dA)}">${gxPct(dA)}</td>
-    <td style="text-align:right;${col(dR)}">${gxPct(dR)}</td><td></td></tr>` : '';
+  const dT=sO?(sC+sV-sO):null;
+  ft.innerHTML = GX_ROWS.length? `<tr><td>Total</td><td></td><td></td><td class="num">${gxEUR(sO)}</td><td class="num">${gxEUR(sC)}</td><td class="num">${gxSinal(sV,(sV>0?'+':'')+gxEUR(sV))}</td><td class="num">${dT==null?'—':gxSinal(dT,(dT>0?'+':'')+gxEUR(dT))}</td><td></td></tr>` : '';
+  /* indicadores */
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.innerHTML=v; };
+  set('gxKOrc',GX_ROWS.length?gxEUR(sO):'—'); set('gxKCon',GX_ROWS.length?gxEUR(sC):'—');
+  set('gxKConS',GX_ROWS.length?(GX_ROWS.length+' pacote(s)'+(sO?' · '+gxPct((sC/sO-1)*100)+' na adjudicação':'')):'');
+  const nV=Object.values(GX_VARS).reduce((s,l)=>s+l.length,0);
+  set('gxKVar',nV?gxSinal(sV,(sV>0?'+':'')+gxEUR(sV)):'—'); set('gxKVarS',nV?(nV+' registada(s) com motivo'):'sem variações');
+  set('gxKDes',dT==null?'—':gxSinal(dT,(dT>0?'+':'')+gxEUR(dT))); set('gxKDesS',dT==null?'contrato + variações − orçado':(gxPct(dT/sO*100)+' · contrato + variações − orçado'));
+  /* lista de variações */
+  const vb=document.getElementById('gxVarBody'), ve=document.getElementById('gxVarEmpty');
+  if(vb){
+    const pac={}; GX_ROWS.forEach(a=>pac[a.id]=a);
+    const todas=[].concat(...Object.values(GX_VARS)).sort((x,y)=>String(y.data||'').localeCompare(String(x.data||'')));
+    vb.innerHTML=todas.map(v=>{ const a=pac[v.adjudicacao_id]||{}; const val=Number(v.valor)||0;
+      return `<tr><td>${gxDataPT(v.data)}</td><td><b>${esc(a.capitulo||'—')}</b>${a.fornecedor?'<span class="lg-sub-l">'+esc(a.fornecedor)+'</span>':''}</td>
+        <td>${esc(v.descricao||'—')}</td><td><span class="lg-badge">${esc(GX_MOTLBL[v.motivo]||v.motivo||'—')}</span></td>
+        <td class="num">${gxSinal(val,(val>0?'+':(val<0?'−':''))+gxEUR(Math.abs(val)))}</td>
+        <td><button class="lg-iconbtn" type="button" onclick="gxDelVar(${v.id})" title="Apagar variação" aria-label="Apagar variação"><i class="icon-trash-2" aria-hidden="true"></i></button></td></tr>`; }).join('');
+    if(ve) ve.classList.toggle('hidden',todas.length>0);
+  }
+  try{ lgGuiaAtualizar('execucao'); }catch(e){}
+}
+function gxAbrirModal(id){
+  if(id==='gxVarModal'&&!GX_ROWS.length) return alertx("Regista primeiro a adjudicação do pacote: a variação fica ligada a ela.");
+  const m=document.getElementById(id); if(!m) return; m.classList.remove('hidden');
+  const f=m.querySelector('input,select'); if(f) setTimeout(()=>f.focus(),30);
+}
+function gxFecharModal(id){ const m=document.getElementById(id); if(m) m.classList.add('hidden'); }
+function gxRegistarAdjudicacao(){ gxAbrirModal('gxAdjModal'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') ['gxAdjModal','gxVarModal'].forEach(gxFecharModal); });
+/* exportação: pacotes e variações num só livro */
+function gxExportar(){
+  if(!GX_ROWS.length){ toast("Sem adjudicações para exportar."); return; }
+  const nome=gxProjAtual()||'Projeto';
+  const pac=[["SOLIVE — ADJUDICAÇÕES E DESVIOS"],["Projeto: "+nome+"   ·   Data: "+new Date().toLocaleDateString('pt-PT')],[],
+    ["Capítulo","Pacote","Subempreiteiro","Data","Orçado (€)","Contrato (€)","Variações (€)","Desvio (€)","Desvio (%)","Real (€)"]]
+    .concat(GX_ROWS.map(a=>{ const o=Number(a.estimado)||0, cn=Number(a.adjudicado)||0, vr=gxVarSoma(a.id), d=o?cn+vr-o:null;
+      return [a.capitulo,a.pacote||"",a.fornecedor||"",a.data_adjudicacao||"",o||"",cn,vr,d==null?"":Math.round(d),d==null?"":Math.round(d/o*1000)/10,Number(a.real_atual)||""]; }));
+  const pk={}; GX_ROWS.forEach(a=>pk[a.id]=a);
+  const vars=[["Data","Capítulo","Subempreiteiro","Descrição","Motivo","Valor (€)","Aprovado por"]]
+    .concat([].concat(...Object.values(GX_VARS)).map(v=>[v.data||"",(pk[v.adjudicacao_id]||{}).capitulo||"",(pk[v.adjudicacao_id]||{}).fornecedor||"",v.descricao||"",GX_MOTLBL[v.motivo]||v.motivo||"",Number(v.valor)||0,v.aprovado_por||""]));
+  const wb=XLSX.utils.book_new();
+  const w1=XLSX.utils.aoa_to_sheet(pac); w1['!cols']=[{wch:30},{wch:26},{wch:24},{wch:12},{wch:14},{wch:14},{wch:14},{wch:14},{wch:10},{wch:14}];
+  const w2=XLSX.utils.aoa_to_sheet(vars); w2['!cols']=[{wch:12},{wch:28},{wch:24},{wch:44},{wch:30},{wch:14},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,w1,"Pacotes"); XLSX.utils.book_append_sheet(wb,w2,"Variações");
+  XLSX.writeFile(wb,("Adjudicacoes_"+nome).replace(/[^\w]+/g,"_")+".xlsx");
 }
 async function gxAddAdj(){
   if(!SESSION) return alertx("Inicia sessão de gestor para registar adjudicações.");
@@ -92,6 +136,7 @@ async function gxAddAdj(){
   const r=await sbq(sb.from('adjudicacoes').insert(rec),"Registar adjudicação");
   if(r.error) return;
   ['gxCap','gxPac','gxForn','gxEst','gxAdj'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';});
+  gxFecharModal('gxAdjModal');
   toast("Adjudicação registada.");
   await gxLoad();
 }
@@ -107,28 +152,9 @@ async function gxAddVar(){
   const r=await sbq(sb.from('variacoes').insert(rec),"Registar variação");
   if(r.error) return;
   ['gxVarVal','gxVarDesc'].forEach(id=>{const e=document.getElementById(id); if(e)e.value='';});
+  gxFecharModal('gxVarModal');
   toast("Variação registada com motivo.");
   await gxLoad();
-}
-function gxVarRows(adjId){
-  const vs=GX_VARS[adjId]||[];
-  if(!vs.length) return '';
-  const linhas=vs.map(v=>{
-    const val=Number(v.valor)||0;
-    const cor=val>0?'var(--red)':(val<0?'var(--teal)':'');
-    const sinal=val>0?'+':'';
-    return `<tr>
-      <td style="padding:2px 6px;color:#888">${v.data||''}</td>
-      <td style="padding:2px 6px">${esc(GX_MOTLBL[v.motivo]||v.motivo||'')}</td>
-      <td style="padding:2px 6px;text-align:right;color:${cor}">${sinal}${gxEUR(val)}</td>
-      <td style="padding:2px 6px;color:#666">${esc(v.descricao||'')}</td>
-      <td style="padding:2px 6px;text-align:right"><button class="btn ghost" style="padding:1px 7px;font-size:12px" onclick="gxDelVar(${v.id})" title="Apagar variação">&times;</button></td>
-    </tr>`;
-  }).join("");
-  return `<tr class="gxvar"><td colspan="8" style="padding:0 12px 10px 26px;background:#fafbfc;border-bottom:1px solid #eef1f5">
-    <div style="font-size:12px;color:#888;margin:4px 0 2px">Variações (${vs.length}):</div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse"><tbody>${linhas}</tbody></table>
-  </td></tr>`;
 }
 async function gxDelVar(id){
   if(!SESSION) return alertx("Inicia sessão para apagar variações.");
@@ -145,4 +171,4 @@ async function gxDelAdj(id){
   await gxLoad();
 }
 
-APP_REGISTAR('02-execucao','3.3.0');
+APP_REGISTAR('02-execucao','3.5.0');

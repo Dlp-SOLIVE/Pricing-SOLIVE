@@ -10,18 +10,46 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/lucide.css">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=3.3.0">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Fase 6 · Legendre: Cabin (substituto de Seravek) nos títulos, Roboto no texto -->
+<link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=3.5.0">
 </head>
 <body>
-<header>
-  <div class="brand">SOLIVE<span>.</span></div>
-  <div class="sub">Plataforma de Orçamentação</div>
-  <span class="badge" id="connBadge">Modo local</span>
-  <nav>
-    <button id="btnLogout" class="hidden" onclick="logout()" title="Terminar sessão">Sair</button>
-  </nav>
+<!-- Fase 6 · Legendre: menu lateral (logótipo, projeto ativo, áreas e separadores, rodapé).
+     As áreas e o rodapé são montados por 11-ux.js (lgMontarMenu) a partir de AREAS (01-base.js). -->
+<div id="lgTopbar" class="lg-topbar">
+  <button type="button" class="lg-iconbtn" onclick="lgMenuMovel()" aria-label="Abrir o menu"><i class="icon-menu" aria-hidden="true"></i></button>
+  <span class="lg-topbar-app"><b>Orçamentação</b> · Solive</span>
+</div>
+<header id="lgSide">
+  <div class="lg-brand">
+    <img class="lg-logo" src="legendre-horizontal.png?v=3.5.0" alt="Legendre" onerror="this.parentNode.classList.add('nologo');this.remove()">
+    <span class="lg-logo-txt">LEGENDRE</span>
+    <div class="lg-app"><b>Orçamentação</b> · Solive</div>
+  </div>
+  <div id="ctxbar" class="lg-proj">
+    <div class="lg-eyebrow">Projeto ativo</div>
+    <div class="lg-proj-row">
+      <input type="text" id="ctxNome" list="ctxList" placeholder="Escolhe ou escreve um nome" autocomplete="off" aria-label="Projeto ativo">
+      <datalist id="ctxList"></datalist>
+      <button id="ctxSeta" type="button" onclick="toggleCtxLista(event)" title="Ver projetos existentes" aria-label="Ver projetos existentes"><i class="icon-chevrons-up-down" aria-hidden="true"></i></button>
+    </div>
+    <div class="lg-proj-meta"><span id="ctxNew" class="newtag hidden">Novo</span><span id="lgProjMeta"></span></div>
+    <div class="desc hidden" id="ctxDesc"></div>
+    <div id="ctxLista" class="hidden"></div>
+  </div>
+  <nav id="lgNav" aria-label="Áreas"></nav>
+  <div class="lg-foot" id="lgFoot">
+    <div id="lgFootNav"></div>
+    <div class="lg-user">
+      <span class="lg-avatar" id="lgAvatar" aria-hidden="true">–</span>
+      <div class="lg-user-tx"><b id="lgUserNome">Sem sessão</b><span><span id="lgUserVer">v3.5.0</span> · <span class="badge" id="connBadge">Modo local</span></span></div>
+      <button id="btnLogout" class="lg-iconbtn hidden" type="button" onclick="logout()" title="Terminar sessão" aria-label="Terminar sessão"><i class="icon-log-out" aria-hidden="true"></i></button>
+    </div>
+  </div>
 </header>
+<div id="lgNavBg" class="lg-navbg" onclick="lgMenuMovel(false)"></div>
 
 <!-- LOGIN -->
 <div class="overlay hidden" id="loginOverlay">
@@ -61,19 +89,6 @@
   </div>
 </div>
 
-<div id="ctxbar">
-  <span class="lbl">Projeto ativo</span>
-  <div style="position:relative">
-    <input type="text" id="ctxNome" list="ctxList" placeholder="Escolhe ou escreve um nome" autocomplete="off">
-    <datalist id="ctxList"></datalist>
-    <button id="ctxSeta" onclick="toggleCtxLista(event)" title="Ver projetos existentes"
-      style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#C9C2BF;cursor:pointer;font-size:12px;padding:3px 5px;line-height:1">&#9662;</button>
-    <div id="ctxLista" class="hidden" style="position:absolute;top:calc(100% + 5px);left:0;min-width:250px;max-height:290px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 26px rgba(32,28,29,.22);z-index:320;padding:5px"></div>
-  </div>
-  <span id="ctxNew" class="newtag hidden">NOVO</span>
-  <div class="desc" id="ctxDesc"></div>
-  <button class="btnctx" style="margin-left:auto" onclick="abrirDescritores()">Editar descritores</button>
-</div>
 <div id="busy"></div>
 <datalist id="projList"></datalist><datalist id="orcProjList"></datalist><datalist id="cstProjList"></datalist>
 <div class="hidden" id="ctxMirror">
@@ -89,6 +104,7 @@
 </div>
 <main>
 <div id="areaTabs" class="areatabs hidden"></div>
+<div id="lgHead"></div>
 <!-- ===================== VISTA: RESUMO DO PROJETO ===================== -->
 <div id="view-resumo" class="hidden">
   <div class="purpose"><div class="eyebrow">Projeto</div><h1>Resumo do projeto</h1><p class="subtitle">Em que ponto está cada fase do projeto ativo</p>
@@ -142,12 +158,12 @@
   </div>
 
   <div class="card" id="mqShared">
-    <div class="mqseg" role="tablist">
-      <button type="button" id="mqsegRever" class="on" onclick="showView('analisador')"><b>Rever o MQ</b><span>alertas, rácios e alterações face à revisão anterior</span></button>
-      <button type="button" id="mqsegOrcar" onclick="showView('precomq')"><b>Orçamentar o MQ</b><span>preço por linha a partir do custo real gravado</span></button>
+    <div class="mqseg lg-tabs" role="tablist" aria-label="Mapa de quantidades">
+      <button type="button" role="tab" id="mqsegRever" class="on" onclick="showView('analisador')"><i class="icon-scan-search" aria-hidden="true"></i><b>Rever</b><span>alertas, rácios e alterações</span></button>
+      <button type="button" role="tab" id="mqsegOrcar" onclick="showView('precomq')"><i class="icon-calculator" aria-hidden="true"></i><b>Orçamentar</b><span>preço por linha com o custo real</span></button>
     </div>
     <div class="hint" id="mqSharedHint">Excel (.xlsx) com código, designação dos trabalhos, unidade e quantidade. Carregas uma vez e serve para os dois separadores. A deteção do formato é automática; se o layout do gabinete for atípico, usa o mapeador manual.</div>
-    <div class="drop" id="drop">Larga aqui o ficheiro <b>.xlsx</b> ou clica para escolher</div>
+    <div class="drop" id="drop">Larga aqui o MQ do projetista (<b>.xlsx</b>) ou clica para escolher</div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden">
     <div id="sheetPick" class="hidden">
       <label style="margin-top:14px">Folha a analisar</label>
@@ -163,7 +179,7 @@
 
   <div class="card">
     <div class="step"><div class="n">1</div><h2>Projeto e descritores do envelope</h2></div>
-    <div class="hint">Os descritores do projeto ativo, definidos uma única vez na barra de topo. São o denominador de toda a análise comparativa e é a ABC que ativa os testes de rácio.</div>
+    <div class="hint">Os descritores do projeto ativo, definidos uma única vez no menu lateral. São o denominador de toda a análise comparativa e é a ABC que ativa os testes de rácio.</div>
     <div class="ctxecho" id="anEcho"></div>
     <div class="grid g6" style="margin-top:12px">
       <div style="grid-column:span 2"><label>Fase do projeto</label><select id="pFase"><option>Licenciamento</option><option selected>Execução (PE)</option></select></div>
@@ -174,12 +190,12 @@
   <div id="results" class="hidden">
     <div class="card">
       <div class="step"><div class="n">2</div><h2>Resultado da análise <span class="tag" id="rFicheiro"></span></h2></div>
-      <div class="kpis">
-        <div class="kpi"><div class="v" id="kArtigos">0</div><div class="l">Artigos medidos</div></div>
-        <div class="kpi"><div class="v" id="kCaps">0</div><div class="l">Capítulos detetados</div></div>
-        <div class="kpi err"><div class="v" id="kErros">0</div><div class="l">Erros</div></div>
-        <div class="kpi warn"><div class="v" id="kAvisos">0</div><div class="l">Avisos</div></div>
-        <div class="kpi ok"><div class="v" id="kInfo">0</div><div class="l">Notas</div></div>
+      <div class="lg-kpis lg-kpis-mq">
+        <div class="lg-kpi"><span class="lg-eyebrow">Artigos medidos</span><span class="lg-kpi-v" id="kArtigos">0</span></div>
+        <div class="lg-kpi"><span class="lg-eyebrow">Capítulos detetados</span><span class="lg-kpi-v" id="kCaps">0</span></div>
+        <div class="lg-kpi" data-sev="erro"><span class="lg-eyebrow"><span class="lg-badge" data-tone="danger">Erros</span></span><span class="lg-kpi-v" id="kErros">0</span></div>
+        <div class="lg-kpi" data-sev="aviso"><span class="lg-eyebrow"><span class="lg-badge" data-tone="warning">Avisos</span></span><span class="lg-kpi-v" id="kAvisos">0</span></div>
+        <div class="lg-kpi" data-sev="info"><span class="lg-eyebrow"><span class="lg-badge" data-tone="info">Notas</span></span><span class="lg-kpi-v" id="kInfo">0</span></div>
       </div>
       <div class="note" id="capsFalta"></div>
     </div>
@@ -187,22 +203,23 @@
     <div class="card">
       <h2>Alertas e comentários para a equipa projetista <span class="tag" id="findTag"></span></h2>
       <div class="hint">Edita o comentário de cada linha antes de exportar — o texto pré-preenchido é uma sugestão.</div>
+      <div class="lg-chips" id="fSevChips" role="group" aria-label="Filtrar por severidade"></div>
       <div class="filters">
         <div><label>Mostrar</label><select id="fRes" onchange="renderFindings()"><option value="todos">Todos os alertas</option><option value="pend">Só por tratar</option></select></div>
-        <div><label>Severidade</label><select id="fSev" onchange="renderFindings()"><option value="">Todas</option><option value="erro">Erro</option><option value="aviso">Aviso</option><option value="info">Nota</option></select></div>
+        <div class="hidden"><label>Severidade</label><select id="fSev" onchange="renderFindings()"><option value="">Todas</option><option value="erro">Erro</option><option value="aviso">Aviso</option><option value="info">Nota</option></select></div>
         <div><label>Tipo de teste</label><select id="fTipo" onchange="renderFindings()"><option value="">Todos</option></select></div>
         <div><label>Capítulo</label><select id="fCap" onchange="renderFindings()"><option value="">Todos</option></select></div>
-        <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
+        <div class="lg-dup" style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn teal hidden" id="btnGravarAnalise" onclick="saveAnalysis()">Gravar análise</button>
           <button class="btn navy" onclick="exportComentarios()">Exportar comentários (.xlsx)</button>
         </div>
       </div>
       <div style="overflow-x:auto">
-      <table>
+      <table class="lg-table lg-findings">
         <thead><tr>
-          <th style="width:70px">Código</th><th>Descrição</th><th style="width:56px">Un</th>
-          <th style="width:80px;text-align:right">Qt.</th><th style="width:150px">Capítulo</th>
-          <th style="width:170px">Teste</th><th style="width:72px">Sev.</th><th style="width:280px">Comentário</th>
+          <th style="width:36px" title="Tratado"><span class="lg-sr">Tratado</span>✓</th><th style="width:80px">Código</th><th>Designação</th><th style="width:150px">Capítulo</th>
+          <th style="width:52px">Un</th><th class="num" style="width:80px">Qtd</th>
+          <th style="width:170px">Teste</th><th style="width:280px">Comentário</th>
         </tr></thead>
         <tbody id="tbFindings"></tbody>
       </table>
@@ -281,23 +298,22 @@
     <div class="note" style="margin-top:10px">Método <b>top-down</b>: estima a partir dos descritores (ABC, fogos), sem precisar de um mapa de quantidades. <span class="infodot" data-tip="Usa rácios históricos EUR/m2 e EUR/fogo por capítulo, com inflação e calibração. Ideal na fase de Business Plan.">i</span></div>
   </div>
 
-  <div class="card">
-    <div class="step"><div class="n">1</div><h2>Descritores do projeto a estimar</h2></div>
-    <div class="hint">Vêm do projeto ativo escolhido na barra de topo. Para estimar um projeto novo, escreve o nome lá em cima e preenche os descritores — não é preciso existir na biblioteca.</div>
-    <div class="ctxecho" id="estEcho"></div>
-    <div class="grid g6" style="margin-top:12px">
-      <div style="grid-column:span 2"><label>Budget do BP p/ hard costs (€) — opcional</label><input type="number" id="estBudget" placeholder="6000000"></div>
-      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn ghost" style="width:100%;justify-content:center" onclick="abrirDescritores()">Editar descritores do projeto</button></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="step"><div class="n">2</div><h2>Calcular</h2></div>
-    <div class="hint">Os valores por omissão são os recomendados. Abre as opções avançadas só se precisares de outro método.</div>
-    <div class="grid g6" style="grid-template-columns:repeat(6,minmax(0,1fr))">
-      <div style="grid-column:span 2;display:flex;align-items:end"><button class="btn red" style="width:100%;justify-content:center" onclick="runEstimador()">Estimar</button></div>
-    </div>
-    <details class="uxadv"><summary>Opções avançadas <span style="font-weight:400;color:var(--ink-500)">— base de cálculo, fonte dos rácios, inflação, calibração, kit-tipo, soft costs</span></summary>
+  <div class="lg-cols lg-est">
+  <aside class="lg-col-side lg-est-side lg-stack">
+    <section class="lg-section">
+      <h2 class="lg-section-title">Descritores</h2>
+      <div class="lg-pad" id="estDesc"></div>
+      <div class="ctxecho hidden" id="estEcho"></div>
+      <div class="lg-pad" style="padding-top:0"><button class="btn ghost sm" data-noic style="width:100%" onclick="abrirDescritores()"><i class="icon-pencil" aria-hidden="true"></i>Editar descritores</button></div>
+    </section>
+    <section class="lg-section">
+      <h2 class="lg-section-title">Budget do BP</h2>
+      <div class="lg-pad">
+        <div class="lg-field"><label for="estBudget">Hard costs (€) — opcional</label><input type="number" id="estBudget" placeholder="6000000" oninput="lgGuiaAtualizar('estimador')"></div>
+        <p class="lg-meta">Sem budget, a estimativa sai na mesma; com ele vês a folga ou o excesso.</p>
+        <button class="btn red" data-noic style="width:100%;margin-top:12px" onclick="runEstimador()"><i class="icon-calculator" aria-hidden="true"></i>Estimar</button>
+      </div>
+    <details class="uxadv lg-adv"><summary>Opções avançadas <span style="font-weight:400;color:var(--ink-500)">— base de cálculo, fonte dos rácios, inflação, calibração, kit-tipo, soft costs</span></summary>
     <div class="grid g6">
       <div style="grid-column:span 2"><label>Base de cálculo</label><select id="estBase">
         <option value="driver">Driver físico por capítulo (recomendado)</option>
@@ -335,40 +351,33 @@
       </ul>
     </div>
     </details>
-  </div>
+    </section>
+  </aside>
 
-  <div id="estResults" class="hidden">
-    <div class="card">
-      <h2>Estimativa <span class="tag" id="estTag"></span>
-        <button class="btn navy" style="float:right;padding:6px 14px" onclick="exportEstimativa()">Exportar (.xlsx)</button>
-      </h2>
-      <div class="kpis">
-        <div class="kpi"><div class="v" id="estKTotal">—</div><div class="l">Estimativa central</div></div>
-        <div class="kpi"><div class="v" id="estKRange">—</div><div class="l">Intervalo histórico</div></div>
-        <div class="kpi"><div class="v" id="estKM2">—</div><div class="l">€/m² ABC</div></div>
-        <div class="kpi" id="estKBudgetBox"><div class="v" id="estKBudget">—</div><div class="l">vs. budget do BP</div></div>
-        <div class="kpi"><div class="v" id="estKProj">—</div><div class="l">Projetos na base</div></div>
-      </div>
-      <div class="note" id="estNota"></div>
+  <div class="lg-col-main lg-stack">
+  <div class="lg-section lg-vazio-box" id="estVazio"><span class="lg-vazio-ic"><i class="icon-calculator" aria-hidden="true"></i></span><div><b>Ainda sem estimativa</b><p>Confirma os descritores, indica o budget do BP e carrega em <b>Estimar</b>. O resultado sai por capítulo, com o intervalo dos projetos históricos.</p></div></div>
+  <div id="estResults" class="hidden lg-stack">
+    <div class="lg-kpis">
+      <div class="lg-kpi"><span class="lg-eyebrow">Estimativa central</span><span class="lg-kpi-v" id="estKTotal">—</span><span class="lg-kpi-s" id="estTag"></span></div>
+      <div class="lg-kpi"><span class="lg-eyebrow">Intervalo histórico</span><span class="lg-kpi-v lg-kpi-v-sm" id="estKRange">—</span><span class="lg-kpi-s"><span id="estKProj">—</span> projeto(s) na base</span></div>
+      <div class="lg-kpi"><span class="lg-eyebrow">€/m² ABC</span><span class="lg-kpi-v" id="estKM2">—</span></div>
+      <div class="lg-kpi" id="estKBudgetBox"><span class="lg-eyebrow">Face ao BP</span><span class="lg-kpi-v" id="estKBudget">—</span><span class="lg-kpi-s" id="estKBudgetS">Sem budget indicado</span></div>
     </div>
-    <div class="card">
-      <h2>Estimativa por capítulo</h2>
-      <div class="hint">Central = mediana dos rácios históricos (ajustados à inflação). Intervalo = mínimo a máximo observado entre projetos. Nº = quantos projetos suportam cada capítulo — quanto mais, mais fiável. <b>Base</b> mostra o driver usado e <b>Fonte</b> como o valor foi obtido.</div>
-      <div class="legend">
-        <span><span class="srcchip src-qt">QT×PU</span> quantidade do MQ × preço unitário da biblioteca</span>
-        <span><span class="srcchip src-drv">DRIVER</span> rácio do capítulo pelo seu driver físico</span>
-        <span><span class="srcchip src-lin">ABC</span> recurso a m² de ABC por falta de driver</span>
-        <span><span class="srcchip src-kit">KIT</span> mix de tipologias × kit-tipo × preço do elemento</span>
-      </div>
-      <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Capítulo</th><th style="text-align:right;width:50px">Nº</th><th>Base</th><th>Fonte</th><th style="text-align:right">Rácio central</th><th style="text-align:right">Calib.</th><th style="text-align:right">Estimativa (€)</th><th style="text-align:right">Mín (€)</th><th style="text-align:right">Máx (€)</th></tr></thead>
+    <section class="lg-section hidden" id="estBP"></section>
+    <div class="lg-note" id="estNota"></div>
+    <section class="lg-section">
+      <div class="lg-section-head"><h2 class="lg-section-title">Estimativa por capítulo</h2></div>
+        <div class="lg-legend lg-pad" style="padding-top:12px;padding-bottom:0"><span><span class="lg-badge" data-tone="success">QT×PU</span> MQ × preço unitário</span><span><span class="lg-badge" data-tone="info">Driver</span> rácio pelo driver físico</span><span><span class="lg-badge">ABC</span> m² de ABC</span><span><span class="lg-badge" data-tone="accent">Kit</span> kit-tipo</span></div>
+      <p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Central = mediana dos rácios históricos (ajustados à inflação). Intervalo = mínimo a máximo entre projetos; o traço preto marca a estimativa central. Nº = quantos projetos suportam o capítulo.</p>
+      <div class="lg-table-wrap">
+      <table class="lg-table" style="min-width:780px">
+        <thead><tr><th>Capítulo</th><th class="num" style="width:44px">Nº</th><th>Base</th><th>Fonte</th><th class="num">Rácio central</th><th class="num">Calib.</th><th class="num">Estimativa (€)</th><th style="width:170px">Intervalo histórico (€)</th></tr></thead>
         <tbody id="tbEst"></tbody>
       </table>
       </div>
-    </div>
-    <div class="card hidden" id="estSoftCard">
-      <h2>Camada de soft costs</h2>
+    </section>
+    <section class="lg-section lg-pad hidden" id="estSoftCard">
+      <h2 class="lg-section-title">Camada de soft costs</h2>
       <div class="hint">Custos que não são de empreitada mas entram no budget do Business Plan. Percentagens aplicadas sobre os hard costs estimados — edita-as para as tuas referências. Servem para confrontar o BP quando o budget não vem já separado.</div>
       <div style="overflow-x:auto">
       <table>
@@ -376,7 +385,9 @@
         <tbody id="tbSoft"></tbody>
       </table>
       </div>
-    </div>
+    </section>
+  </div>
+  </div>
   </div>
 </div>
 
@@ -391,72 +402,73 @@
     <div class="io"><span class="in">Arranca de: estimativa por rácios</span><span class="out">Produz: orçamento com índice de consolidação</span></div>
   </div>
 
-  <div class="card">
-    <div class="step"><div class="n">1</div><h2>Projeto e arranque</h2></div>
-    <div class="grid g6">
-      <div style="grid-column:span 4"><div class="ctxecho" id="orcEcho"></div></div>
-      <div style="grid-column:span 2;display:flex;align-items:end;gap:8px">
-        <button class="btn navy" style="flex:1;justify-content:center" onclick="orcSeed()">Arrancar dos rácios (estimador)</button>
+  <section class="lg-section" id="orcArranque">
+    <div class="lg-section-head"><h2 class="lg-section-title">Arrancar ou atualizar o orçamento</h2><span class="lg-meta" style="margin:0" id="orcArrMeta">Três formas de pôr números em cada capítulo</span></div>
+    <div class="ctxecho hidden" id="orcEcho"></div>
+    <div class="lg-orc-start">
+      <div class="lg-orc-op">
+        <div class="lg-eyebrow">1 · Dos rácios</div>
+        <p>Preenche cada capítulo com a estimativa da biblioteca, no estado «Rácio histórico». Depois atualizas a fonte à medida que consultas o mercado.</p>
+        <button class="btn red sm" data-noic onclick="orcSeed()"><i class="icon-sparkles" aria-hidden="true"></i>Arrancar dos rácios</button>
+      </div>
+      <div class="lg-orc-op">
+        <div class="lg-eyebrow">2 · Do resumo do orçamento</div>
+        <div class="drop" id="orcResumoDrop">Larga o <b>resumo</b> (.xlsx, com colunas de fonte do preço)</div>
+        <input type="file" id="orcResumoFile" accept=".xlsx,.xls" class="hidden">
+        <div id="orcResumoSheet" class="hidden"><label style="margin-top:10px">Folha</label><div class="pills" id="orcResumoPills"></div></div>
+      </div>
+      <div class="lg-orc-op">
+        <div class="lg-eyebrow">3 · De uma proposta</div>
+        <div class="lg-field"><label for="orcForn">Fornecedor</label><input type="text" id="orcForn" placeholder="Nome do fornecedor"></div>
+        <div class="drop" id="orcPropDrop" style="margin-top:8px">Larga a <b>proposta</b> (.xlsx) — marca os capítulos que cobre como proposta firme</div>
+        <input type="file" id="orcPropFile" accept=".xlsx,.xls" class="hidden">
+        <div id="orcPropSheet" class="hidden"><label style="margin-top:10px">Folha</label><div class="pills" id="orcPropPills"></div></div>
       </div>
     </div>
-    <div class="hint" style="margin-top:10px">"Arrancar dos rácios" preenche cada capítulo com a estimativa da biblioteca no estado inicial "Rácio" (vermelho). Depois marcas o estado e ajustas o valor à medida que consultas.</div>
-    <div class="drop" id="orcResumoDrop" style="margin-top:12px">Ou larga o <b>resumo do orçamento</b> (.xlsx, formato Summary com colunas de fonte) para arrancar já com o semáforo aceso</div>
-    <input type="file" id="orcResumoFile" accept=".xlsx,.xls" class="hidden">
-    <div id="orcResumoSheet" class="hidden"><label style="margin-top:12px">Folha</label><div class="pills" id="orcResumoPills"></div></div>
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-      <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:10px">
-        <div style="flex:1;min-width:220px"><label>Fornecedor (para a proposta)</label><input type="text" id="orcForn" placeholder="Nome do fornecedor"></div>
-      </div>
-      <div class="drop" id="orcPropDrop">Larga a <b>proposta de um fornecedor</b> (.xlsx) — preenche os capítulos que ela cobre e marca-os como proposta recebida</div>
-      <input type="file" id="orcPropFile" accept=".xlsx,.xls" class="hidden">
-      <div id="orcPropSheet" class="hidden"><label style="margin-top:12px">Folha</label><div class="pills" id="orcPropPills"></div></div>
-      <div class="note hidden" id="orcPropCober" style="margin-top:12px"></div>
-    </div>
-  </div>
+    <div class="note hidden" id="orcPropCober" style="margin:0 18px 16px"></div>
+  </section>
 
-  <div class="card hidden" id="orcBoard">
-    <h2>Consolidação do orçamento <span class="tag" id="orcTag"></span>
-      <span style="float:right;display:flex;gap:8px">
-        <button class="btn teal" style="padding:6px 14px" onclick="saveOrcBoard()">Gravar em curso</button>
-        <button class="btn navy" style="padding:6px 14px" onclick="exportOrcamento()">Exportar (.xlsx)</button>
-      </span>
-    </h2>
-    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
-      <div class="kpi"><div class="v" id="orcKTotal">—</div><div class="l">Total do orçamento</div></div>
-      <div class="kpi ok"><div class="v" id="orcKValor">—</div><div class="l">% valor consolidado</div></div>
-      <div class="kpi"><div class="v" id="orcKCaps">—</div><div class="l">Capítulos consolidados</div></div>
-      <div class="kpi"><div class="v" id="orcKm2">—</div><div class="l">€/m² ABC</div></div>
+  <div class="hidden lg-stack" id="orcBoard" style="margin-top:16px">
+    <div class="lg-kpis">
+      <div class="lg-kpi"><span class="lg-eyebrow">Total do orçamento</span><span class="lg-kpi-v" id="orcKTotal">—</span><span class="lg-kpi-s" id="orcTag"></span></div>
+      <div class="lg-kpi"><span class="lg-eyebrow">Valor consolidado</span><span class="lg-kpi-v" id="orcKValor">—</span><span class="lg-kpi-s">proposta firme ou compromisso</span></div>
+      <div class="lg-kpi"><span class="lg-eyebrow">Capítulos consolidados</span><span class="lg-kpi-v" id="orcKCaps">—</span><span class="lg-kpi-s">dos que têm valor</span></div>
+      <div class="lg-kpi"><span class="lg-eyebrow">€/m² ABC</span><span class="lg-kpi-v" id="orcKm2">—</span></div>
     </div>
-    <div style="margin:14px 0 6px"><div class="consbar" id="orcConsBar"></div></div>
-    <div id="orcConting" style="margin:14px 0;padding:12px 14px;background:#f7f9fc;border:1px solid var(--line);border-radius:8px">
-      <div style="font-weight:600;color:var(--navy);font-size:12px;margin-bottom:8px">Contingência por proveniência</div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr style="color:#8794a8"><th style="text-align:left">Escalão (estado da linha)</th><th class="num">Valor</th><th class="num" style="width:64px">%</th><th class="num">Contingência</th></tr></thead>
-        <tbody>
-          <tr><td>Firme &mdash; proposta firme / compromisso</td><td class="num" id="orcContFirmeV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctFirme" value="1.5" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContFirmeC">&mdash;</td></tr>
-          <tr><td>Intermédio &mdash; em consulta / proposta antiga</td><td class="num" id="orcContInterV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctInter" value="5" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContInterC">&mdash;</td></tr>
-          <tr><td>Estimado &mdash; rácio histórico</td><td class="num" id="orcContEstimV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctEstim" value="12" oninput="renderOrcKpis()" style="width:58px;text-align:right;padding:3px 5px"></td><td class="num" id="orcContEstimC">&mdash;</td></tr>
-        </tbody>
-        <tfoot>
-          <tr style="font-weight:600;border-top:1px solid var(--line)"><td>Contingência total (<span id="orcContPct">&mdash;</span> do orçamento)</td><td></td><td></td><td class="num" id="orcContTotal">&mdash;</td></tr>
-          <tr style="font-weight:600"><td style="color:var(--navy)">Total com contingência</td><td></td><td></td><td class="num" id="orcTotalCC" style="color:var(--navy)">&mdash;</td></tr>
-        </tfoot>
-      </table>
-      <div class="hint" style="margin-top:6px">A contingência desce sozinha à medida que firmas linhas (Rácio &rarr; Firme &rarr; Compromisso). As percentagens são editáveis &mdash; calibra ao apetite de risco da Solive.</div>
-    </div>
-    <div class="legend" style="margin-bottom:14px">
-      <span><i class="dotleg e-racio"></i>Rácio histórico</span>
-      <span><i class="dotleg e-consulta"></i>Em consulta</span>
-      <span><i class="dotleg e-antiga"></i>Proposta antiga (&gt;2 anos)</span>
-      <span><i class="dotleg e-firme"></i>Proposta firme</span>
-      <span><i class="dotleg e-compromisso"></i>Compromisso do subempreiteiro</span>
-    </div>
-    <div class="hint">"Consolidado" = valor em proposta firme ou com compromisso do subempreiteiro. <b>Não</b> significa contratado: nesta fase não se assinam empreitadas — os contratos são celebrados pela equipa de Produção depois da transferência. Edita o valor e o estado de cada capítulo; o semáforo e os indicadores atualizam-se na hora. A coluna de origem mostra de onde veio a estimativa inicial.</div>
-    <div style="overflow-x:auto">
-    <table>
-      <thead><tr><th>Capítulo</th><th style="text-align:right;width:140px">Valor (€)</th><th style="width:180px">Estado</th><th style="text-align:right;width:110px">€/m² ABC</th><th style="width:220px">Nota / fornecedor</th></tr></thead>
-      <tbody id="tbOrc"></tbody>
-    </table>
+    <section class="lg-section lg-pad" style="padding-top:14px">
+      <div class="lg-orc-bar-h"><span class="lg-eyebrow">Consolidação global</span><span class="lg-meta" style="margin:0">Rácio → em consulta → proposta antiga → proposta firme → compromisso</span></div>
+      <div class="lg-consbar lg-consbar-lg" id="orcConsBar"></div>
+      <div class="lg-legend" id="orcLegenda" style="margin-top:10px"></div>
+    </section>
+    <div class="lg-cols">
+      <section class="lg-section lg-col-main">
+        <div class="lg-section-head"><h2 class="lg-section-title">Por capítulo</h2>
+          <div class="lg-chips" id="orcFiltro"></div></div>
+        <p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Edita o valor e a fonte de cada capítulo; o semáforo e os indicadores atualizam-se na hora. «Consolidado» não significa contratado: os contratos são celebrados pela Produção depois da transferência.</p>
+        <div class="lg-table-wrap">
+        <table class="lg-table lg-orc-tab" style="min-width:700px">
+          <thead><tr><th>Capítulo</th><th style="width:210px">Fonte do preço</th><th class="num" style="width:140px">Valor (€)</th><th class="num" style="width:90px">€/m² ABC</th><th style="width:180px">Nota / fornecedor</th></tr></thead>
+          <tbody id="tbOrc"></tbody>
+          <tfoot id="tfOrc"></tfoot>
+        </table>
+        </div>
+      </section>
+      <section class="lg-section lg-col-side" id="orcConting">
+        <h2 class="lg-section-title">Contingência</h2>
+        <div class="lg-pad">
+          <p class="lg-meta" style="margin:10px 0 6px">Por proveniência: desce sozinha à medida que firmas capítulos. As percentagens são editáveis.</p>
+          <table class="lg-table lg-cont">
+            <thead><tr><th>Escalão</th><th class="num">Valor</th><th class="num" style="width:64px">%</th><th class="num">Contingência</th></tr></thead>
+            <tbody>
+              <tr><td><span class="lg-dot" data-e="firme"></span> <span title="proposta firme / compromisso">Firme</span></td><td class="num" id="orcContFirmeV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctFirme" value="1.5" oninput="renderOrcKpis()"></td><td class="num" id="orcContFirmeC">&mdash;</td></tr>
+              <tr><td><span class="lg-dot" data-e="consulta"></span> <span title="em consulta / proposta antiga">Intermédio</span></td><td class="num" id="orcContInterV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctInter" value="5" oninput="renderOrcKpis()"></td><td class="num" id="orcContInterC">&mdash;</td></tr>
+              <tr><td><span class="lg-dot" data-e="racio"></span> <span title="rácio histórico">Estimado</span></td><td class="num" id="orcContEstimV">&mdash;</td><td class="num"><input type="number" step="0.5" id="orcPctEstim" value="12" oninput="renderOrcKpis()"></td><td class="num" id="orcContEstimC">&mdash;</td></tr>
+            </tbody>
+          </table>
+          <div class="lg-kv lg-kv-tot"><span>Contingência (<span id="orcContPct">&mdash;</span>)</span><b id="orcContTotal">&mdash;</b></div>
+          <div class="lg-kv"><span>Total com contingência</span><b id="orcTotalCC">&mdash;</b></div>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -550,53 +562,71 @@
     <p>Regista o <b>preço adjudicado</b> de cada pacote quando fechas com o subempreiteiro, e as <b>varia&ccedil;&otilde;es</b> que surgem em obra &mdash; cada uma com um <b>motivo</b>. Assim a biblioteca aprende do pre&ccedil;o de contrato (limpo), e o desvio de execu&ccedil;&atilde;o vira contingência medida, n&atilde;o um palpite. &Eacute; o mecanismo que protege a margem.</p>
     <div class="io"><span class="in">Entra: adjudica&ccedil;&otilde;es + varia&ccedil;&otilde;es</span><span class="out">Serve: r&aacute;cios limpos + contingência</span></div>
   </div>
-  <div class="card">
-    <div class="filters">
-      <div style="min-width:260px"><label>Projeto</label><select id="gxProj" onchange="gxLoad()"></select></div>
-      <div style="align-self:end"><button class="btn ghost" onclick="gxLoad()">Atualizar</button></div>
-    </div>
-    <div style="overflow-x:auto">
-      <table>
+  <div class="hidden"><select id="gxProj" onchange="gxLoad()" aria-label="Projeto"></select></div>
+  <div class="lg-stack">
+  <div class="lg-kpis" id="gxKpis">
+    <div class="lg-kpi"><span class="lg-eyebrow">Orçado</span><span class="lg-kpi-v" id="gxKOrc">—</span><span class="lg-kpi-s">fotografia do orçamento à data</span></div>
+    <div class="lg-kpi"><span class="lg-eyebrow">Contrato</span><span class="lg-kpi-v" id="gxKCon">—</span><span class="lg-kpi-s" id="gxKConS"></span></div>
+    <div class="lg-kpi"><span class="lg-eyebrow">Variações</span><span class="lg-kpi-v" id="gxKVar">—</span><span class="lg-kpi-s" id="gxKVarS"></span></div>
+    <div class="lg-kpi" id="gxKDesBox"><span class="lg-eyebrow">Desvio face ao orçado</span><span class="lg-kpi-v" id="gxKDes">—</span><span class="lg-kpi-s" id="gxKDesS">contrato + variações − orçado</span></div>
+  </div>
+  <section class="lg-section">
+    <div class="lg-section-head"><h2 class="lg-section-title">Pacotes adjudicados</h2><span class="lg-meta" style="margin:0">Materiais adjudicados na Legendre-PO entram por <a href="#" onclick="showView('importar');return false">Importar → Preços adjudicados (PO)</a></span></div>
+    <div class="lg-table-wrap">
+      <table class="lg-table lg-gx-tab" style="min-width:860px">
         <thead><tr>
-          <th>Cap&iacute;tulo / pacote</th><th>Fornecedor</th>
-          <th style="text-align:right">Estimado (&euro;)</th>
-          <th style="text-align:right">Adjudicado (&euro;)</th>
-          <th style="text-align:right">Real (&euro;)</th>
-          <th style="text-align:right">&Delta; adjudica&ccedil;&atilde;o</th>
-          <th style="text-align:right">&Delta; execu&ccedil;&atilde;o</th>
-          <th style="width:44px"></th>
+          <th>Capítulo / pacote</th><th>Subempreiteiro</th><th style="width:96px">Data</th>
+          <th class="num">Orçado (€)</th><th class="num">Contrato (€)</th><th class="num">Variações (€)</th><th class="num">Desvio</th>
+          <th style="width:44px"><span class="lg-sr">Ações</span></th>
         </tr></thead>
         <tbody id="gxBody"></tbody>
         <tfoot id="gxFoot"></tfoot>
       </table>
     </div>
-    <div class="empty" id="gxEmpty">Ainda sem adjudica&ccedil;&otilde;es registadas para este projeto.</div>
+    <div class="lg-vazio" id="gxEmpty">Ainda sem adjudicações registadas para este projeto. Carrega em <b>Registar adjudicação</b> quando fechares um pacote.</div>
+  </section>
+  <section class="lg-section">
+    <div class="lg-section-head"><h2 class="lg-section-title">Variações em obra</h2>
+      <button class="btn ghost sm" data-noic type="button" onclick="gxAbrirModal('gxVarModal')"><i class="icon-plus" aria-hidden="true"></i>Registar variação</button></div>
+    <div class="lg-table-wrap">
+      <table class="lg-table" style="min-width:720px">
+        <thead><tr><th style="width:96px">Data</th><th>Pacote</th><th>Descrição</th><th>Motivo</th><th class="num">Valor (€)</th><th style="width:44px"><span class="lg-sr">Ações</span></th></tr></thead>
+        <tbody id="gxVarBody"></tbody>
+      </table>
+    </div>
+    <div class="lg-vazio hidden" id="gxVarEmpty">Sem variações registadas. Cada desvio face ao adjudicado precisa de um <b>motivo</b>: é o que torna a contingência mensurável nos próximos projetos.</div>
+  </section>
   </div>
 
-  <div class="card">
-    <h2 style="font-size:13px">Registar adjudica&ccedil;&atilde;o</h2>
-    <div class="hint">O momento em que fechas um pacote. O <b>estimado</b> &eacute; a fotografia do or&ccedil;amento &agrave; data &mdash; &eacute; contra ele que se mede o desvio de adjudica&ccedil;&atilde;o.</div>
-    <div class="grid g6">
-      <div style="grid-column:span 2"><label>Cap&iacute;tulo</label><input id="gxCap" list="gxCapList" placeholder="ex.: ESTABILIDADE"><datalist id="gxCapList"></datalist></div>
-      <div style="grid-column:span 2"><label>Pacote (opcional)</label><input id="gxPac" placeholder="ex.: Estrutura + conten&ccedil;&atilde;o"></div>
-      <div style="grid-column:span 2"><label>Fornecedor</label><input id="gxForn" placeholder="ex.: Mota-Engil"></div>
-      <div><label>Estimado (&euro;)</label><input id="gxEst" type="number" step="0.01"></div>
-      <div><label>Adjudicado (&euro;)</label><input id="gxAdj" type="number" step="0.01"></div>
-      <div><label>Data</label><input id="gxData" type="date"></div>
+  <div class="overlay hidden" id="gxAdjModal" onclick="if(event.target===this)gxFecharModal(this.id)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gxAdjTit">
+      <h3 id="gxAdjTit">Registar adjudicação</h3>
+      <div class="hint">O momento em que fechas um pacote. O <b>orçado</b> é a fotografia do orçamento à data: é contra ele que se mede o desvio de adjudicação.</div>
+      <div class="lg-mform">
+        <div class="lg-field"><label for="gxCap">Capítulo</label><input type="text" id="gxCap" list="gxCapList" placeholder="ex.: ESTABILIDADE"><datalist id="gxCapList"></datalist></div>
+        <div class="lg-field"><label for="gxPac">Pacote (opcional)</label><input type="text" id="gxPac" placeholder="ex.: Estrutura + contenção"></div>
+        <div class="lg-field"><label for="gxForn">Subempreiteiro</label><input type="text" id="gxForn" placeholder="ex.: Mota-Engil"></div>
+        <div class="lg-mform-2">
+          <div class="lg-field"><label for="gxEst">Orçado (€)</label><input id="gxEst" type="number" step="0.01"></div>
+          <div class="lg-field"><label for="gxAdj">Contrato (€)</label><input id="gxAdj" type="number" step="0.01"></div>
+        </div>
+        <div class="lg-field"><label for="gxData">Data</label><input id="gxData" type="date"></div>
+      </div>
+      <div class="lg-modal-act"><button class="btn lg-ghost" type="button" onclick="gxFecharModal('gxAdjModal')">Cancelar</button><button class="btn red" data-noic type="button" onclick="gxAddAdj()"><i class="icon-check" aria-hidden="true"></i>Registar adjudicação</button></div>
     </div>
-    <button class="btn teal" style="margin-top:10px" onclick="gxAddAdj()">Registar adjudica&ccedil;&atilde;o</button>
   </div>
-
-  <div class="card">
-    <h2 style="font-size:13px">Registar varia&ccedil;&atilde;o (obra)</h2>
-    <div class="hint">Cada desvio face ao adjudicado precisa de um <b>motivo</b> &mdash; &eacute; o que torna a contingência mensur&aacute;vel nos pr&oacute;ximos projetos.</div>
-    <div class="grid g6">
-      <div style="grid-column:span 3"><label>Adjudica&ccedil;&atilde;o</label><select id="gxVarAdj"></select></div>
-      <div style="grid-column:span 3"><label>Motivo</label><select id="gxVarMot"></select></div>
-      <div style="grid-column:span 2"><label>Valor (&euro;, + ou &minus;)</label><input id="gxVarVal" type="number" step="0.01"></div>
-      <div style="grid-column:span 4"><label>Descri&ccedil;&atilde;o</label><input id="gxVarDesc" placeholder="o que mudou e porqu&ecirc;"></div>
+  <div class="overlay hidden" id="gxVarModal" onclick="if(event.target===this)gxFecharModal(this.id)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gxVarTit">
+      <h3 id="gxVarTit">Registar variação</h3>
+      <div class="hint">Cada desvio face ao adjudicado precisa de um <b>motivo</b>: é o que torna a contingência mensurável nos próximos projetos.</div>
+      <div class="lg-mform">
+        <div class="lg-field"><label for="gxVarAdj">Pacote</label><select id="gxVarAdj"></select></div>
+        <div class="lg-field"><label for="gxVarMot">Motivo</label><select id="gxVarMot"></select></div>
+        <div class="lg-field"><label for="gxVarVal">Valor (€, + ou −)</label><input id="gxVarVal" type="number" step="0.01"></div>
+        <div class="lg-field"><label for="gxVarDesc">Descrição</label><input type="text" id="gxVarDesc" placeholder="o que mudou e porquê"></div>
+      </div>
+      <div class="lg-modal-act"><button class="btn lg-ghost" type="button" onclick="gxFecharModal('gxVarModal')">Cancelar</button><button class="btn red" data-noic type="button" onclick="gxAddVar()"><i class="icon-check" aria-hidden="true"></i>Registar variação</button></div>
     </div>
-    <button class="btn teal" style="margin-top:10px" onclick="gxAddVar()">Registar varia&ccedil;&atilde;o</button>
   </div>
 </div>
 
@@ -748,19 +778,20 @@
   <div id="cfgBody"></div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.3.0</span> <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.5.0</span> <span id="selfTestFooter"></span></footer>
 
-<!-- ====== BOTÃO DE AJUDA (autoexplicativo) ====== -->
-<button id="ajudaFab" onclick="abrirAjuda()" title="Como usar a plataforma"
-  style="position:fixed;right:20px;bottom:20px;z-index:150;width:48px;height:48px;border-radius:50%;border:none;background:var(--navy);color:#fff;font-size:24px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.28)">?</button>
-<div id="ajudaOverlay" class="overlay hidden" onclick="if(event.target===this)fecharAjuda()">
-  <div style="background:#fff;border-radius:12px;padding:0;width:100%;max-width:780px;max-height:88vh;display:flex;flex-direction:column">
-    <div style="padding:14px 22px;border-bottom:1px solid #e3e8ef;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:600;color:var(--navy);font-size:16px">Ajuda &mdash; como usar a plataforma</div>
-      <button onclick="fecharAjuda()" style="border:none;background:none;font-size:24px;cursor:pointer;color:#888;line-height:1">&times;</button>
+<!-- ====== AJUDA: painel lateral do ecrã atual (10-ajuda.js) ====== -->
+<div id="ajudaOverlay" class="lg-drawer-bg hidden" onclick="if(event.target===this)fecharAjuda()">
+  <aside class="lg-drawer" role="dialog" aria-modal="true" aria-labelledby="ajudaTitulo">
+    <div class="lg-drawer-head">
+      <div><div class="lg-eyebrow" id="ajudaEyebrow">Ajuda</div><h3 id="ajudaTitulo">Como usar este ecrã</h3></div>
+      <button type="button" class="lg-iconbtn" onclick="fecharAjuda()" title="Fechar" aria-label="Fechar"><i class="icon-x" aria-hidden="true"></i></button>
     </div>
-    <div id="ajudaTabs" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px 22px;border-bottom:1px solid #eef1f5"></div>
-    <div id="ajudaBody" style="padding:18px 22px;overflow-y:auto;font-size:13px;line-height:1.55;color:#2a3a52">
+    <div class="lg-drawer-body">
+    <div id="ajudaVista"></div>
+    <details class="lg-more" id="ajudaMais"><summary>Mais detalhe sobre esta área</summary><div id="ajudaMaisBody"></div></details>
+    <div id="ajudaGeral"></div>
+    <div id="ajudaBody" hidden>
 <div class="ajuda-sec" data-area="estimar" style="display:none">
 <h3 style="color:var(--navy);margin:0 0 6px;font-size:14px">Estimar — custo rápido para o Business Plan</h3>
 <p style="margin:0 0 10px">Estimativa <b>top-down</b>, sem precisar do mapa de quantidades. Primeiro preenche os <b>descritores</b> no topo (ABC, fogos, pisos…). Depois, os campos desta vista:</p>
@@ -809,7 +840,7 @@
 <ul style="margin:0;padding-left:18px">
 <li>Para trazer um Excel para a plataforma, usa <b>Importar</b>: reconhece o tipo de ficheiro e leva-o ao ecrã certo.</li>
 <li>Abre sempre pelo <b>link oficial</b>, não por um ficheiro guardado no PC (fica desatualizado).</li>
-<li><b>Inicia sessão</b> (topo: "Ligado · email"). Sem sessão, vês mas não gravas.</li>
+<li><b>Inicia sessão</b> (rodapé do menu: o teu nome e "Ligado"). Sem sessão, vês mas não gravas.</li>
 <li><b>Backup</b>: garante que o backup automático está a correr (repositório privado de backups).</li>
 <li>Não confundas <b>Estimado</b> com <b>Adjudicado</b> — a plataforma mostra a diferença; usa-a antes de assinar.</li>
 <li>A biblioteca <b>só melhora se a alimentares</b>: regista as adjudicações no portão de Execução.</li>
@@ -817,28 +848,29 @@
 </ul>
 </div>
     </div>
-  </div>
+    </div>
+  </aside>
 </div>
 
 <script>
 /* Versão da plataforma: muda em CADA entrega e tem de ser igual em todos os ficheiros
    *.js (linha APP_REGISTAR no fim de cada um). O 99-arranque.js confirma. */
-window.APP={versao:"3.3.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
+window.APP={versao:"3.5.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
 window.APP_REGISTAR=function(nome,versao){ APP.carregados[nome]=versao; };
 </script>
-<script src="01-base.js?v=3.3.0"></script>
-<script src="02-execucao.js?v=3.3.0"></script>
-<script src="03-auth-projetos.js?v=3.3.0"></script>
-<script src="04-analisador.js?v=3.3.0"></script>
-<script src="05-orcamentacao.js?v=3.3.0"></script>
-<script src="06-estimador-comparar.js?v=3.3.0"></script>
-<script src="07-motor.js?v=3.3.0"></script>
-<script src="08-contexto.js?v=3.3.0"></script>
-<script src="09-custo-real.js?v=3.3.0"></script>
-<script src="10-ajuda.js?v=3.3.0"></script>
-<script src="11-ux.js?v=3.3.0"></script>
-<script src="12-tipologias.js?v=3.3.0"></script>
-<script src="13-importar.js?v=3.3.0"></script>
-<script src="99-arranque.js?v=3.3.0"></script>
+<script src="01-base.js?v=3.5.0"></script>
+<script src="02-execucao.js?v=3.5.0"></script>
+<script src="03-auth-projetos.js?v=3.5.0"></script>
+<script src="04-analisador.js?v=3.5.0"></script>
+<script src="05-orcamentacao.js?v=3.5.0"></script>
+<script src="06-estimador-comparar.js?v=3.5.0"></script>
+<script src="07-motor.js?v=3.5.0"></script>
+<script src="08-contexto.js?v=3.5.0"></script>
+<script src="09-custo-real.js?v=3.5.0"></script>
+<script src="10-ajuda.js?v=3.5.0"></script>
+<script src="11-ux.js?v=3.5.0"></script>
+<script src="12-tipologias.js?v=3.5.0"></script>
+<script src="13-importar.js?v=3.5.0"></script>
+<script src="99-arranque.js?v=3.5.0"></script>
 </body>
 </html>

@@ -109,9 +109,10 @@ async function _runEstimador(){
 
   const baseLbl={driver:"driver físico",abc:"€/m² ABC",fogo:"€/fogo",media:"média ABC+fogo"}[base];
   document.getElementById('estResults').classList.remove('hidden');
-  document.getElementById('estTag').textContent=baseLbl+" · "+projData.length+" projeto(s) · infl. "+infl+"%/ano → "+alvo+(calibOn?" · calibrado":"");
+  { const ev=document.getElementById('estVazio'); if(ev) ev.classList.add('hidden'); }
+  document.getElementById('estTag').textContent=baseLbl+" · infl. "+infl+"%/ano → "+alvo+(calibOn?" · calibrado":"");
   document.getElementById('estKTotal').textContent=fmt(tC,0)+" €";
-  document.getElementById('estKRange').textContent=fmt(tLo,0)+" – "+fmt(tHi,0);
+  document.getElementById('estKRange').textContent=fmt(tLo/1e6,2)+" – "+fmt(tHi/1e6,2)+" M€";
   document.getElementById('estKM2').textContent=D.abc?fmt(tC/D.abc,0):"—";
   document.getElementById('estKProj').textContent=projData.length;
 
@@ -123,8 +124,12 @@ async function _runEstimador(){
   const totalBP=tC+soft;
 
   const bb=document.getElementById('estKBudgetBox'), bv=document.getElementById('estKBudget');
-  if(budget){const d=(totalBP-budget)/budget;bv.textContent=(d>0?"+":"")+fmt(d*100,1)+"%";bb.className="kpi "+(Math.abs(d)<0.05?"ok":d>0?"err":"warn");}
-  else{bv.textContent="—";bb.className="kpi";}
+  const bs=document.getElementById('estKBudgetS');
+  if(budget){ const dv=totalBP-budget, d=dv/budget;
+    bv.textContent=(d>0?"+":"")+fmt(d*100,1)+"%"; bb.dataset.tone=d>0?'neg':'pos';
+    if(bs) bs.textContent=(dv>0?'Excesso de ':'Folga de ')+fmt(Math.abs(dv),0)+' €'; }
+  else{ bv.textContent="—"; bb.dataset.tone=''; if(bs) bs.textContent='Sem budget indicado'; }
+  estDesenharBP(tLo,tC,tHi,soft,budget);
 
   const nQt=rows.filter(r=>r.fonte==='qt').length, nDrv=rows.filter(r=>r.fonte==='drv').length;
   const nota=document.getElementById('estNota');
@@ -146,37 +151,66 @@ async function _runEstimador(){
   nota.innerHTML=partes.join(" ");
 
   const tb=document.getElementById('tbEst'); tb.innerHTML="";
+  const escala=Math.max(1,...rows.map(r=>r.hi||0));
+  const faixa=(lo,ce,hi)=>'<div class="lg-range" title="'+fmt(lo,0)+' – '+fmt(hi,0)+' €"><span class="lg-range-seg" style="left:'+(lo/escala*100).toFixed(2)+'%;width:'+Math.max(.6,(hi-lo)/escala*100).toFixed(2)+'%"></span><span class="lg-range-mk" style="left:'+(ce/escala*100).toFixed(2)+'%"></span></div>'
+    +'<span class="lg-sub-l">'+fmt(lo,0)+' – '+fmt(hi,0)+'</span>';
+  const FONTE_B={qt:['QT×PU','success'],drv:['Driver','info'],lin:['ABC','neutral'],kit:['Kit','accent']};
   rows.forEach(r=>{
-    let chip={qt:'<span class="srcchip src-qt">QT×PU</span>',drv:'<span class="srcchip src-drv">DRIVER</span>',lin:'<span class="srcchip src-lin">ABC</span>',kit:'<span class="srcchip src-kit">KIT</span>'}[r.fonte];
+    const fb=FONTE_B[r.fonte]||[r.fonte,'neutral'];
+    let chip='<span class="lg-badge" data-tone="'+fb[1]+'">'+fb[0]+'</span>';
     if(r.kit){
       const det=r.kit.itens.map(l=>l.el.nome+': '+fmt(l.qt,1)+' '+l.el.unidade+' × '+fmt(l.preco.pu,0)+' € = '+fmt(l.total,0)+' €').join('\n')
         +(r.kit.semPreco.length?'\nSem preço: '+r.kit.semPreco.join(', '):'')+(r.kit.racio!=null?'\nPelo rácio do capítulo: '+fmt(r.kit.racio,0)+' €':'');
-      chip+='<div class="hint" style="margin:3px 0 0;font-size:11.5px;cursor:help" title="'+esc(det)+'">'+(r.kit.parcial?'kit '+fmt(r.kit.valor,0)+' € · cobre '+Math.round(r.kit.cob*100)+'%':(r.kit.racio!=null?'rácio seria '+fmt(r.kit.racio,0)+' €':'só kit (sem histórico)'))+'</div>';
+      chip+='<span class="lg-sub-l" style="cursor:help" title="'+esc(det)+'">'+(r.kit.parcial?'kit '+fmt(r.kit.valor,0)+' € · cobre '+Math.round(r.kit.cob*100)+'%':(r.kit.racio!=null?'rácio seria '+fmt(r.kit.racio,0)+' €':'só kit (sem histórico)'))+'</span>';
     }
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${esc(r.cap)}</td><td class="num">${r.n}</td>
-      <td><span class="drvchip">${esc(DRIVER_LBL[r.drv]||r.drv)}</span>${r.exp!==1?`<span class="drvchip exp" title="expoente de escala">^${r.exp}</span>`:""}</td>
+      <td style="font-size:12px">${esc(DRIVER_LBL[r.drv]||r.drv)}${r.exp!==1?` <span class="lg-sub-l" style="display:inline" title="expoente de escala">^${r.exp}</span>`:""}</td>
       <td>${chip}</td>
       <td class="num">${r.rc!=null?fmt(r.rc,2):'—'}</td>
-      <td class="num" style="color:${r.kf!==1?'var(--warn)':'#c4ccd8'}">${r.kf!==1?"×"+fmt(r.kf,2):"—"}</td>
+      <td class="num">${r.kf!==1?"×"+fmt(r.kf,2):'<span class="lg-miss">—</span>'}</td>
       <td class="num" style="font-weight:600">${fmt(r.central,0)}</td>
-      <td class="num" style="color:#8794a8">${fmt(r.lo,0)}</td>
-      <td class="num" style="color:#8794a8">${fmt(r.hi,0)}</td>`;
+      <td>${faixa(r.lo||0,r.central||0,r.hi||0)}</td>`;
     tb.appendChild(tr);
   });
-  const trT=document.createElement('tr');
-  trT.innerHTML=`<td style="font-weight:600">TOTAL HARD COSTS</td><td class="num">—</td><td></td><td></td><td class="num">—</td><td class="num">—</td>
-    <td class="num" style="font-weight:600">${fmt(tC,0)}</td>
-    <td class="num" style="font-weight:600;color:#8794a8">${fmt(tLo,0)}</td>
-    <td class="num" style="font-weight:600;color:#8794a8">${fmt(tHi,0)}</td>`;
-  tb.appendChild(trT);
+  const tf=tb.closest('table'); let ft=tf.querySelector('tfoot'); if(!ft){ ft=document.createElement('tfoot'); tf.appendChild(ft); }
+  ft.innerHTML=`<tr><td>Total hard costs</td><td></td><td></td><td></td><td></td><td></td><td class="num">${fmt(tC,0)}</td><td class="num" style="text-align:left">${fmt(tLo,0)} – ${fmt(tHi,0)}</td></tr>`;
 
   EST_LAST={nome:document.getElementById('estNome').value||"Projeto",base:baseLbl,pref,infl,inflModo,alvo,
             D,budget,rows,tC,tLo,tHi,soft,totalBP,nproj:projData.length,calibOn,softOn};
   document.getElementById('estResults').scrollIntoView({behavior:'smooth'});
   saveLocal('est',estInputs());
+  try{ lgGuiaAtualizar('estimador'); }catch(e){}
 }
 let EST_LAST=null;
+/* Fase 6: comparação do total (hard + soft) com o budget do BP — barra com o intervalo
+   histórico, a estimativa central e a marca do budget; folga ou excesso em €. */
+function estDesenharBP(lo,ce,hi,soft,budget){
+  const box=document.getElementById('estBP'); if(!box) return;
+  if(!budget){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  const s=soft||0, L=lo+s, C=ce+s, H=hi+s;
+  const max=Math.max(H,budget)*1.08, pc=v=>(v/max*100).toFixed(2)+'%';
+  const dv=C-budget, exc=dv>0;
+  const pLo=budget<L?'abaixo de todo o intervalo histórico':(budget>H?'acima de todo o intervalo histórico':'dentro do intervalo histórico');
+  box.innerHTML='<div class="lg-section-head"><h2 class="lg-section-title">Comparação com o BP</h2><span class="lg-badge" data-tone="'+(exc?'danger':'success')+'">'+(exc?'Excesso':'Folga')+' de '+fmt(Math.abs(dv),0)+' €</span></div>'
+    +'<div class="lg-pad" style="padding-top:16px"><div class="lg-bp">'
+    +'<span class="lg-bp-rng" style="left:'+pc(L)+';width:'+pc(H-L)+'"></span>'
+    +'<span class="lg-bp-est" style="left:'+pc(C)+'"><b>Estimativa '+fmt(C/1e6,2)+' M€</b></span>'
+    +'<span class="lg-bp-bud" style="left:'+pc(budget)+'"><b>BP '+fmt(budget/1e6,2)+' M€</b></span></div>'
+    +lgKV('Estimativa central'+(s?' (com soft costs)':''),fmt(C,0)+' €')+lgKV('Budget do BP',fmt(budget,0)+' €')
+    +lgKV(exc?'Excesso face ao BP':'Folga face ao BP','<span class="'+(exc?'lg-neg':'lg-pos')+'">'+fmt(Math.abs(dv),0)+' € ('+(dv>0?'+':'')+fmt(dv/budget*100,1)+'%)</span>','lg-kv-tot')
+    +'<p class="lg-meta">O budget está '+pLo+' ('+fmt(L,0)+' – '+fmt(H,0)+' €).</p></div>';
+  box.classList.remove('hidden');
+}
+/* descritores do projeto ativo na coluna da esquerda */
+function estPainelDescritores(){
+  const box=document.getElementById('estDesc'); if(!box||typeof CTX==='undefined') return;
+  const D=CTX.D||{}; const v=(x,u)=>(x>0)?fmt(x,0)+(u?' '+u:''):'<span class="lg-miss">por preencher</span>';
+  let seg=''; try{ seg=D.segmento?segLabel(D.segmento):''; }catch(e){ seg=D.segmento||''; }
+  box.innerHTML=(CTX.nome?'<div class="lg-est-nome">'+esc(CTX.nome)+(seg?' <span class="lg-badge" data-tone="inverse">'+esc(seg)+'</span>':'')+'</div>':'')
+    +lgKV('ABC total',v(D.abc,'m²'))+lgKV('Acima solo',v(D.acima,'m²'))+lgKV('Abaixo solo',v(D.abaixo,'m²'))+lgKV('Fogos',v(D.fogos))
+    +lgKV('Pisos elevados',v(D.pisosA))+lgKV('Pisos enterrados',v(D.pisosB))+lgKV('Implantação',v(D.implantacao,'m²'))+lgKV('Lote',v(D.lote,'m²'));
+}
 function exportEstimativa(){
   if(!EST_LAST){toast("Corre uma estimativa primeiro.");return}
   const E=EST_LAST, D=E.D;
@@ -326,4 +360,4 @@ async function _renderComparar(){
   });
 }
 
-APP_REGISTAR('06-estimador-comparar','3.3.0');
+APP_REGISTAR('06-estimador-comparar','3.5.0');

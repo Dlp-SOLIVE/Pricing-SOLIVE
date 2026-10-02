@@ -113,7 +113,16 @@ let sb=null, SESSION=null;
 let PROJETOS=[];
 
 const online=()=>!!(SUPA.url&&SUPA.key);
-function toast(msg){ alertx(msg,true) }   /* um só canal de feedback: o banner */
+/* Fase 6 · Legendre: confirmações num toast (preto, em baixo ao centro, 3,2 s);
+   avisos e erros continuam no banner de alertx (07-motor.js), que fica até ser lido. */
+function toast(msg){
+  document.querySelectorAll('.lg-toast').forEach(t=>t.remove());
+  const t=document.createElement('div'); t.className='lg-toast'; t.setAttribute('role','status');
+  t.innerHTML='<i class="icon-check" aria-hidden="true"></i><span></span>';
+  t.lastChild.textContent=String(msg==null?'':msg);
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3200);
+}
 
 /* ================= NAVEGAÇÃO ================= */
 /* Fase 2 (v3.0): o menu tem 5 áreas; cada área tem separadores no topo.
@@ -133,21 +142,27 @@ const VISTAS=['resumo','programa','importar','analisador','precomq','estimador',
 const AREA_ULTIMA={};
 function areaDaVista(v){ const t=VISTA_SEPARADOR[v]||v; return AREAS.find(a=>a.tabs.some(x=>x[0]===t))||null; }
 function abrirArea(k){ const a=AREAS.find(x=>x.k===k); if(!a) return; showView(AREA_ULTIMA[k]||a.tabs[0][0]); }
+/* Fase 6 · Legendre (direção A): os separadores da área ativa aparecem no menu lateral,
+   por baixo da área; a barra #areaTabs fica vazia (mantida por compatibilidade). */
 function desenharSeparadores(v){
-  const bar=document.getElementById('areaTabs'); if(!bar) return;
-  if(bar.parentNode&&bar.parentNode.firstElementChild!==bar) bar.parentNode.prepend(bar);   // vistas criadas depois não podem ficar por cima
+  const bar=document.getElementById('areaTabs');
+  if(bar){ if(bar.parentNode&&bar.parentNode.firstElementChild!==bar) bar.parentNode.prepend(bar); bar.innerHTML=''; bar.classList.add('hidden'); }
   const a=areaDaVista(v);
-  AREAS.forEach(x=>{ const b=document.getElementById('nava-'+x.k); if(b) b.classList.toggle('on', !!a&&a.k===x.k); });
-  if(!a){ bar.innerHTML=''; bar.classList.add('hidden'); return; }
-  AREA_ULTIMA[a.k]=v;
   const cur=VISTA_SEPARADOR[v]||v;
-  if(a.tabs.length<2){ bar.innerHTML=''; bar.classList.add('hidden'); }
-  else{
-    bar.classList.remove('hidden');
-    bar.innerHTML=a.tabs.map(([k,l])=>'<button type="button" data-v="'+k+'" class="'+(k===cur?'on':'')+'">'+l+'</button>').join('');
-    bar.querySelectorAll('button[data-v]').forEach(b=>b.onclick=()=>showView(b.dataset.v));
-  }
-  const eb=document.querySelector('#view-'+v+' .purpose .eyebrow'); if(eb) eb.textContent=a.t;
+  if(a) AREA_ULTIMA[a.k]=v;
+  AREAS.forEach(x=>{
+    const ativa=!!a&&a.k===x.k;
+    const b=document.getElementById('nava-'+x.k);
+    if(b){ b.classList.toggle('on',ativa); if(ativa) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); }
+    const sub=document.getElementById('navsub-'+x.k); if(!sub) return;
+    if(ativa&&x.tabs.length>1){
+      sub.innerHTML=x.tabs.map(([k,l])=>'<button type="button" data-v="'+k+'" class="'+(k===cur?'on':'')+'"'+(k===cur?' aria-current="page"':'')+'>'+l+'</button>').join('');
+      sub.querySelectorAll('button[data-v]').forEach(t=>t.onclick=()=>showView(t.dataset.v));
+      sub.hidden=false;
+    } else { sub.innerHTML=''; sub.hidden=true; }
+  });
+  try{ if(typeof lgCabecalho==='function') lgCabecalho(v,a); }catch(e){ console.warn(e); }
+  try{ if(typeof lgMenuMovel==='function') lgMenuMovel(false); }catch(e){}   // em ecrãs estreitos, fechar o menu ao navegar
 }
 function showView(v){
   if(!document.getElementById('view-'+v)) v='resumo';
@@ -162,7 +177,7 @@ function showView(v){
   if(v==='consultas') refreshConsultas();
   if(v==='comparar') renderComparar();
   if(v==='estimador') document.getElementById('estAno').value=document.getElementById('estAno').value||new Date().getFullYear();
-  if(v==='orcamento') refreshOrcamento();
+  if(v==='orcamento'){ refreshOrcamento(); try{ if(!ORC_ROWS.length&&typeof CTX!=='undefined'&&CTX.nome&&SESSION) loadOrcBoard(CTX.nome); }catch(e){ console.warn(e); } }   // retoma o orçamento em curso do projeto ativo
   if(v==='execucao') gxRender();
   if(v==='programa'){ try{ tpRenderPrograma(); }catch(e){ console.warn(e); } }
   if(v==='kit'){ try{ tpRenderKit(); }catch(e){ console.warn(e); } }
@@ -179,4 +194,4 @@ function showView(v){
   setTimeout(ic,60); setTimeout(ic,900);
 }
 
-APP_REGISTAR('01-base','3.3.0');
+APP_REGISTAR('01-base','3.5.0');

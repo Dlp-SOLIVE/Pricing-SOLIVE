@@ -5,32 +5,52 @@
    Versão: ver APP_REGISTAR no fim do ficheiro (tem de ser igual à do index.html). */
 
 const IMP_TIPOS={
-  precos_po:  {lbl:'Preços adjudicados · Legendre-PO',            destino:'Preços adjudicados (neste ecrã)', projeto:false},
-  mq:         {lbl:'Mapa de quantidades',                     destino:'Orçamentar › Mapa de quantidades',            projeto:true},
-  pricing:    {lbl:'Pricing sheet (orçamento do empreiteiro)', destino:'Orçamentar › Mapa de quantidades · leitura completa', projeto:true},
-  resumo:     {lbl:'Resumo do orçamento com fonte do preço',   destino:'Orçamentar › Orçamento',                      projeto:true},
-  proposta:   {lbl:'Proposta de fornecedor',                   destino:'Orçamentar › Orçamento',                      projeto:true},
-  auto:       {lbl:'Auto de medição',                          destino:'Obra › Autos de medição',                     projeto:true},
-  transferido:{lbl:'Orçamento transferido para a Produção',    destino:'Obra › Adjudicações e desvios',               projeto:true},
-  compras:    {lbl:'Ficheiro de Compras (material e mão de obra)', destino:'Biblioteca de compras (neste ecrã)', projeto:false}
+  mq:         {lbl:'Mapa de quantidades',                         ic:'file-spreadsheet', destino:'Orçamentar / Mapa de quantidades',                     projeto:true},
+  pricing:    {lbl:'Pricing sheet Legendre',                       ic:'file-spreadsheet', destino:'Orçamentar / Mapa de quantidades · leitura completa',  projeto:true},
+  resumo:     {lbl:'Resumo do orçamento',                          ic:'list-checks',      destino:'Orçamentar / Orçamento',                               projeto:true},
+  proposta:   {lbl:'Proposta de fornecedor',                       ic:'handshake',        destino:'Orçamentar / Orçamento',                               projeto:true},
+  auto:       {lbl:'Auto de medição',                              ic:'ruler',            destino:'Obra / Autos de medição',                              projeto:true},
+  transferido:{lbl:'Orçamento transferido',                        ic:'file-check',       destino:'Obra / Adjudicações e desvios',                        projeto:true},
+  compras:    {lbl:'Ficheiro de compras',                          ic:'clipboard-list',   destino:'Importar / Biblioteca de compras (neste ecrã)',        projeto:false},
+  precos_po:  {lbl:'Preços adjudicados Legendre-PO',               ic:'gavel',            destino:'Importar / Preços adjudicados (neste ecrã)',           projeto:false}
 };
-let IMP={ficheiro:null, wb:null, sugestoes:[]};
+/* o que cada tipo traz (lista «O que a plataforma reconhece») */
+const IMP_DESC={
+  mq:'Artigos do projetista com designação, unidade e quantidade.',
+  pricing:'Orçamento do empreiteiro com as folhas de capítulo e o resumo.',
+  resumo:'Totais por capítulo com a fonte do preço (proposta recebida, antiga, sem fonte).',
+  proposta:'Artigos com preço unitário e total de um subempreiteiro ou fornecedor.',
+  auto:'Folha de auto com o total declarado do período.',
+  transferido:'O orçamento por linha entregue à Produção.',
+  compras:'Contratos e artigos (material e mão de obra) do ficheiro .xlsm.',
+  precos_po:'Linhas das adjudicações validadas na Legendre-PO.'
+};
+let IMP={ficheiro:null, wb:null, sugestoes:[], escolhido:null, outros:false};
 
 /* ---------- vista ---------- */
 (function impMount(){
   const main=document.querySelector('main'); if(!main||document.getElementById('view-importar')) return;
   const v=document.createElement('div'); v.id='view-importar'; v.className='hidden';
-  v.innerHTML=uxPurpose('Importar','Importar ficheiro','Larga qualquer Excel: a plataforma reconhece o tipo de ficheiro e leva-o para o ecrã certo.')
-    +'<div class="card"><div class="drop" id="impDrop"><span class="drop-ic"><i class="icon-upload" aria-hidden="true"></i></span>Larga aqui o ficheiro <b>.xlsx</b> ou <b>.xlsm</b> ou clica para escolher</div>'
+  v.innerHTML='<div class="lg-cols">'
+    +'<div class="lg-col-main lg-stack">'
+    +'<div class="lg-drop" id="impDrop" role="button" tabindex="0" aria-label="Escolher ou largar o ficheiro Excel">'
+    +'<span class="lg-drop-ic lg-notch"><i class="icon-upload" aria-hidden="true"></i></span>'
+    +'<div class="lg-drop-t">Larga aqui o ficheiro Excel</div>'
+    +'<p class="lg-drop-s">.xlsx ou .xlsm. A plataforma reconhece o tipo de ficheiro, pede-te confirmação e leva-o para o ecrã certo.</p>'
+    +'<button type="button" class="btn ghost sm" data-noic id="impEscolher"><i class="icon-folder-open" aria-hidden="true"></i>Escolher ficheiro</button>'
+    +'<div class="lg-drop-f" id="impDropF"></div></div>'
     +'<input type="file" id="impFile" accept=".xlsx,.xls,.xlsm" class="hidden">'
-    +'<div class="hint" style="margin-top:10px">Reconhece: mapa de quantidades · pricing sheet do empreiteiro · resumo do orçamento · proposta de fornecedor · auto de medição · orçamento transferido para a Produção · ficheiro de Compras · preços adjudicados da Legendre-PO.</div></div>'
-    +'<div id="impOut"></div>'
-    +'<div class="card" id="paCard"><h2>Preços adjudicados · Legendre-PO</h2><div class="hint">Linhas das adjudicações <b>validadas</b> na plataforma de Adjudicações (Legendre-PO → <b>Exportações</b> → <b>Preços adjudicados para a Orçamentação (.xlsx)</b>). Entram na biblioteca como fonte «Adjudicação Legendre-PO» e são usadas no Orçamentar MQ e no preço por elemento. Reimportar atualiza as linhas já existentes, não as duplica.</div><div id="paOut"><span class="note" style="display:inline-block;margin:0">Ainda sem informação — inicia sessão.</span></div></div>'
-    +'<div class="card" id="cmCard"><h2>Biblioteca de compras (fornecedores)</h2><div class="hint">Resultado da última importação do ficheiro de Compras (.xlsm). Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato, e alimenta o Orçamentar MQ. Substitui a importação anterior.</div>'
-    +'<input type="file" id="cmFile" accept=".xlsm,.xlsx" class="hidden"><span id="cmOut" class="note" style="display:inline-block;margin:0">Ainda não importaste o ficheiro de Compras nesta sessão.</span></div>';
+    +'<div id="impOut"></div></div>'
+    +'<section class="lg-section lg-col-side"><h2 class="lg-section-title">O que a plataforma reconhece</h2><ul class="lg-imp-tipos">'
+    +Object.entries(IMP_TIPOS).map(([k,t])=>'<li><span class="lg-imp-tic">'+lgIc(t.ic)+'</span><div><b>'+esc(t.lbl)+'</b><span>'+esc(IMP_DESC[k]||'')+'</span><span class="lg-imp-dest">→ '+esc(t.destino)+'</span></div></li>').join('')
+    +'</ul></section></div>'
+    +'<section class="lg-section" id="paCard"><h2 class="lg-section-title">Preços adjudicados · Legendre-PO</h2><div class="lg-pad"><p class="lg-meta" style="margin:8px 0 12px">Linhas das adjudicações <b>validadas</b> na plataforma de Adjudicações (Legendre-PO → <b>Exportações</b> → <b>Preços adjudicados para a Orçamentação (.xlsx)</b>). Entram na biblioteca como fonte «Adjudicação Legendre-PO» e são usadas no Orçamentar MQ e no preço por elemento. Reimportar atualiza as linhas já existentes, não as duplica.</p><div id="paOut"><span class="note" style="display:inline-block;margin:0">Ainda sem informação — inicia sessão.</span></div></div></section>'
+    +'<section class="lg-section" id="cmCard"><h2 class="lg-section-title">Biblioteca de compras (fornecedores)</h2><div class="lg-pad"><p class="lg-meta" style="margin:8px 0 12px">Resultado da última importação do ficheiro de Compras (.xlsm). Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato, e alimenta o Orçamentar MQ. Substitui a importação anterior.</p>'
+    +'<input type="file" id="cmFile" accept=".xlsm,.xlsx" class="hidden"><span id="cmOut" class="note" style="display:inline-block;margin:0">Ainda não importaste o ficheiro de Compras nesta sessão.</span></div></section>';
   main.appendChild(v);
   const drop=document.getElementById('impDrop'), fi=document.getElementById('impFile');
   drop.onclick=()=>fi.click();
+  drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fi.click(); } };
   drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
   drop.ondragleave=()=>drop.classList.remove('over');
   drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])impCarregar(e.dataTransfer.files[0])};
@@ -40,16 +60,17 @@ let IMP={ficheiro:null, wb:null, sugestoes:[]};
 /* ---------- leitura e reconhecimento ---------- */
 function impCarregar(f){
   const out=document.getElementById('impOut');
-  out.innerHTML='<div class="note">A ler <b>'+esc(f.name)+'</b>…</div>';
+  out.innerHTML='<div class="lg-note">A ler <b>'+esc(f.name)+'</b>…</div>';
   const r=new FileReader();
   r.onload=e=>{
     let wb; try{ wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); }
-    catch(err){ out.innerHTML='<div class="note red">Não consegui abrir o ficheiro. Confirma que é um Excel (.xlsx ou .xlsm) válido.</div>'; return; }
-    IMP={ficheiro:f, wb, sugestoes:impDetetar(wb,f.name)};
-    document.getElementById('impDrop').innerHTML='<span class="drop-ic"><i class="icon-upload" aria-hidden="true"></i></span>Ficheiro: <b>'+esc(f.name)+'</b> — clica ou larga outro para trocar';
+    catch(err){ out.innerHTML='<div class="lg-note lg-note-err">Não consegui abrir o ficheiro. Confirma que é um Excel (.xlsx ou .xlsm) válido.</div>'; return; }
+    const S=impDetetar(wb,f.name);
+    IMP={ficheiro:f, wb, sugestoes:S, escolhido:S[0]?S[0].tipo:null, outros:!S.length};
+    const df=document.getElementById('impDropF'); if(df) df.innerHTML='Ficheiro lido: <b>'+esc(f.name)+'</b> — larga outro ou escolhe para trocar';
     impMostrar();
   };
-  r.onerror=()=>{ out.innerHTML='<div class="note red">Não consegui ler o ficheiro.</div>'; };
+  r.onerror=()=>{ out.innerHTML='<div class="lg-note lg-note-err">Não consegui ler o ficheiro.</div>'; };
   r.readAsArrayBuffer(f);
 }
 
@@ -108,33 +129,47 @@ function impDetetar(wb,nome){
   return S.sort((a,b)=>b.conf-a.conf);
 }
 
+/* Cartão de deteção: tipo reconhecido, porquê, confiança e destino. «Não é isto?» abre a lista
+   dos outros tipos (os também detetados primeiro); escolher um atualiza o cartão; confirmar navega. */
+function impNivel(conf){ return conf>=85?['Quase certo','success']:conf>=65?['Provável','warning']:['Pouco seguro','danger']; }
 function impMostrar(){
-  const out=document.getElementById('impOut'); const S=IMP.sugestoes; const f=IMP.ficheiro;
+  const out=document.getElementById('impOut'); const S=IMP.sugestoes; const f=IMP.ficheiro; if(!out||!f) return;
   const proj=(typeof CTX!=='undefined'&&CTX.nome)||'';
-  const top=S[0];
-  const btnTipo=(k,principal)=>'<button type="button" class="btn '+(principal?'red':'ghost')+'" onclick="impAbrir(\''+k+'\')">'+(principal?'Confirmar e abrir em ':'')+esc(principal?IMP_TIPOS[k].destino:IMP_TIPOS[k].lbl)+'</button>';
-  let h='<div class="card"><h2>O que é este ficheiro?</h2>';
-  if(top){
-    const nivel=top.conf>=85?'Quase certo':top.conf>=65?'Provável':'Pouco seguro';
-    h+='<div class="imp-sug"><div><div class="imp-k">Parece</div><div class="imp-t">'+esc(IMP_TIPOS[top.tipo].lbl)+'</div><div class="hint" style="margin:2px 0 0">'+nivel+' · '+esc(top.motivo)+'</div></div></div>';
-    h+=IMP_TIPOS[top.tipo].projeto?('<div class="hint" style="margin-top:10px">'+(proj?'Entra no projeto ativo: <b>'+esc(proj)+'</b>. Se não for este, troca-o na barra do topo antes de confirmar.':'<span style="color:var(--err)"><b>Escolhe primeiro o projeto ativo</b> na barra do topo.</span>')+'</div>'):'';
-    h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">'+btnTipo(top.tipo,true)+'</div>';
+  const k=IMP.escolhido, T=k?IMP_TIPOS[k]:null, sug=S.find(s=>s.tipo===k)||null;
+  const nFolhas=(IMP.wb.SheetNames||[]).length;
+  let h='<section class="lg-section lg-imp-det"><div class="lg-imp-det-h"><div class="lg-eyebrow">'+(sug&&sug===S[0]?'Tipo reconhecido':(T?'Tipo escolhido por ti':'Tipo por escolher'))+'</div>'
+    +'<span class="lg-meta" style="margin:0">'+esc(f.name)+' · '+nFolhas+' folha'+(nFolhas===1?'':'s')+'</span></div>';
+  if(T){
+    const nv=sug?impNivel(sug.conf):null;
+    h+='<div class="lg-imp-det-t">'+lgIc(T.ic)+'<span>'+esc(T.lbl)+'</span></div><div class="lg-pad" style="padding-top:0">'
+      +lgKV('Porquê',sug?esc(sug.motivo):'<span class="lg-miss">Escolhido à mão — o ecrã de destino diz-te se não o conseguir ler</span>')
+      +lgKV('Confiança',nv?'<span class="lg-badge" data-tone="'+nv[1]+'">'+nv[0]+' · '+sug.conf+'%</span>':'—')
+      +lgKV('Destino',esc(T.destino))
+      +(T.projeto?lgKV('Projeto',proj?esc(proj):'<span class="lg-neg">Escolhe primeiro o projeto ativo no menu lateral</span>'):'')
+      +'<div class="lg-imp-acts"><button type="button" class="btn red" data-noic id="impConfirmar"'+(T.projeto&&!proj?' disabled':'')+'>'+lgIc('check')+'Confirmar e abrir</button>'
+      +'<button type="button" class="lg-link" id="impOutros" aria-expanded="'+(IMP.outros?'true':'false')+'">'+lgIc('file-question')+'Não é isto?</button></div></div>';
   } else {
-    h+='<div class="note">Não reconheci o tipo deste ficheiro. Escolhe abaixo o que é — o ecrã de destino diz-te se não o conseguir ler.</div>';
+    h+='<div class="lg-pad"><div class="lg-note" style="margin:8px 0 0">Não reconheci o tipo deste ficheiro. Escolhe abaixo o que é — o ecrã de destino diz-te se não o conseguir ler.</div></div>';
   }
-  const outros=Object.keys(IMP_TIPOS).filter(k=>!top||k!==top.tipo);
-  const alt=S.slice(1).map(s=>s.tipo);
-  outros.sort((a,b)=>(alt.includes(b)?1:0)-(alt.includes(a)?1:0));
-  h+='<div class="imp-outros"><div class="imp-k">'+(top?'Não é isso? Tratar como':'Tratar como')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+outros.map(k=>btnTipo(k,false)).join('')+'</div></div>';
-  h+='<div class="hint" style="margin-top:10px">Ficheiro: '+esc(f.name)+' · '+(IMP.wb.SheetNames||[]).length+' folha(s)</div></div>';
+  if(IMP.outros||!T){
+    const alt=S.map(s=>s.tipo);
+    const ks=Object.keys(IMP_TIPOS).filter(x=>x!==k).sort((a,b)=>(alt.includes(b)?1:0)-(alt.includes(a)?1:0));
+    h+='<div class="lg-imp-outros"><div class="lg-eyebrow">Tratar como</div><div class="lg-imp-lista">'+ks.map(x=>{ const s=S.find(y=>y.tipo===x);
+      return '<button type="button" class="lg-imp-op" data-tipo="'+x+'">'+lgIc(IMP_TIPOS[x].ic)+'<span><b>'+esc(IMP_TIPOS[x].lbl)+'</b><small>'+esc(IMP_TIPOS[x].destino)+'</small></span>'+(s?'<span class="lg-badge" data-tone="neutral">'+s.conf+'%</span>':'')+'</button>'; }).join('')+'</div></div>';
+  }
+  h+='</section>';
   out.innerHTML=h;
+  try{ if(!document.getElementById('view-importar').classList.contains('hidden')) lgCabecalho('importar'); }catch(e){}   // guia: passo 2
+  const bc=document.getElementById('impConfirmar'); if(bc) bc.onclick=()=>impAbrir(IMP.escolhido);
+  const bo=document.getElementById('impOutros'); if(bo) bo.onclick=()=>{ IMP.outros=!IMP.outros; impMostrar(); };
+  out.querySelectorAll('[data-tipo]').forEach(b=>b.onclick=()=>{ IMP.escolhido=b.dataset.tipo; IMP.outros=false; impMostrar(); });
 }
 
 /* ---------- encaminhar para o processador do ecrã de destino ---------- */
 const impPausa=ms=>new Promise(r=>setTimeout(r,ms));
 async function impAbrir(tipo){
   const f=IMP.ficheiro, T=IMP_TIPOS[tipo]; if(!f||!T) return;
-  if(T.projeto&&!((typeof CTX!=='undefined')&&CTX.nome)){ alertx('Escolhe primeiro o projeto ativo na barra do topo — o ficheiro tem de entrar num projeto.'); return; }
+  if(T.projeto&&!((typeof CTX!=='undefined')&&CTX.nome)){ alertx('Escolhe primeiro o projeto ativo no menu lateral — o ficheiro tem de entrar num projeto.'); return; }
   const semInput=()=>alertx('O teu navegador não deixa passar o ficheiro de um ecrã para outro. Abre «'+T.destino+'» e carrega lá o ficheiro.');
   try{
     if(tipo==='mq'||tipo==='pricing'){
@@ -263,4 +298,4 @@ async function impEstadoPO(){
   }
 }
 
-APP_REGISTAR('13-importar','3.3.0');
+APP_REGISTAR('13-importar','3.5.0');

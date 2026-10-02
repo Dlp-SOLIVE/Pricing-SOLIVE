@@ -8,6 +8,7 @@
 
 /* ---------- 0. Robustez: erros visíveis, nunca silenciosos ---------- */
 function alertx(msg,ok){
+  if(ok&&typeof toast==='function') return toast(msg);   // Fase 6: confirmações vão para o toast
   document.querySelectorAll('.banner').forEach(b=>b.remove());
   const b=document.createElement('div');
   b.className='banner'+(ok?' ok':'');
@@ -1110,4 +1111,4 @@ restoreEstInputs();
 loadBenchmarks();
 if(new URLSearchParams(location.search).get('test')==='1') runSelfTests();
 
-APP_REGISTAR('07-motor','3.3.0');
+APP_REGISTAR('07-motor','3.5.0');

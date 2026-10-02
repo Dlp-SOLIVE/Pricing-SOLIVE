@@ -298,21 +298,24 @@ async function orcSeed(){
   renderOrc();
   document.getElementById('orcBoard').scrollIntoView({behavior:'smooth'});
 }
+let ORC_FILTRO='';   // Fase 6: filtro da tabela por estado ('' = todos)
 function renderOrc(){
   const tb=document.getElementById('tbOrc'); tb.innerHTML="";
   const abc=ORC_META.abc;
   ORC_ROWS.forEach((r,i)=>{
+    if(ORC_FILTRO&&r.estado!==ORC_FILTRO) return;
     const opts=ORC_ESTADOS.map(e=>`<option value="${e.k}" ${r.estado===e.k?'selected':''}>${e.lbl}</option>`).join("");
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(r.cap)}<div style="color:#8794a8;font-size:12px">origem: ${esc(r.origem)}</div></td>
-      <td class="num"><input type="number" step="1" class="orcVal" data-i="${i}" value="${r.valor||0}" style="text-align:right"></td>
-      <td><select class="estado-sel ${ORC_EST[r.estado].cls} orcEst" data-i="${i}">${opts}</select></td>
+    const tr=document.createElement('tr'); tr.dataset.e=r.estado;
+    tr.innerHTML=`<td><b class="lg-orc-cap">${esc(r.cap)}</b><span class="lg-sub-l">origem: ${esc(r.origem)}</span></td>
+      <td><span class="lg-sem"><span class="lg-dot" data-e="${r.estado}"></span><select class="orcEst" data-i="${i}" aria-label="Fonte do preço de ${esc(r.cap)}">${opts}</select></span></td>
+      <td class="num"><input type="number" step="1" class="orcVal lg-num-in" data-i="${i}" value="${r.valor||0}" aria-label="Valor de ${esc(r.cap)}"></td>
       <td class="num">${abc&&r.valor?fmt(r.valor/abc,0):"—"}</td>
-      <td><input type="text" class="orcNota" data-i="${i}" value="${esc(r.nota||'')}" placeholder="fornecedor, exclusões…" style="width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px"></td>`;
+      <td><input type="text" class="orcNota" data-i="${i}" value="${esc(r.nota||'')}" placeholder="fornecedor, exclusões…" aria-label="Nota"></td>`;
     tb.appendChild(tr);
   });
   tb.querySelectorAll('.orcVal').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].valor=parseFloat(e.target.value)||0;ORC_DIRTY=true;renderOrcKpis();}));
-  tb.querySelectorAll('.orcEst').forEach(el=>el.addEventListener('change',e=>{const i=+e.target.dataset.i;ORC_ROWS[i].estado=e.target.value;ORC_DIRTY=true;e.target.className='estado-sel '+ORC_EST[e.target.value].cls+' orcEst';renderOrcKpis();}));
+  tb.querySelectorAll('.orcEst').forEach(el=>el.addEventListener('change',e=>{const i=+e.target.dataset.i;ORC_ROWS[i].estado=e.target.value;ORC_DIRTY=true;
+    const tr=e.target.closest('tr'); tr.dataset.e=e.target.value; tr.querySelector('.lg-dot').dataset.e=e.target.value; renderOrcKpis();}));
   tb.querySelectorAll('.orcNota').forEach(el=>el.addEventListener('input',e=>{ORC_ROWS[+e.target.dataset.i].nota=e.target.value;ORC_DIRTY=true;}));
   renderOrcKpis();
 }
@@ -328,15 +331,24 @@ function renderOrcKpis(){
   document.getElementById('orcKValor').textContent=total?fmt(solido/total*100,0)+"%":"—";
   document.getElementById('orcKCaps').textContent=capsSolidos+" / "+capsComValor.length;
   document.getElementById('orcKm2').textContent=abc&&total?fmt(total/abc,0):"—";
-  // barra de consolidação por estado
-  const bar=document.getElementById('orcConsBar'); bar.innerHTML="";
-  if(total>0){
-    ORC_ESTADOS.forEach(e=>{
-      const v=ORC_ROWS.filter(r=>r.estado===e.k).reduce((s,r)=>s+(r.valor||0),0);
-      if(v>0){const d=document.createElement('div');d.className=e.cb;d.style.width=(v/total*100)+"%";d.title=e.lbl+": "+fmt(v,0)+" € ("+fmt(v/total*100,0)+"%)";bar.appendChild(d);}
-    });
+  /* barra de consolidação e legenda com o valor de cada estado */
+  const porEst={}; ORC_ESTADOS.forEach(e=>porEst[e.k]=ORC_ROWS.filter(r=>r.estado===e.k).reduce((s,r)=>s+(r.valor||0),0));
+  const bar=document.getElementById('orcConsBar');
+  bar.innerHTML=total>0?ORC_ESTADOS.filter(e=>porEst[e.k]>0).map(e=>'<span data-e="'+e.k+'" style="width:'+(porEst[e.k]/total*100).toFixed(2)+'%" title="'+esc(e.lbl)+': '+fmt(porEst[e.k],0)+' € ('+fmt(porEst[e.k]/total*100,0)+'%)"></span>').join(''):'';
+  const leg=document.getElementById('orcLegenda');
+  if(leg) leg.innerHTML=ORC_ESTADOS.map(e=>'<span><span class="lg-dot" data-e="'+e.k+'"></span>'+esc(e.lbl)+' <b>'+(total?fmt(porEst[e.k]/total*100,0):0)+'%</b></span>').join('');
+  /* filtro por estado (com contagem de capítulos) */
+  const fl=document.getElementById('orcFiltro');
+  if(fl){
+    const n=k=>ORC_ROWS.filter(r=>!k||r.estado===k).length;
+    fl.innerHTML=[['','Todos']].concat(ORC_ESTADOS.map(e=>[e.k,e.lbl.replace(/ \(>2 anos\)| do subempreiteiro/,'')])).filter(([k])=>!k||n(k))
+      .map(([k,l])=>'<button type="button" class="lg-chip'+(ORC_FILTRO===k?' on':'')+'" data-f="'+k+'">'+(k?'<span class="lg-dot" data-e="'+k+'"></span>':'')+esc(l)+' <b>'+n(k)+'</b></button>').join('');
+    fl.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{ ORC_FILTRO=b.dataset.f; renderOrc(); });
   }
+  const tf=document.getElementById('tfOrc');
+  if(tf) tf.innerHTML=total?'<tr><td>Total</td><td></td><td class="num">'+fmt(total,0)+'</td><td class="num">'+(abc?fmt(total/abc,0):'—')+'</td><td></td></tr>':'';
   renderContingencia(total);
+  try{ lgGuiaAtualizar('orcamento'); }catch(e){}
 }
 function orcTier(estado){ const e=ORC_EST[estado]; if(!e) return 'estim'; if(e.solido) return 'firme'; if(estado==='racio') return 'estim'; return 'inter'; }
 function renderContingencia(total){
@@ -374,4 +386,4 @@ function exportOrcamento(){
   XLSX.writeFile(wb,("Orcamento_"+ORC_META.nome).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('05-orcamentacao','3.3.0');
+APP_REGISTAR('05-orcamentacao','3.5.0');
