@@ -519,7 +519,7 @@ async function vfPriceMQFile(){
   const projSel=(document.getElementById('mqProj')||{}).value||'';
   const segSel=(document.getElementById('mqSeg')||{}).value||'';
   const comOrc=!!(document.getElementById('mqOrc')||{}).checked;
-  const FONTE_LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
+  const FONTE_LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',compra_po:'Adj. Legendre-PO',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
   let vl=await lerLinhasCusto(q=>q.eq('nivel','artigo').gt('preco_unit',0));
   if(!comOrc) vl=vl.filter(r=>r.fonte!=='orcamento_empreiteiro'&&r.fonte!=='mq');
   // preços colhidos de autos antigos repetem os autos verificados do mesmo projeto: não contar duas vezes
@@ -1318,4 +1318,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.0.0');
+APP_REGISTAR('09-custo-real','3.1.0');

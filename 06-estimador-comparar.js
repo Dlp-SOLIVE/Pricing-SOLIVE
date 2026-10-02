@@ -278,4 +278,4 @@ async function _renderComparar(){
   });
 }
 
-APP_REGISTAR('06-estimador-comparar','3.0.0');
+APP_REGISTAR('06-estimador-comparar','3.1.0');

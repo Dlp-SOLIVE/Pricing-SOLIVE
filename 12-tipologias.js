@@ -272,7 +272,7 @@ function tpPrecoElemento(el,seg){
   const camadas=[
     ['custo real · '+segLabel(seg), r=>REAL.includes(r.fonte)&&(!el.sensivel_segmento||r.segmento===seg)],
     ['custo real · outros segmentos', r=>REAL.includes(r.fonte)],
-    ['orçamento do empreiteiro / compras', r=>r.fonte==='orcamento_empreiteiro'||r.fonte==='mq'||r.fonte==='compra']];
+    ['orçamento do empreiteiro / compras', r=>r.fonte==='orcamento_empreiteiro'||r.fonte==='mq'||r.fonte==='compra'||r.fonte==='compra_po']];
   /* alternativa: a biblioteca só tem o elemento por unidade (ex.: cozinha completa €/un) */
   const altRows=rows.filter(r=>!uns.includes(tpUnidade(r.unidade))&&/^(UN|CJ|VG)$/.test(tpUnidade(r.unidade))&&REAL.includes(r.fonte));
   const alt=altRows.length?{med:tpMed(altRows.map(r=>+r.preco_unit)),n:altRows.length,un:altRows[0].unidade}:null;
@@ -290,7 +290,7 @@ function tpPrecoDrill(i){
   const e=window.__tpEstim; const l=e&&e.linhas[i]; const tr=document.getElementById('tpr_'+i); if(!l||!tr) return;
   const ab=document.getElementById('tpd_'+i); if(ab){ ab.remove(); tr.style.background=''; return; }
   const P=l.preco;
-  const LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
+  const LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',compra_po:'Adj. Legendre-PO',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
   const body=(P.cands||[]).map(r=>'<tr><td style="white-space:normal">'+esc(String(r.descricao||'').slice(0,140))+'</td><td>'+esc((LBL[r.fonte]||r.fonte)+' · '+(r.ref||r.fornecedor||'')+(r.projeto?' · '+r.projeto:''))+'</td><td>'+esc(r.segmento?segLabel(r.segmento):'—')+'</td><td>'+esc(r.unidade||'')+'</td><td class="mono" style="text-align:right">'+fmt(r.preco_unit,2)+'</td></tr>').join('');
   const row=document.createElement('tr'); row.id='tpd_'+i;
   row.innerHTML='<td colspan="8" style="background:#f6f8fb;padding:10px 14px">'
@@ -325,4 +325,4 @@ function tpExportar(){
   XLSX.writeFile(wb,("Elementos_"+e.projeto).replace(/[^\w]+/g,"_")+".xlsx");
 }
 
-APP_REGISTAR('12-tipologias','3.0.0');
+APP_REGISTAR('12-tipologias','3.1.0');

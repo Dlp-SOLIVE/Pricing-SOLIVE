@@ -163,6 +163,7 @@ function showView(v){
   if(v==='execucao') gxRender();
   if(v==='programa'){ try{ tpRenderPrograma(); }catch(e){ console.warn(e); } }
   if(v==='kit'){ try{ tpRenderKit(); }catch(e){ console.warn(e); } }
+  if(v==='importar'){ try{ impEstadoPO(); }catch(e){ console.warn(e); } }
   try{ if(typeof ctxRender==='function') ctxRender(); }catch(e){}
   if(v==='precomq'){ try{ vfMQFillProjects(); }catch(e){} }
   if(v==='comparar'){ try{ vfDvFillProjects(); }catch(e){} }
@@ -170,4 +171,4 @@ function showView(v){
   try{ if(typeof window.__howtoOnView==='function') window.__howtoOnView(v); }catch(e){}
 }
 
-APP_REGISTAR('01-base','3.0.0');
+APP_REGISTAR('01-base','3.1.0');
