@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Fase 6 · Legendre: Cabin (substituto de Seravek) nos títulos, Roboto no texto -->
 <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Roboto:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=3.5.0">
+<link rel="stylesheet" href="app.css?v=3.5.1">
 </head>
 <body>
 <!-- Fase 6 · Legendre: menu lateral (logótipo, projeto ativo, áreas e separadores, rodapé).
@@ -24,7 +24,7 @@
 </div>
 <header id="lgSide">
   <div class="lg-brand">
-    <img class="lg-logo" src="legendre-horizontal.png?v=3.5.0" alt="Legendre" onerror="this.parentNode.classList.add('nologo');this.remove()">
+    <img class="lg-logo" src="legendre-horizontal.png?v=3.5.1" alt="Legendre" onerror="this.parentNode.classList.add('nologo');this.remove()">
     <span class="lg-logo-txt">LEGENDRE</span>
     <div class="lg-app"><b>Orçamentação</b> · Solive</div>
   </div>
@@ -44,7 +44,7 @@
     <div id="lgFootNav"></div>
     <div class="lg-user">
       <span class="lg-avatar" id="lgAvatar" aria-hidden="true">–</span>
-      <div class="lg-user-tx"><b id="lgUserNome">Sem sessão</b><span><span id="lgUserVer">v3.5.0</span> · <span class="badge" id="connBadge">Modo local</span></span></div>
+      <div class="lg-user-tx"><b id="lgUserNome">Sem sessão</b><span><span id="lgUserVer">v3.5.1</span> · <span class="badge" id="connBadge">Modo local</span></span></div>
       <button id="btnLogout" class="lg-iconbtn hidden" type="button" onclick="logout()" title="Terminar sessão" aria-label="Terminar sessão"><i class="icon-log-out" aria-hidden="true"></i></button>
     </div>
   </div>
@@ -778,7 +778,7 @@
   <div id="cfgBody"></div>
 </div>
 </main>
-<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.5.0</span> <span id="selfTestFooter"></span></footer>
+<footer>Solive · Plataforma de Orçamentação <span class="mono" id="appVersao" style="font-size:12px;color:#8794a8" title="Versão — confirma que tens a mais recente">v3.5.1</span> <span id="selfTestFooter"></span></footer>
 
 <!-- ====== AJUDA: painel lateral do ecrã atual (10-ajuda.js) ====== -->
 <div id="ajudaOverlay" class="lg-drawer-bg hidden" onclick="if(event.target===this)fecharAjuda()">
@@ -855,22 +855,22 @@
 <script>
 /* Versão da plataforma: muda em CADA entrega e tem de ser igual em todos os ficheiros
    *.js (linha APP_REGISTAR no fim de cada um). O 99-arranque.js confirma. */
-window.APP={versao:"3.5.0", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
+window.APP={versao:"3.5.1", data:"2026-10-02", ficheiros:["01-base", "02-execucao", "03-auth-projetos", "04-analisador", "05-orcamentacao", "06-estimador-comparar", "07-motor", "08-contexto", "09-custo-real", "10-ajuda", "11-ux", "12-tipologias", "13-importar"], carregados:{}};
 window.APP_REGISTAR=function(nome,versao){ APP.carregados[nome]=versao; };
 </script>
-<script src="01-base.js?v=3.5.0"></script>
-<script src="02-execucao.js?v=3.5.0"></script>
-<script src="03-auth-projetos.js?v=3.5.0"></script>
-<script src="04-analisador.js?v=3.5.0"></script>
-<script src="05-orcamentacao.js?v=3.5.0"></script>
-<script src="06-estimador-comparar.js?v=3.5.0"></script>
-<script src="07-motor.js?v=3.5.0"></script>
-<script src="08-contexto.js?v=3.5.0"></script>
-<script src="09-custo-real.js?v=3.5.0"></script>
-<script src="10-ajuda.js?v=3.5.0"></script>
-<script src="11-ux.js?v=3.5.0"></script>
-<script src="12-tipologias.js?v=3.5.0"></script>
-<script src="13-importar.js?v=3.5.0"></script>
-<script src="99-arranque.js?v=3.5.0"></script>
+<script src="01-base.js?v=3.5.1"></script>
+<script src="02-execucao.js?v=3.5.1"></script>
+<script src="03-auth-projetos.js?v=3.5.1"></script>
+<script src="04-analisador.js?v=3.5.1"></script>
+<script src="05-orcamentacao.js?v=3.5.1"></script>
+<script src="06-estimador-comparar.js?v=3.5.1"></script>
+<script src="07-motor.js?v=3.5.1"></script>
+<script src="08-contexto.js?v=3.5.1"></script>
+<script src="09-custo-real.js?v=3.5.1"></script>
+<script src="10-ajuda.js?v=3.5.1"></script>
+<script src="11-ux.js?v=3.5.1"></script>
+<script src="12-tipologias.js?v=3.5.1"></script>
+<script src="13-importar.js?v=3.5.1"></script>
+<script src="99-arranque.js?v=3.5.1"></script>
 </body>
 </html>

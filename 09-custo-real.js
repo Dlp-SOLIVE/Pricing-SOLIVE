@@ -1350,4 +1350,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.5.0');
+APP_REGISTAR('09-custo-real','3.5.1');

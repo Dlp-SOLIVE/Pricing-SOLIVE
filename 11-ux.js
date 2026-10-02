@@ -25,17 +25,17 @@ const TITULOS={
   execucao:  {h:'Adjudicações e desvios', s:'Preço de contrato por pacote e variações em obra', sec:['Exportar (.xlsx)','gxExportar','download'], pri:['Registar adjudicação','gxRegistarAdjudicacao','plus']}
 };
 /* Guia «Como fazer»: passos curtos por ecrã (o detalhe está na Ajuda).
-   NOTA: textos provisórios — substituir pelos da constante GUIA do protótipo quando disponível. */
+   Ecrãs redesenhados: textos literais da constante GUIA do protótipo; os restantes são próprios. */
 const GUIA={
-  resumo:    ['Escolhe o projeto ativo','Vê o estado de cada fase','Segue para a fase por concluir'],
+  resumo:    ['Escolhe o projeto ativo','Confirma os descritores','Vê o estado de cada fase','Segue para a fase por concluir'],
   programa:  ['Indica o mix de tipologias','Preenche a ficha por fogo','Grava o programa'],
-  importar:  ['Larga o ficheiro Excel','Confirma o tipo reconhecido','Continua no ecrã de destino'],
-  estimador: ['Confirma os descritores','Indica o budget do BP','Carrega em Estimar','Compara com o BP'],
-  analisador:['Carrega o MQ','Revê os alertas','Comenta e grava a análise','Orçamenta o MQ'],
-  precomq:   ['Carrega o MQ','Define a base de custo','Carrega em Orçamentar','Confirma as linhas de confiança baixa'],
-  orcamento: ['Arranca dos rácios ou do resumo','Atualiza a fonte de cada capítulo','Acompanha a consolidação','Grava a versão'],
+  importar:  ['Confirma o projeto ativo','Larga o ficheiro Excel','Confirma o tipo sugerido','Continua no ecrã de destino'],
+  estimador: ['Confirma os descritores','Indica o budget do BP','Estima','Compara com o BP'],
+  analisador:['Carrega o MQ','Analisa a folha','Revê os alertas','Grava a análise'],
+  precomq:   ['MQ carregado','Define uplift e base de custo','Orçamenta','Confirma as linhas por rácio'],
+  orcamento: ['Arranca dos rácios ou do resumo','Atualiza o estado de cada capítulo','Acompanha a consolidação'],
   consultas: ['Abre a consulta do pacote','Regista as propostas','Compara-as','Escolhe a proposta'],
-  execucao:  ['Regista a adjudicação','Regista as variações com motivo','Acompanha o desvio'],
+  execucao:  ['Regista a adjudicação do pacote','Regista as variações em obra','Acompanha o desvio'],
   verificar: ['Escolhe o projeto e o pacote','Carrega o auto','Revê as diferenças'],
   racios:    ['Filtra por segmento ou projeto','Consulta o €/m² por capítulo'],
   kit:       ['Escolhe o segmento e a tipologia','Compara o padrão com o observado','Fixa os preços por elemento'],
@@ -47,11 +47,11 @@ const GUIA={
 /* Passo atual do guia por ecrã: função que devolve o índice (0 = primeiro). Os passos anteriores
    aparecem como feitos (✓). Cada ecrã acrescenta a sua regra quando for redesenhado. */
 const GUIA_PASSO={
-  resumo:()=>(typeof CTX!=='undefined'&&CTX.nome)?1:0,
-  importar:()=>(typeof IMP!=='undefined'&&IMP.ficheiro)?1:0,
-  analisador:()=>{ if(typeof workbook==='undefined'||!workbook) return 0; if(!FINDINGS.length) return 1; return FINDINGS.some(f=>f.resolvido)?2:1; },
+  resumo:()=>{ if(typeof CTX==='undefined'||!CTX.nome) return 0; const D=CTX.D||{}; return (D.abc>0&&D.fogos>0)?2:1; },
+  importar:()=>{ if((typeof CTX==='undefined'||!CTX.nome)&&!(typeof IMP!=='undefined'&&IMP.ficheiro)) return 0; return (typeof IMP!=='undefined'&&IMP.ficheiro)?2:1; },
+  analisador:()=>{ if(typeof workbook==='undefined'||!workbook) return 0; if(!FINDINGS.length) return 1; return 2; },
   estimador:()=>{ const D=(typeof CTX!=='undefined'&&CTX.D)||{}; if(!(D.abc>0)) return 0; if(!(+(document.getElementById('estBudget')||{}).value>0)&&!EST_LAST) return 1; return EST_LAST?3:2; },
-  orcamento:()=>{ if(typeof ORC_ROWS==='undefined'||!ORC_ROWS.length) return 0; if(ORC_DIRTY) return 3; return ORC_ROWS.some(r=>r.estado!=='racio')?2:1; },
+  orcamento:()=>{ if(typeof ORC_ROWS==='undefined'||!ORC_ROWS.length) return 0; return ORC_ROWS.some(r=>r.estado!=='racio')?2:1; },
   execucao:()=>{ if(typeof GX_ROWS==='undefined'||!GX_ROWS.length) return 0; return Object.keys(GX_VARS||{}).length?2:1; },
   precomq:()=>{ if(typeof MQ_FICHEIRO==='undefined'||!MQ_FICHEIRO) return 0; return (window.__mqResults&&window.__mqResults.length)?3:1; }
 };
@@ -333,4 +333,4 @@ async function uxRenderResumo(){
 /* Fase 6: o bloco «Como usar a plataforma» do Resumo deu lugar ao ciclo do projeto (uxRenderResumo)
    e ao guia «Como fazer» do cabeçalho; as explicações por separador estão na Ajuda (HELP). */
 
-APP_REGISTAR('11-ux','3.5.0');
+APP_REGISTAR('11-ux','3.5.1');

@@ -5,14 +5,14 @@
    Versão: ver APP_REGISTAR no fim do ficheiro (tem de ser igual à do index.html). */
 
 const IMP_TIPOS={
-  mq:         {lbl:'Mapa de quantidades',                         ic:'file-spreadsheet', destino:'Orçamentar / Mapa de quantidades',                     projeto:true},
-  pricing:    {lbl:'Pricing sheet Legendre',                       ic:'file-spreadsheet', destino:'Orçamentar / Mapa de quantidades · leitura completa',  projeto:true},
-  resumo:     {lbl:'Resumo do orçamento',                          ic:'list-checks',      destino:'Orçamentar / Orçamento',                               projeto:true},
-  proposta:   {lbl:'Proposta de fornecedor',                       ic:'handshake',        destino:'Orçamentar / Orçamento',                               projeto:true},
-  auto:       {lbl:'Auto de medição',                              ic:'ruler',            destino:'Obra / Autos de medição',                              projeto:true},
-  transferido:{lbl:'Orçamento transferido',                        ic:'file-check',       destino:'Obra / Adjudicações e desvios',                        projeto:true},
-  compras:    {lbl:'Ficheiro de compras',                          ic:'clipboard-list',   destino:'Importar / Biblioteca de compras (neste ecrã)',        projeto:false},
-  precos_po:  {lbl:'Preços adjudicados Legendre-PO',               ic:'gavel',            destino:'Importar / Preços adjudicados (neste ecrã)',           projeto:false}
+  mq:         {lbl:'Mapa de quantidades',            ic:'file-spreadsheet', destino:'Orçamentar › Mapa de quantidades',        projeto:true},
+  pricing:    {lbl:'Pricing sheet Legendre',         ic:'file-spreadsheet', destino:'Orçamentar › Mapa de quantidades',        projeto:true},
+  resumo:     {lbl:'Resumo do orçamento',            ic:'list-checks',      destino:'Orçamentar › Orçamento',                  projeto:true},
+  proposta:   {lbl:'Proposta de fornecedor',         ic:'handshake',        destino:'Orçamentar › Orçamento',                  projeto:true},
+  auto:       {lbl:'Auto de medição',                ic:'ruler',            destino:'Obra › Autos de medição',                 projeto:true},
+  transferido:{lbl:'Orçamento transferido',          ic:'file-check',       destino:'Obra › Adjudicações e desvios',           projeto:true},
+  compras:    {lbl:'Ficheiro de compras (.xlsm)',    ic:'clipboard-list',   destino:'Biblioteca de compras (grava-se neste ecrã)', projeto:false},
+  precos_po:  {lbl:'Preços adjudicados Legendre-PO', ic:'gavel',            destino:'Biblioteca › Kit-tipo e preços (grava-se neste ecrã)', projeto:false}
 };
 /* o que cada tipo traz (lista «O que a plataforma reconhece») */
 const IMP_DESC={
@@ -129,7 +129,7 @@ function impDetetar(wb,nome){
   return S.sort((a,b)=>b.conf-a.conf);
 }
 
-/* Cartão de deteção: tipo reconhecido, porquê, confiança e destino. «Não é isto?» abre a lista
+/* Cartão de deteção: tipo reconhecido, porquê, confiança e destino. «Não é isso?» abre a lista
    dos outros tipos (os também detetados primeiro); escolher um atualiza o cartão; confirmar navega. */
 function impNivel(conf){ return conf>=85?['Quase certo','success']:conf>=65?['Provável','warning']:['Pouco seguro','danger']; }
 function impMostrar(){
@@ -147,7 +147,7 @@ function impMostrar(){
       +lgKV('Destino',esc(T.destino))
       +(T.projeto?lgKV('Projeto',proj?esc(proj):'<span class="lg-neg">Escolhe primeiro o projeto ativo no menu lateral</span>'):'')
       +'<div class="lg-imp-acts"><button type="button" class="btn red" data-noic id="impConfirmar"'+(T.projeto&&!proj?' disabled':'')+'>'+lgIc('check')+'Confirmar e abrir</button>'
-      +'<button type="button" class="lg-link" id="impOutros" aria-expanded="'+(IMP.outros?'true':'false')+'">'+lgIc('file-question')+'Não é isto?</button></div></div>';
+      +'<button type="button" class="lg-link" id="impOutros" aria-expanded="'+(IMP.outros?'true':'false')+'">'+lgIc('file-question')+'Não é isso? Escolher outro tipo</button></div></div>';
   } else {
     h+='<div class="lg-pad"><div class="lg-note" style="margin:8px 0 0">Não reconheci o tipo deste ficheiro. Escolhe abaixo o que é — o ecrã de destino diz-te se não o conseguir ler.</div></div>';
   }
@@ -298,4 +298,4 @@ async function impEstadoPO(){
   }
 }
 
-APP_REGISTAR('13-importar','3.5.0');
+APP_REGISTAR('13-importar','3.5.1');

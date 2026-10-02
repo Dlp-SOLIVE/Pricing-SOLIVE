@@ -1,4 +1,4 @@
-/* Solive · Orçamentação — estilos. Versão 3.5.0 */
+/* Solive · Orçamentação — estilos. Versão 3.5.1 */
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);line-height:1.45}
 header{display:flex}
@@ -486,8 +486,8 @@ td{font-size:13px}
   --tone-danger:#a8121f; --tone-danger-bg:#fdeaec; --tone-info:#005f80; --tone-info-bg:#e0f1f8;
   --tone-accent:#c81c2d; --tone-accent-bg:#fdeaec; --tone-neutral:#3e3e3d; --tone-neutral-bg:#f0f0ef;
   /* semáforo da fonte do preço: rácio → em consulta → proposta antiga → proposta firme → compromisso */
-  --sem-racio:var(--color-red); --sem-consulta:var(--color-yellow); --sem-antiga:var(--color-black-30);
-  --sem-firme:var(--color-leaf); --sem-compromisso:var(--color-green);
+  --sem-racio:var(--color-brick); --sem-consulta:var(--color-orange); --sem-antiga:var(--color-black-50);
+  --sem-firme:var(--color-leaf); --sem-compromisso:var(--color-green);   /* constante EST do protótipo */
   /* variáveis antigas apontadas para os tokens Legendre */
   --red:var(--color-red); --navy:#000; --ink:#000; --bg:var(--color-black-04); --card:#fff;
   --line:var(--color-black-15); --grey:var(--color-black-30); --muted:var(--color-black-70);
