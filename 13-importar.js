@@ -36,10 +36,10 @@ let IMP={ficheiro:null, wb:null, sugestoes:[], escolhido:null, outros:false};
     +'<div class="lg-drop" id="impDrop" role="button" tabindex="0" aria-label="Escolher ou largar o ficheiro Excel">'
     +'<span class="lg-drop-ic lg-notch"><i class="icon-upload" aria-hidden="true"></i></span>'
     +'<div class="lg-drop-t">Larga aqui o ficheiro Excel</div>'
-    +'<p class="lg-drop-s">.xlsx ou .xlsm. A plataforma reconhece o tipo de ficheiro, pede-te confirmação e leva-o para o ecrã certo.</p>'
+    +'<p class="lg-drop-s">.xlsx ou .xlsm. A plataforma reconhece o tipo de ficheiro, pede-te confirmação e leva-o para o ecrã certo. Autos de medição: podes largar vários de uma vez.</p>'
     +'<button type="button" class="btn ghost sm" data-noic id="impEscolher"><i class="icon-folder-open" aria-hidden="true"></i>Escolher ficheiro</button>'
     +'<div class="lg-drop-f" id="impDropF"></div></div>'
-    +'<input type="file" id="impFile" accept=".xlsx,.xls,.xlsm" class="hidden">'
+    +'<input type="file" id="impFile" accept=".xlsx,.xls,.xlsm" class="hidden" multiple>'
     +'<div id="impOut"></div></div>'
     +'<section class="lg-section lg-col-side"><h2 class="lg-section-title">O que a plataforma reconhece</h2><ul class="lg-imp-tipos">'
     +Object.entries(IMP_TIPOS).map(([k,t])=>'<li><span class="lg-imp-tic">'+lgIc(t.ic)+'</span><div><b>'+esc(t.lbl)+'</b><span>'+esc(IMP_DESC[k]||'')+'</span><span class="lg-imp-dest">→ '+esc(t.destino)+'</span></div></li>').join('')
@@ -53,11 +53,16 @@ let IMP={ficheiro:null, wb:null, sugestoes:[], escolhido:null, outros:false};
   drop.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fi.click(); } };
   drop.ondragover=e=>{e.preventDefault();drop.classList.add('over')};
   drop.ondragleave=()=>drop.classList.remove('over');
-  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])impCarregar(e.dataTransfer.files[0])};
-  fi.onchange=()=>{ if(fi.files[0]) impCarregar(fi.files[0]); fi.value=''; };
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');const fs=e.dataTransfer.files; if(fs.length>1) impVarios([...fs]); else if(fs[0]) impCarregar(fs[0]);};
+  fi.onchange=()=>{ if(fi.files.length>1) impVarios([...fi.files]); else if(fi.files[0]) impCarregar(fi.files[0]); fi.value=''; };
 })();
 
 /* ---------- leitura e reconhecimento ---------- */
+/* v3.8: vários ficheiros de uma vez = autos de medição (Obra › Autos de medição, importação em lote) */
+function impVarios(files){
+  if(!((typeof CTX!=='undefined')&&CTX.nome)){ alertx('Escolhe primeiro o projeto ativo no menu lateral — os autos têm de entrar num projeto.'); return; }
+  showView('verificar'); vfLoteLer(files);
+}
 function impCarregar(f){
   const out=document.getElementById('impOut');
   out.innerHTML='<div class="lg-note">A ler <b>'+esc(f.name)+'</b>…</div>';
@@ -298,4 +303,4 @@ async function impEstadoPO(){
   }
 }
 
-APP_REGISTAR('13-importar','3.7.1');
+APP_REGISTAR('13-importar','3.8.0');
