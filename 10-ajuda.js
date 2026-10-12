@@ -66,4 +66,4 @@ function abrirAjuda(){
 function fecharAjuda(){ const o=document.getElementById('ajudaOverlay'); if(o) o.classList.add('hidden'); document.body.classList.remove('lg-noscroll'); }
 document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharAjuda(); });
 
-APP_REGISTAR('10-ajuda','3.6.0');
+APP_REGISTAR('10-ajuda','3.7.0');

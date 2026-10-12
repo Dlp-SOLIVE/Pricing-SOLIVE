@@ -22,6 +22,44 @@ function vfNum(v){
 const VF_ROMAN=/^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/i;
 /* marcador de linha/capítulo só de mão de obra (montagem sem fornecimento) */
 const VF_MONTAGEM=/APENAS MONTAGEM|S[ÓO] MONTAGEM|EXCLUI FORNECIMENTO|SEM FORNECIMENTO|APENAS ASSENTAMENTO/;
+/* v3.7: linha (ou linha-mãe) que começa por «Montagem…», «Assentamento…» ou «Mão de obra…» e não
+   fala em fornecimento é só mão de obra — no teste retrospetivo, 110 linhas destas estavam como F&A
+   (ex.: sanitários a 52,93 €). Quem fala em fornecimento ou materiais fica F&A. Texto normalizado (vfNorm). */
+const VF_SO_MO=/^(MONTAGEM|ASSENTAMENTO|MAO[ -]DE[ -]OBRA)\b/;
+function vfSoMaoObra(...textos){
+  const t=textos.filter(Boolean).map(vfNorm);
+  if(t.some(x=>VF_MONTAGEM.test(x))) return true;
+  if(t.some(x=>/FORNEC|MATERIA/.test(x))) return false;
+  return t.some(x=>VF_SO_MO.test(x));
+}
+/* v3.7: descrição com contexto. Nos autos e nos MQ, 26 % das linhas são sub-artigos («DN40»,
+   «Ø 90», «VD32 1G50») que só se percebem com a linha-mãe (tubo, válvula, cabo). A linha que não
+   se explica sozinha (menos de 2 palavras com 4+ letras) recebe a mãe à frente: «Tubo PPR › DN40». */
+function vfSemContexto(d){ return vfNorm(d).split(/[^A-Z]+/).filter(t=>t.length>=4).length<2; }
+/* a mãe só vale para os filhos: com códigos hierárquicos (1.1 → 1.1.1), um irmão (1.2) não a herda */
+function vfMaeDe(a,mae){
+  if(!mae) return null;
+  const re=/^\d+(\.\d+)*\.?$/, x=String(a||'').trim(), m=String(mae.a||'').trim();
+  if(re.test(x)&&re.test(m)) return x.replace(/\.$/,'').indexOf(m.replace(/\.$/,'')+'.')===0?mae:null;
+  return mae;
+}
+/* da mãe só interessa o que é o artigo («Fornecimento e assentamento de tubagem PPR»), não o caderno
+   de encargos inteiro: com o parágrafo todo, «… › DN40» e «… › DN65» ficavam quase iguais em texto */
+function vfResumoMae(m){
+  const s=String(m||'').replace(/\s+/g,' ').trim();
+  const corte=s.split(/[,;:(]| - | – /)[0].trim();
+  const base=corte.split(' ').length>=3?corte:s;
+  return base.split(' ').slice(0,12).join(' ');
+}
+/* sub-artigos com letra («a)», «b)») são sempre parte da linha-mãe, mesmo que pareçam completos:
+   «Execução de aberturas em tectos para luminárias» › «a) L2: Downlight…» é o furo, não a luminária */
+function vfComMae(d,mae,a){
+  if(!mae||!d) return d;
+  if(!vfSemContexto(d)&&!/^[a-z]\)$/i.test(String(a||'').trim())) return d;
+  const m=vfResumoMae(mae);
+  if(vfNorm(d).indexOf(vfNorm(m))>=0) return d;
+  return m+' › '+d;
+}
 function vfHeaderVal(rows,re){
   for(let i=0;i<Math.min(rows.length,14);i++){
     const r=rows[i]||[];
@@ -52,7 +90,7 @@ function vfVerificarSheet(rows,sheetName){
     const r=rows[i]||[];
     for(const cell of r){ const m=vfNorm(cell).match(/AUTO DE MEDICAO N\D*(\d+)/); if(m){ autoNum=parseInt(m[1],10); break; } }
   }
-  const leaves=[]; const decContr=[]; let decGlobal=null; let secao=null, secaoNat='full', aditCtx=null;
+  const leaves=[]; const decContr=[]; let decGlobal=null; let secao=null, secaoNat='full', aditCtx=null, mae=null;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
     const a=String(r[0]==null?"":r[0]).trim();
@@ -63,10 +101,23 @@ function vfVerificarSheet(rows,sheetName){
     if(/^TOTAL DO CONTRATO/.test(dn)){ decContr.push(tot); aditCtx=null; continue; }
     if(/^VALOR GLOBAL/.test(dn)){ decGlobal=tot; break; }
     if(/^TOTAL DO ADITAMENTO/.test(dn)){ aditCtx=null; continue; }
-    if(/^AD?\s?\d+$/i.test(a)&&d&&!un){ aditCtx=a; continue; }
+    if(/^AD?\s?\d+$/i.test(a)&&d&&!un){ aditCtx=a; mae=null; continue; }
     const isLeaf = un!=="" && q!=null && pu!=null && tot!=null;
-    if(isLeaf){ const nat=VF_MONTAGEM.test(dn)?'labour':secaoNat; leaves.push({pos:i,a,d,un,q,pu,tot,cap:secao||"(sem capítulo)",adit:aditCtx,nat}); }
-    else if(d&&!un){ if(VF_ROMAN.test(a)&&a){ secao=d; secaoNat=VF_MONTAGEM.test(dn)?'labour':'full'; } }
+    if(isLeaf){
+      const mm=vfMaeDe(a,mae);
+      const dc=vfComMae(d,mm&&mm.d,a);
+      const maeMO=!!(mm&&mm.mo)&&(VF_MONTAGEM.test(dn)||!/FORNEC|MATERIA/.test(dn));
+      const nat=(secaoNat==='labour'||maeMO||vfSoMaoObra(d))?'labour':'full';
+      leaves.push({pos:i,a,d,dc,un,q,pu,tot,cap:secao||"(sem capítulo)",adit:aditCtx,nat,natAuto:nat==='labour'&&secaoNat!=='labour'});
+    }
+    else if(d){
+      if(!un&&VF_ROMAN.test(a)&&a){ secao=d; secaoNat=VF_MONTAGEM.test(dn)?'labour':'full'; mae=null; }
+      else if(!(typeof RE_SOMA!=='undefined'&&RE_SOMA.test(dn))){
+        /* linha-mãe (descreve os sub-artigos que vêm a seguir); se ela própria não se explica, herda a anterior */
+        const mm=vfMaeDe(a,mae), md=vfComMae(d,mm&&mm.d,a);
+        mae={a, d:md, mo:vfSoMaoObra(d)||(md!==d&&!!(mm&&mm.mo))};
+      }
+    }
   }
   const sumLeaf=Math.round(leaves.reduce((s,l)=>s+l.tot,0)*100)/100;
   const declaredRaw = decGlobal!=null ? decGlobal
@@ -78,9 +129,11 @@ function vfVerificarSheet(rows,sheetName){
   const blankCodes=leaves.filter(l=>!l.a).length;
   const arithBad=leaves.filter(l=>Math.abs(Math.round(l.q*l.pu*100)/100-Math.round(l.tot*100)/100)>0.02).length;
   const chapters=[...new Set(leaves.map(l=>l.cap).filter(Boolean))];
+  const comMae=leaves.filter(l=>l.dc!==l.d).length;
+  const soMO=leaves.filter(l=>l.natAuto);
   return {sheetName,contrato,subemp,nif,obra,autoNum,leaves,
           nLinhas:leaves.length,sumLeaf,declared,reconcilia,
-          dupCodes,blankCodes,arithBad,chapters};
+          dupCodes,blankCodes,arithBad,chapters,comMae,soMO};
 }
 /* lista canónica de capítulos = referência L'Urbain (CAPS runtime, senão CAPS_BASE) */
 function vfCanon(){
@@ -94,7 +147,8 @@ function vfMoeda(n){ return (typeof fmt==="function")?fmt(n,2)+" €":Number(n).
 /* --- ETAPA 3: construção do payload de gravação (função pura, testável) --- */
 function vfBuildPayload(v, mapping){
   const header={
-    projeto_ref: v.obra||null,
+    /* v3.7: a obra é o projeto ativo — no cabeçalho dos autos, «CÓDIGO OBRA» lê-se «LEGENDRE» */
+    projeto_ref: (typeof CTX!=='undefined'&&CTX&&CTX.nome)||v.obra||null,
     contrato: v.contrato||null,
     subempreiteiro: v.subemp||null,
     nif: v.nif!=null?String(v.nif):null,
@@ -114,7 +168,7 @@ function vfBuildPayload(v, mapping){
     art_codigo: l.a||null,
     capitulo_origem: l.cap||null,
     capitulo_canonico: mapping[l.cap]||null,
-    designacao: l.d||null,
+    designacao: (l.dc||l.d)||null,
     unidade: l.un||null,
     quantidade: l.q,
     preco_unit: l.pu,
@@ -143,6 +197,13 @@ async function vfGravar(sheetName){
   if(typeof sb==="undefined"||!sb){ toast("Precisas de estar ligado e com sessão iniciada."); return; }
   const {header,linhas,mapas}=vfBuildPayload({...v,ficheiro:v.ficheiro||sheetName}, mapping);
   try{
+    /* v3.7: gravar apaga o custo anterior do mesmo contrato — se o número já pertence a outro
+       subempreiteiro (nos autos do L'Urbain, UR.2026001 e UR.2026006 aparecem em dois), não apagar */
+    if(header.contrato){
+      const ex=await sb.from('custo_import').select('subempreiteiro').eq('contrato',header.contrato);
+      const outro=(ex.data||[]).find(r=>r.subempreiteiro&&header.subempreiteiro&&vfNorm(r.subempreiteiro)!==vfNorm(header.subempreiteiro));
+      if(outro){ alertx(' Não gravei: o contrato «'+header.contrato+'» já está gravado para «'+outro.subempreiteiro+'», e este auto é de «'+header.subempreiteiro+'». Gravar apagaria o custo do outro subempreiteiro. Corrige o nº do contrato no auto (célula «CONTRATO N.º») e volta a importar.'); return; }
+    }
     await sb.from('custo_import').delete().eq('contrato',header.contrato);
     const ins=await sb.from('custo_import').insert(header).select('id').single();
     if(ins.error) throw ins.error;
@@ -187,6 +248,11 @@ function vfVerificarFile(){
       if(v.dupCodes.length) avisos.push('Códigos de artigo repetidos: <b>'+esc(v.dupCodes.join(', '))+'</b>');
       if(v.blankCodes) avisos.push('<b>'+v.blankCodes+'</b> linhas sem código (identidade posicional)');
       if(v.arithBad) avisos.push('<b>'+v.arithBad+'</b> linhas onde Quant × Preço ≠ Total');
+      if(v.comMae) avisos.push('<b>'+v.comMae+'</b> linhas sem contexto (ex.: «DN40») gravadas com a linha-mãe à frente');
+      if(v.soMO.length) avisos.push('<b>'+v.soMO.length+'</b> linhas de montagem gravadas como <b>mão de obra</b> (não entram nos preços de fornecimento e aplicação)'
+        +'<details style="margin-top:4px"><summary>Ver linhas</summary><ul style="margin:4px 0 0 18px">'
+        +v.soMO.slice(0,40).map(l=>'<li>'+esc(String(l.dc||l.d).slice(0,120))+' · '+vfMoeda(l.pu)+'/'+esc(l.un)+'</li>').join('')
+        +(v.soMO.length>40?'<li>… e mais '+(v.soMO.length-40)+'</li>':'')+'</ul></details>');
       const avHtml = avisos.length ? '<ul style="margin:8px 0 0 18px">'+avisos.map(a=>'<li>'+a+'</li>').join('')+'</ul>':'';
       // Etapa 3 — mapeamento de capítulos (só se reconcilia)
       let mapHtml='';
@@ -450,8 +516,12 @@ function vfInferirColunas(rows){
   return {row:-1, des, un, qty, code: des>0?des-1:-1, inferido:true};
 }
 /* Colunas escolhidas à mão (painel "Definir colunas à mão") */
+/* título de capítulo no MQ: código curto (I, 2, 3., A) ou texto todo em maiúsculas */
+function vfTituloCap(a,d){
+  return !!((a && (VF_ROMAN.test(a) || /^\d{1,2}\.?$|^[A-Z]\.?$/i.test(a))) || (d.length>3 && d===d.toUpperCase() && /[A-ZÀ-Ú]/.test(d)));
+}
 function vfReadMQComMapa(rows, m){
-  const out=[]; let secao=null;
+  const out=[]; let secao=null, mae=null;
   for(let i=Math.max(0,m.inicio);i<rows.length;i++){
     const r=rows[i]||[];
     const a=m.code>=0?String(r[m.code]==null?"":r[m.code]).trim():"";
@@ -461,8 +531,8 @@ function vfReadMQComMapa(rows, m){
     if(!d) continue;
     const dn=vfNorm(d);
     if(RE_SOMA.test(dn)) continue;
-    if(un!==""&&q!=null) out.push({pos:i,art:a,designacao:d,unidade:un,quantidade:q,cap:secao||null});
-    else if(un==="") secao=d;
+    if(un!==""&&q!=null){ const mm=vfMaeDe(a,mae); out.push({pos:i,art:a,designacao:vfComMae(d,mm&&mm.d,a),unidade:un,quantidade:q,cap:secao||null}); }
+    else if(un===""){ secao=d; const mm=vfMaeDe(a,mae); mae=vfTituloCap(a,d)?null:{a,d:vfComMae(d,mm&&mm.d,a)}; }
   }
   return out;
 }
@@ -493,7 +563,7 @@ function vfReadMQ(rows){
     const u2=hr.findIndex((x,j)=>j!==H.qty&&/^UN(\.|ID\.?|IDADE|IDADES)?$|^UNIT/.test(x));
     if(u2>=0) H.un=u2;
   }
-  const out=[]; let secao=null;
+  const out=[]; let secao=null, mae=null;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[];
     const a=H.code>=0?String(r[H.code]==null?"":r[H.code]).trim():"";
@@ -503,10 +573,10 @@ function vfReadMQ(rows){
     const dn=vfNorm(d);
     if(!d) continue;
     if(/^VALOR GLOBAL|^TOTAL DO CONTRATO/.test(dn) || RE_SOMA.test(dn)) continue;
-    if(un!=="" && q!=null){ out.push({pos:i,art:a,designacao:d,unidade:un,quantidade:q,cap:secao||null}); }
+    if(un!=="" && q!=null){ const mm=vfMaeDe(a,mae); out.push({pos:i,art:a,designacao:vfComMae(d,mm&&mm.d,a),unidade:un,quantidade:q,cap:secao||null}); }
     else if(un===""){
-      /* título de capítulo: código curto (I, 2, 3., A) ou texto todo em maiúsculas */
-      if((a && (VF_ROMAN.test(a) || /^\d{1,2}\.?$|^[A-Z]\.?$/i.test(a))) || (d.length>3 && d===d.toUpperCase() && /[A-ZÀ-Ú]/.test(d))) secao=d;
+      if(vfTituloCap(a,d)){ secao=d; mae=null; }
+      else { const mm=vfMaeDe(a,mae); mae={a,d:vfComMae(d,mm&&mm.d,a)}; }   // v3.7: linha-mãe dos sub-artigos seguintes
     }
   }
   return out;
@@ -1355,4 +1425,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.6.0');
+APP_REGISTAR('09-custo-real','3.7.0');
