@@ -147,7 +147,8 @@ function vfMoeda(n){ return (typeof fmt==="function")?fmt(n,2)+" €":Number(n).
 /* --- ETAPA 3: construção do payload de gravação (função pura, testável) --- */
 function vfBuildPayload(v, mapping){
   const header={
-    projeto_ref: v.obra||null,
+    /* v3.7: a obra é o projeto ativo — no cabeçalho dos autos, «CÓDIGO OBRA» lê-se «LEGENDRE» */
+    projeto_ref: (typeof CTX!=='undefined'&&CTX&&CTX.nome)||v.obra||null,
     contrato: v.contrato||null,
     subempreiteiro: v.subemp||null,
     nif: v.nif!=null?String(v.nif):null,
@@ -196,6 +197,13 @@ async function vfGravar(sheetName){
   if(typeof sb==="undefined"||!sb){ toast("Precisas de estar ligado e com sessão iniciada."); return; }
   const {header,linhas,mapas}=vfBuildPayload({...v,ficheiro:v.ficheiro||sheetName}, mapping);
   try{
+    /* v3.7: gravar apaga o custo anterior do mesmo contrato — se o número já pertence a outro
+       subempreiteiro (nos autos do L'Urbain, UR.2026001 e UR.2026006 aparecem em dois), não apagar */
+    if(header.contrato){
+      const ex=await sb.from('custo_import').select('subempreiteiro').eq('contrato',header.contrato);
+      const outro=(ex.data||[]).find(r=>r.subempreiteiro&&header.subempreiteiro&&vfNorm(r.subempreiteiro)!==vfNorm(header.subempreiteiro));
+      if(outro){ alertx(' Não gravei: o contrato «'+header.contrato+'» já está gravado para «'+outro.subempreiteiro+'», e este auto é de «'+header.subempreiteiro+'». Gravar apagaria o custo do outro subempreiteiro. Corrige o nº do contrato no auto (célula «CONTRATO N.º») e volta a importar.'); return; }
+    }
     await sb.from('custo_import').delete().eq('contrato',header.contrato);
     const ins=await sb.from('custo_import').insert(header).select('id').single();
     if(ins.error) throw ins.error;
