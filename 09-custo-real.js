@@ -205,7 +205,7 @@ async function vfGravar(sheetName){
 /* v3.8: gravação de um auto, partilhada pelo ecrã de um ficheiro e pela importação de vários */
 async function vfGravarAuto(v, mapping, semRegras){
   const {header,linhas,mapas}=vfBuildPayload({...v,ficheiro:v.ficheiro||v.sheetName}, mapping);
-  /* v3.8.0: o contrato identifica-se pelo nº + subempreiteiro. Nos autos do L'Urbain há números
+  /* v3.8.1: o contrato identifica-se pelo nº + subempreiteiro. Nos autos do L'Urbain há números
      repetidos entre subempreiteiros (UR.2026001 Gameiro & Rodrigues / Saghir; UR.2026006 Domuswood /
      Mestria Acetinada): cada um fica com o seu custo, e um auto mais recente do mesmo substitui o anterior */
   const ex=await sb.from('custo_import').select('id,subempreiteiro').eq('contrato',header.contrato);
@@ -511,6 +511,7 @@ async function vfLoadRatios(){
   if(proj) filtered=filtered.filter(l=>vfNorm(l.__proj)===vfNorm(proj));
   if(seg)  filtered=filtered.filter(l=>vfNorm(l.__seg)===vfNorm(seg));
   if(!filtered.length){ out.innerHTML='<div class="note">Sem custo gravado para os filtros escolhidos'+(proj?' · projeto «'+esc(proj)+'»':'')+(seg?' · segmento «'+esc(seg)+'»':'')+'.</div>'; return; }
+  window.__rxFiltrado={linhas:filtered, proj, seg};   // v3.8.1: o detalhe segue os mesmos filtros da tabela
   vfRenderRatios(vfRatios(filtered), seg, proj);
 }
 function vfRenderRatios(rows, seg, proj){
@@ -540,13 +541,15 @@ function vfRenderRatios(rows, seg, proj){
     +'<div id="rxDrill" style="margin-top:12px"></div>';
 }
 function vfDrill(cap){
-  const lines=(window.__rxLines||[]).filter(l=>vfNorm(l.capitulo_canonico||l.capitulo_origem)===vfNorm(cap));
+  const F=window.__rxFiltrado||{linhas:window.__rxLines||[]};
+  const lines=F.linhas.filter(l=>vfNorm(l.capitulo_canonico||l.capitulo_origem)===vfNorm(cap));
+  const filtro=[F.proj?'projeto «'+F.proj+'»':'',F.seg?'segmento «'+F.seg+'»':''].filter(Boolean).join(' · ');
   const d=document.getElementById('rxDrill'); if(!d) return;
   const th='<tr><th>Contrato</th><th>Designação</th><th>Un.</th><th style="text-align:right">Qt.</th><th style="text-align:right">€/un</th><th style="text-align:right">Total</th></tr>';
   const body=lines.map(l=>'<tr><td class="mono">'+esc(l.contrato||'')+'</td><td>'+esc(String(l.designacao||'').slice(0,70))+'</td>'
     +'<td>'+esc(l.unidade||'')+'</td><td class="mono" style="text-align:right">'+fmt(l.quantidade,2)+'</td>'
     +'<td class="mono" style="text-align:right">'+fmt(l.preco_unit,2)+'</td><td class="mono" style="text-align:right">'+vfMoeda(l.total)+'</td></tr>').join('');
-  d.innerHTML='<div class="card"><b>'+esc(cap)+'</b> — '+lines.length+' linhas de origem<table style="margin-top:8px;font-size:13px">'+th+body+'</table></div>';
+  d.innerHTML='<div class="card"><b>'+esc(cap)+'</b> — '+lines.length+' linhas de origem'+(filtro?' · '+esc(filtro):'')+'<table style="margin-top:8px;font-size:13px">'+th+body+'</table></div>';
 }
 (function vfMountRacios(){
   if(document.getElementById('view-racios')) return;
@@ -1554,4 +1557,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.8.0');
+APP_REGISTAR('09-custo-real','3.8.1');
