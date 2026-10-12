@@ -24,12 +24,12 @@ const VF_ROMAN=/^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/i;
 const VF_MONTAGEM=/APENAS MONTAGEM|S[ÓO] MONTAGEM|EXCLUI FORNECIMENTO|SEM FORNECIMENTO|APENAS ASSENTAMENTO/;
 /* v3.7: linha (ou linha-mãe) que começa por «Montagem…», «Assentamento…» ou «Mão de obra…» e não
    fala em fornecimento é só mão de obra — no teste retrospetivo, 110 linhas destas estavam como F&A
-   (ex.: sanitários a 52,93 €). Testa-se no texto já normalizado (vfNorm). */
+   (ex.: sanitários a 52,93 €). Quem fala em fornecimento ou materiais fica F&A. Texto normalizado (vfNorm). */
 const VF_SO_MO=/^(MONTAGEM|ASSENTAMENTO|MAO[ -]DE[ -]OBRA)\b/;
 function vfSoMaoObra(...textos){
   const t=textos.filter(Boolean).map(vfNorm);
   if(t.some(x=>VF_MONTAGEM.test(x))) return true;
-  if(t.some(x=>/FORNEC/.test(x))) return false;
+  if(t.some(x=>/FORNEC|MATERIA/.test(x))) return false;
   return t.some(x=>VF_SO_MO.test(x));
 }
 /* v3.7: descrição com contexto. Nos autos e nos MQ, 26 % das linhas são sub-artigos («DN40»,
@@ -43,10 +43,22 @@ function vfMaeDe(a,mae){
   if(re.test(x)&&re.test(m)) return x.replace(/\.$/,'').indexOf(m.replace(/\.$/,'')+'.')===0?mae:null;
   return mae;
 }
-function vfComMae(d,mae){
-  if(!mae||!d||!vfSemContexto(d)) return d;
-  if(vfNorm(d).indexOf(vfNorm(mae))>=0) return d;
-  return mae+' › '+d;
+/* da mãe só interessa o que é o artigo («Fornecimento e assentamento de tubagem PPR»), não o caderno
+   de encargos inteiro: com o parágrafo todo, «… › DN40» e «… › DN65» ficavam quase iguais em texto */
+function vfResumoMae(m){
+  const s=String(m||'').replace(/\s+/g,' ').trim();
+  const corte=s.split(/[,;:(]| - | – /)[0].trim();
+  const base=corte.split(' ').length>=3?corte:s;
+  return base.split(' ').slice(0,12).join(' ');
+}
+/* sub-artigos com letra («a)», «b)») são sempre parte da linha-mãe, mesmo que pareçam completos:
+   «Execução de aberturas em tectos para luminárias» › «a) L2: Downlight…» é o furo, não a luminária */
+function vfComMae(d,mae,a){
+  if(!mae||!d) return d;
+  if(!vfSemContexto(d)&&!/^[a-z]\)$/i.test(String(a||'').trim())) return d;
+  const m=vfResumoMae(mae);
+  if(vfNorm(d).indexOf(vfNorm(m))>=0) return d;
+  return m+' › '+d;
 }
 function vfHeaderVal(rows,re){
   for(let i=0;i<Math.min(rows.length,14);i++){
@@ -93,8 +105,8 @@ function vfVerificarSheet(rows,sheetName){
     const isLeaf = un!=="" && q!=null && pu!=null && tot!=null;
     if(isLeaf){
       const mm=vfMaeDe(a,mae);
-      const dc=vfComMae(d,mm&&mm.d);
-      const maeMO=!!(mm&&mm.mo)&&(VF_MONTAGEM.test(dn)||!/FORNEC/.test(dn));
+      const dc=vfComMae(d,mm&&mm.d,a);
+      const maeMO=!!(mm&&mm.mo)&&(VF_MONTAGEM.test(dn)||!/FORNEC|MATERIA/.test(dn));
       const nat=(secaoNat==='labour'||maeMO||vfSoMaoObra(d))?'labour':'full';
       leaves.push({pos:i,a,d,dc,un,q,pu,tot,cap:secao||"(sem capítulo)",adit:aditCtx,nat,natAuto:nat==='labour'&&secaoNat!=='labour'});
     }
@@ -102,7 +114,7 @@ function vfVerificarSheet(rows,sheetName){
       if(!un&&VF_ROMAN.test(a)&&a){ secao=d; secaoNat=VF_MONTAGEM.test(dn)?'labour':'full'; mae=null; }
       else if(!(typeof RE_SOMA!=='undefined'&&RE_SOMA.test(dn))){
         /* linha-mãe (descreve os sub-artigos que vêm a seguir); se ela própria não se explica, herda a anterior */
-        const mm=vfMaeDe(a,mae), md=vfComMae(d,mm&&mm.d);
+        const mm=vfMaeDe(a,mae), md=vfComMae(d,mm&&mm.d,a);
         mae={a, d:md, mo:vfSoMaoObra(d)||(md!==d&&!!(mm&&mm.mo))};
       }
     }
@@ -511,8 +523,8 @@ function vfReadMQComMapa(rows, m){
     if(!d) continue;
     const dn=vfNorm(d);
     if(RE_SOMA.test(dn)) continue;
-    if(un!==""&&q!=null){ const mm=vfMaeDe(a,mae); out.push({pos:i,art:a,designacao:vfComMae(d,mm&&mm.d),unidade:un,quantidade:q,cap:secao||null}); }
-    else if(un===""){ secao=d; const mm=vfMaeDe(a,mae); mae=vfTituloCap(a,d)?null:{a,d:vfComMae(d,mm&&mm.d)}; }
+    if(un!==""&&q!=null){ const mm=vfMaeDe(a,mae); out.push({pos:i,art:a,designacao:vfComMae(d,mm&&mm.d,a),unidade:un,quantidade:q,cap:secao||null}); }
+    else if(un===""){ secao=d; const mm=vfMaeDe(a,mae); mae=vfTituloCap(a,d)?null:{a,d:vfComMae(d,mm&&mm.d,a)}; }
   }
   return out;
 }
@@ -553,10 +565,10 @@ function vfReadMQ(rows){
     const dn=vfNorm(d);
     if(!d) continue;
     if(/^VALOR GLOBAL|^TOTAL DO CONTRATO/.test(dn) || RE_SOMA.test(dn)) continue;
-    if(un!=="" && q!=null){ const mm=vfMaeDe(a,mae); out.push({pos:i,art:a,designacao:vfComMae(d,mm&&mm.d),unidade:un,quantidade:q,cap:secao||null}); }
+    if(un!=="" && q!=null){ const mm=vfMaeDe(a,mae); out.push({pos:i,art:a,designacao:vfComMae(d,mm&&mm.d,a),unidade:un,quantidade:q,cap:secao||null}); }
     else if(un===""){
       if(vfTituloCap(a,d)){ secao=d; mae=null; }
-      else { const mm=vfMaeDe(a,mae); mae={a,d:vfComMae(d,mm&&mm.d)}; }   // v3.7: linha-mãe dos sub-artigos seguintes
+      else { const mm=vfMaeDe(a,mae); mae={a,d:vfComMae(d,mm&&mm.d,a)}; }   // v3.7: linha-mãe dos sub-artigos seguintes
     }
   }
   return out;
