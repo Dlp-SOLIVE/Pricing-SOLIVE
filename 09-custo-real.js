@@ -379,7 +379,12 @@ function vfDrill(cap){
 const VF_STOP=new Set(['DE','DA','DO','DAS','DOS','E','EM','PARA','COM','A','O','AS','OS','AO','NO','NA','POR','UM','UMA','INCLUINDO','INCL','TIPO','OU','SEM','SOB','ATE','ENTRE','MODELO','REF','C']);
 /* normaliza unidades: maiúsculas sem acentos, sem pontos/espaços, ² -> 2, ³ -> 3,
    para que "m²"="m2", "Un."="UN", "vg"="VG" contem como a mesma unidade */
-function vfUnit(u){ return vfNorm(u).replace(/²/g,'2').replace(/³/g,'3').replace(/[^A-Z0-9]/g,''); }
+/* v3.6: unidades equivalentes contam como iguais (ml = m; und/unid/u = un; conj = cj) */
+const VF_UN_SIN={ML:'M',MT:'M',MTS:'M',METRO:'M',METROS:'M',MTL:'M',U:'UN',UND:'UN',UNID:'UN',UNIDADE:'UN',UNIDADES:'UN',UNS:'UN',CONJ:'CJ',CONJUNTO:'CJ',CJT:'CJ',M2S:'M2',M3S:'M3',KGS:'KG',TONS:'TON',T:'TON'};
+function vfUnit(u){ const x=vfNorm(u).replace(/²/g,'2').replace(/³/g,'3').replace(/[^A-Z0-9]/g,''); return VF_UN_SIN[x]||x; }
+/* v3.6: o rácio de capítulo só se aplica a unidades mensuráveis — em «un», «vg», «cj»… o preço
+   médio do capítulo mistura artigos muito diferentes (erro mediano > 75 % no teste retrospetivo) */
+const VF_UN_RACIO=/^(M|M2|M3|KG|TON)$/;
 function vfTokens(s){
   return new Set(vfNorm(s).split(/[^A-Z0-9]+/).filter(t=>t.length>1&&!VF_STOP.has(t)));
 }
@@ -549,7 +554,7 @@ async function vfPriceMQFile(){
   cl.filter(r=>natOf(r)==='full'&&r.fonte==='auto').forEach(r=>{
     const c=r.capitulo_canonico, u=vfUnit(r.unidade);
     const t=Number(r.total)||0, qn=Number(r.quantidade)||0;
-    if(!c||!u||qn<=0) return;
+    if(!c||!u||qn<=0||!VF_UN_RACIO.test(u)) return;
     const k=vfNorm(c);
     if(!chap[k]) chap[k]={};
     if(!chap[k][u]) chap[k][u]={cap:c,eurNum:0,eurDen:0,n:0};
@@ -646,7 +651,7 @@ function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
   // É a tua visão "€/elemento na unidade natural" — usa o €/un médio do capítulo do custo real.
   if(chap && canon){
     const u=vfUnit(line.unidade);
-    const cr=(chap[vfNorm(canon)]||{})[u];
+    const cr=VF_UN_RACIO.test(u)?(chap[vfNorm(canon)]||{})[u]:null;
     if(cr && cr.eurDen>0){
       const eur=Math.round(cr.eurNum/cr.eurDen*100)/100;
       return {rec:eur,n:cr.n,min:null,med:eur,max:null,best:full.best,conf:'baixa',
@@ -712,13 +717,13 @@ async function vfImportComprasFile(){
   rd.readAsArrayBuffer(f);
 }
 /* Fase 6: confiança e fonte do preço como badges Legendre */
-const VF_CONF={alta:['Alta','success'],'média':['Média','info'],baixa:['Baixa','warning'],sem:['Sem preço','danger']};
+const VF_CONF={alta:['Alta','success'],'média':['Média','info'],baixa:['Baixa · indicativo','warning'],sem:['Sem preço','danger']};
 function vfConfBadge(c){ const m=VF_CONF[c]||VF_CONF.sem; return '<span class="lg-badge" data-tone="'+m[1]+'">'+m[0]+'</span>'; }
 /* fonte do preço: de onde vem o número (a melhor correspondência ou o método) */
 const VF_FONTE={auto:'Auto de medição',auto_pu:'Auto de medição',subempreitada:'Subempreitada',compra_po:'Preço adjudicado (PO)',compra:'Compra',composto:'Preço composto',orcamento_empreiteiro:'Orçamento do empreiteiro',mq:'MQ com preços'};
 function vfFontePreco(m){
   if(!m||m.rec==null) return {t:'Sem preço',d:'Preencher à mão'};
-  if(m.kind==='rácio cap.') return {t:'Rácio de capítulo',d:(m.cap||'')+' · '+(m.n||0)+' registos'};
+  if(m.kind==='rácio cap.') return {t:'Rácio de capítulo · indicativo',d:(m.cap||'')+' · média de '+(m.n||0)+' registos'};
   const c0=(m.cands&&m.cands[0])||{};
   const t=VF_FONTE[c0.fonte]||(c0.contrato?String(c0.contrato).split(' · ')[0]:'Custo real');
   const det={composto:'material + instalação','só material':'só material','material+inst.%':'material + instalação %','escala (módulo)':'por módulo'}[m.kind];
@@ -749,11 +754,11 @@ function vfRenderMQ(results, libFullN, libMatN, scope){
   const semNada=results.filter(x=>x.m.rec==null).length;
   const k=(l,v,s)=>'<div class="lg-kpi"><span class="lg-eyebrow">'+l+'</span><span class="lg-kpi-v">'+v+'</span>'+(s?'<span class="lg-kpi-s">'+s+'</span>':'')+'</div>';
   out.innerHTML='<div class="lg-kpis">'+k('Estimativa total','<span id="mqTotal">—</span>',results.length+' artigos')
-      +k('Confiança alta ou média',fiavel,'correspondência de texto')+k('Confiança baixa',baixas,porCap+' por rácio de capítulo')+k('Sem preço',semNada,'preencher à mão')+'</div>'
+      +k('Confiança alta ou média',fiavel,'correspondência de texto')+k('Indicativos (confiança baixa)',baixas,porCap+' por rácio de capítulo · confirmar')+k('Sem preço',semNada,'preencher à mão ou pedir preço')+'</div>'
     +'<section class="lg-section" style="margin-top:16px"><div class="lg-section-head"><h2 class="lg-section-title">Preço por artigo</h2>'
     +'<div class="lg-chips" id="mqConfChips"><button type="button" class="lg-chip on" data-f="">Todas <b>'+results.length+'</b></button><button type="button" class="lg-chip" data-f="baixa">Só confiança baixa ou sem preço <b>'+(baixas+semNada)+'</b></button></div>'
     +'<button class="btn ghost sm" data-noic onclick="vfExportMQ()"><i class="icon-download" aria-hidden="true"></i>Exportar (.xlsx)</button></div>'
-    +'<p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Base de custo: <b>'+esc(scope||'todos os projetos')+'</b> · '+libFullN+' preços completos + '+(libMatN||0)+' de material. As linhas a vermelho claro têm confiança baixa: confirma-as. Edita o preço e o total atualiza; clica numa linha para ver a origem.</p>'
+    +'<p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Base de custo: <b>'+esc(scope||'todos os projetos')+'</b> · '+libFullN+' preços completos + '+(libMatN||0)+' de material. As linhas a vermelho claro têm preço <b>indicativo</b> (confiança baixa): servem de ordem de grandeza, não de preço — confirma-as. O rácio de capítulo só é usado em m, m², m³ e kg; artigos em un, vg ou cj sem correspondência ficam sem preço. Edita o preço e o total atualiza; clica numa linha para ver a origem.</p>'
     +'<div class="lg-table-wrap"><table class="lg-table lg-mq-tab" style="min-width:980px">'+th+'<tbody>'+body+'</tbody></table></div></section>'
     +'<div id="mqDrill" style="margin-top:12px"></div>';
   try{ lgGuiaAtualizar('precomq'); }catch(e){}
@@ -781,7 +786,7 @@ function vfExportMQ(){
     const fin=(v!=null&&isFinite(v))?v:null; const lt=fin!=null?fin*(l.quantidade||0):null; if(lt!=null) tot+=lt;
     const c0=(m.cands&&m.cands[0])||{};
     return [l.__sheet||l.cap||"", (l.pos!=null?l.pos+1:""), l.art||"", l.designacao||"", l.unidade||"", l.quantidade,
-      m.kind||"—", r2(m.rec), r2(fin), r2(lt), m.n||"", r2(m.min), r2(m.max), m.conf||"sem",
+      m.kind||"—", r2(m.rec), r2(fin), r2(lt), m.n||"", r2(m.min), r2(m.max), (m.rec==null?"sem preço":(m.conf==="baixa"?"baixa (indicativo)":m.conf||"sem")),
       l.__canon||"", c0.desc||"", c0.contrato||"", c0.score!=null?Math.round(c0.score*100)/100:""];
   });
   const aoa=head.concat(rows,[[],["","","","TOTAL","","","","","",r2(tot)]]);
@@ -812,7 +817,7 @@ function vfMQDrill(i){
   const th='<tr><th>Registo de custo</th><th>Origem · referência · projeto</th><th style="text-align:right">€/un</th><th style="text-align:right">Semelhança</th></tr>';
   const body=c.length?c.map(k=>'<tr><td style="white-space:normal">'+esc(String(k.desc||'').slice(0,160))+'</td><td>'+esc(k.contrato||'')+'</td><td class="mono" style="text-align:right">'+fmt(k.pu,2)+'</td><td class="mono" style="text-align:right">'+(k.score!=null?(k.score*100).toFixed(0)+'%':'—')+'</td></tr>').join('')
     :'<tr><td colspan="4">Sem registos comparáveis por texto na mesma unidade ('+esc(x.l.unidade)+').</td></tr>';
-  const capNota=x.m.viaCap?'<div class="note" style="margin:6px 0">Preço por <b>rácio de capítulo</b>: '+esc(x.m.cap||'')+' · €/'+esc(x.l.unidade)+' médio do custo real ('+(x.m.n||0)+' registos). Usado por não haver correspondência de texto fiável — confirma antes de fechar.</div>':'';
+  const capNota=x.m.viaCap?'<div class="note" style="margin:6px 0">Preço por <b>rácio de capítulo</b>: '+esc(x.m.cap||'')+' · €/'+esc(x.l.unidade)+' médio do custo real ('+(x.m.n||0)+' registos). Usado por não haver correspondência de texto fiável. É um valor <b>indicativo</b> (média do capítulo, não do artigo) — confirma antes de fechar.</div>':'';
   const escNota=x.m.escala?'<div class="note" style="margin:6px 0">Preço por <b>escala</b>: '+x.m.escala.modulos+' módulo(s) × '+fmt(x.m.escala.eurModulo,2)+' €/módulo (mediana de '+x.m.n+' registos com nº de módulos na descrição).</div>':'';
   const partes=x.m.parts?'<div class="note" style="margin:6px 0">Composição: material '+fmt(x.m.parts.material,2)+' €'+(x.m.parts.instalacao!=null?' + instalação '+fmt(x.m.parts.instalacao,2)+' €':'')+'.</div>':'';
   const fx=(x.m.min!=null&&x.m.max!=null)?'<div class="hint">Intervalo dos registos usados: '+fmt(x.m.min,2)+' – '+fmt(x.m.max,2)+' €/'+esc(x.l.unidade)+' · mediana '+fmt(x.m.med!=null?x.m.med:x.m.rec,2)+'</div>':'';
@@ -1350,4 +1355,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.5.1');
+APP_REGISTAR('09-custo-real','3.6.0');

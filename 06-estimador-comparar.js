@@ -360,4 +360,4 @@ async function _renderComparar(){
   });
 }
 
-APP_REGISTAR('06-estimador-comparar','3.5.1');
+APP_REGISTAR('06-estimador-comparar','3.6.0');

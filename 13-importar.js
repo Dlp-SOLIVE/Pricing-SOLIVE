@@ -298,4 +298,4 @@ async function impEstadoPO(){
   }
 }
 
-APP_REGISTAR('13-importar','3.5.1');
+APP_REGISTAR('13-importar','3.6.0');
