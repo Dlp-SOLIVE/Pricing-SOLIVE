@@ -180,7 +180,7 @@ function vfBuildPayload(v, mapping){
   const mapas=Object.keys(mapping).filter(k=>mapping[k]).map(k=>({capitulo_origem:k, capitulo_canonico:mapping[k]}));
   return {header, linhas, mapas};
 }
-/* grava no Supabase: apaga o custo anterior do mesmo contrato e subempreiteiro e insere de novo
+/* grava no Supabase: apaga o auto antigo do mesmo contrato (ver vfGravarAuto) e insere de novo
    (o custo representa o CONTRATO — importar um auto mais recente refresca-o). */
 async function vfGravar(sheetName){
   const v=(window.__vfState||{})[sheetName];
@@ -205,12 +205,24 @@ async function vfGravar(sheetName){
 /* v3.8: gravação de um auto, partilhada pelo ecrã de um ficheiro e pela importação de vários */
 async function vfGravarAuto(v, mapping, semRegras){
   const {header,linhas,mapas}=vfBuildPayload({...v,ficheiro:v.ficheiro||v.sheetName}, mapping);
-  /* v3.8.1: o contrato identifica-se pelo nº + subempreiteiro. Nos autos do L'Urbain há números
-     repetidos entre subempreiteiros (UR.2026001 Gameiro & Rodrigues / Saghir; UR.2026006 Domuswood /
-     Mestria Acetinada): cada um fica com o seu custo, e um auto mais recente do mesmo substitui o anterior */
-  const ex=await sb.from('custo_import').select('id,subempreiteiro').eq('contrato',header.contrato);
+  /* v3.8.2: o auto substitui os autos antigos do MESMO contrato — do mesmo projeto, com o mesmo nº de
+     contrato ou o mesmo subempreiteiro (ou sem subempreiteiro), e com pelo menos metade dos artigos em
+     comum. Assim: a HDCT tem 3 contratos com o mesmo nº (PA2023023) e ficam os 3; um auto antigo gravado
+     com outro nº (VCLN como «1», Albino Rocha como PA2023004) é substituído e não fica a contar a dobrar.
+     No L'Urbain, Gameiro & Rodrigues / Saghir (UR.2026001) continuam separados: não têm artigos em comum. */
+  let ex=header.projeto_ref?await sb.from('custo_import').select('id,contrato,subempreiteiro').eq('projeto_ref',header.projeto_ref)
+                           :await sb.from('custo_import').select('id,contrato,subempreiteiro').eq('contrato',header.contrato);
   if(ex.error) throw ex.error;
-  const velhos=(ex.data||[]).filter(r=>vfNorm(r.subempreiteiro)===vfNorm(header.subempreiteiro)).map(r=>r.id);
+  const cand=(ex.data||[]).filter(r=>vfNorm(r.contrato)===vfNorm(header.contrato)||vfNorm(r.subempreiteiro)===vfNorm(header.subempreiteiro)||!r.subempreiteiro);
+  const velhos=[];
+  if(cand.length){
+    const porImp={};
+    for(let f=0;f<200000;f+=1000){
+      const q=await sb.from('custo_linha').select('import_id,art_codigo,designacao').in('import_id',cand.map(r=>r.id)).range(f,f+999);
+      if(q.error) throw q.error; const b=q.data||[]; b.forEach(l=>{ (porImp[l.import_id]=porImp[l.import_id]||[]).push(l); }); if(b.length<1000) break; }
+    const novo=vfAssinatura(linhas);
+    cand.forEach(r=>{ if(vfSobrepoe(novo,vfAssinatura(porImp[r.id]||[]))>=0.5) velhos.push(r.id); });
+  }
   if(velhos.length){ const del=await sb.from('custo_import').delete().in('id',velhos); if(del.error) throw del.error; }
   const ins=await sb.from('custo_import').insert(header).select('id').single();
   if(ins.error) throw ins.error;
@@ -219,24 +231,38 @@ async function vfGravarAuto(v, mapping, semRegras){
   const li=await sb.from('custo_linha').insert(withId);
   if(li.error) throw li.error;
   /* o mapeamento confirmado passa a regra (tipo capitulo) e serve as leituras seguintes;
-     «(sem capítulo)» depende de cada auto e nunca vira regra */
-  const novas=mapas.filter(m=>m.capitulo_origem&&m.capitulo_canonico&&m.capitulo_origem!==m.capitulo_canonico&&m.capitulo_origem!=='(sem capítulo)')
+     «(sem capítulo)», «CONTRATO BASE», «ADITAMENTO n»… dependem de cada auto e nunca viram regra */
+  const novas=mapas.filter(m=>m.capitulo_origem&&m.capitulo_canonico&&m.capitulo_origem!==m.capitulo_canonico&&!vfCapGenerico(m.capitulo_origem))
     .map(m=>({tipo:'capitulo',padrao:m.capitulo_origem,destino:m.capitulo_canonico,prioridade:500,origem:'autos'}));
   if(novas.length){ const rr=await sb.from('regra_mapeamento').upsert(novas,{onConflict:'tipo,padrao,destino',ignoreDuplicates:true});
     if(!rr.error&&!semRegras){ try{ await regrasCarregar(); }catch(e){} } }
   return {n:linhas.length,total:header.total_calculado};
 }
+/* v3.8.2: «impressão digital» de um auto = código + descrição original (sem a linha-mãe) de cada artigo.
+   Dois autos do mesmo contrato partilham a maioria dos artigos; contratos diferentes quase nenhum. */
+/* v3.8.2: nomes de capítulo que não dizem o ofício (autos do PA): nunca viram regra nem se mapeiam pelo nome */
+const VF_CAP_GENERICO=/^(\(SEM CAPITULO\)|CONTRATO( BASE| INICIAL)?|ADITAMENTO\b.*|AD\s*\d+.*|TRABALHOS (A MAIS|EXTRA).*)$/;
+function vfCapGenerico(c){ return VF_CAP_GENERICO.test(vfNorm(c)); }
+function vfChaveLinha(l){ const d=String(l.designacao!=null?l.designacao:(l.d||'')).split(' › ').pop();
+  return vfNorm(l.art_codigo!=null?l.art_codigo:(l.a||''))+'|'+vfNorm(d).slice(0,30); }
+function vfAssinatura(linhas){ return new Set((linhas||[]).map(vfChaveLinha)); }
+function vfSobrepoe(a,b){ if(!a.size||!b.size) return 0; let n=0; a.forEach(k=>{ if(b.has(k)) n++; }); return n/Math.min(a.size,b.size); }
 /* v3.8: capítulo canónico sugerido para cada capítulo do auto, por ordem de confiança:
    1) pelo nome (regras da taxonomia); 2) nome parecido com um capítulo canónico («PAVIMENTO MADEIRA»
    → PAVIMENTOS DIVERSOS); 3) o capítulo principal do próprio contrato (por valor); 4) pelas
    descrições das linhas (voto pesado pelo valor) — o menos fiável, testado nos autos do L'Urbain. */
-function vfSugerirMapa(v){
+function vfSugerirMapa(v, anterior){
   const canon=vfCanon(), noCanon=g=>canon.find(x=>vfNorm(x)===vfNorm(g))||null;
   const raiz=s=>vfNorm(s).split(/[^A-Z]+/).filter(t=>t.length>=5).map(t=>t.slice(0,6));
   const parecido=c=>{ const r=raiz(c); let best=null,bn=0; canon.forEach(x=>{ const n=raiz(x).filter(t=>r.includes(t)).length; if(n>bn){bn=n;best=x;} }); return best; };
   const out={};
-  v.chapters.forEach(c=>{ const g=noCanon(vfGuess(c)); if(g) out[c]={cap:g,como:'nome'}; });
-  v.chapters.forEach(c=>{ if(out[c]) return; const g=parecido(c); if(g) out[c]={cap:g,como:'parecido'}; });
+  v.chapters.forEach(c=>{ if(vfCapGenerico(c)) return; const g=noCanon(vfGuess(c)); if(g) out[c]={cap:g,como:'nome'}; });
+  /* v3.8.2: o capítulo que já tinhas dado aos mesmos artigos no auto gravado antes (voto pelo valor) —
+     no PA os capítulos dos autos são «CONTRATO BASE», «ADITAMENTO n» ou nenhum */
+  if(anterior&&anterior.size) v.chapters.forEach(c=>{ if(out[c]) return;
+    const votos={}; v.leaves.filter(l=>l.cap===c).forEach(l=>{ const g=noCanon(anterior.get(vfChaveLinha(l))); if(g) votos[g]=(votos[g]||0)+Math.abs(l.tot||0)+0.01; });
+    const g=Object.keys(votos).sort((a,b)=>votos[b]-votos[a])[0]; if(g) out[c]={cap:g,como:'anterior'}; });
+  v.chapters.forEach(c=>{ if(out[c]||vfCapGenerico(c)) return; const g=parecido(c); if(g) out[c]={cap:g,como:'parecido'}; });
   const peso={}; v.leaves.forEach(l=>{ const m=out[l.cap]; if(m) peso[m.cap]=(peso[m.cap]||0)+Math.abs(l.tot||0); });
   const princ=Object.keys(peso).sort((a,b)=>peso[b]-peso[a])[0];
   v.chapters.forEach(c=>{ if(!out[c]&&princ) out[c]={cap:princ,como:'contrato'}; });
@@ -290,7 +316,7 @@ function vfVerificarFile(){
           +v.chapters.map((c,idx)=>'<tr><td>'+esc(c)+'</td><td><select id="vfmap_'+key+'_'+idx+'" style="min-width:220px">'+opts(c)+'</select></td></tr>').join('')
           +'</table>'
           +'<button class="btn red" id="vfgrav_'+key+'" style="margin-top:10px" onclick="vfGravar(\''+sn.replace(/'/g,"\\'")+'\')">Gravar custo (confirmar)</button>'
-          +' <span class="note" style="font-size:12px">Grava com proveniência. Reimportar um auto mais recente do mesmo contrato e subempreiteiro substitui o custo.</span></div>';
+          +' <span class="note" style="font-size:12px">Grava com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo.</span></div>';
       }
       cards.push(
         '<div class="card" style="border-left:5px solid '+(v.reconcilia?'#1c7c46':'#E62336')+'">'
@@ -316,7 +342,9 @@ function vfVerificarFile(){
    mais recente); sugere o capítulo canónico (vfSugerirMapa) e grava tudo com um botão.
    ========================================================================== */
 function vfNumFolha(s){ const m=String(s||'').trim().match(/^AUTO\s*(?:N\.?\s*[ºo°]?\s*)?(\d+)$/i); return m?+m[1]:null; }
-function vfFolhaAEscolher(lista){
+function vfFolhaAEscolher(lista0){
+  /* v3.8.2: o último auto que reconcilia (no PA, o Auto_09 da Vieira & Casotti e o Auto_07 da Palete de Ideias não batem com o total) */
+  const lista=lista0.some(v=>v.reconcilia)?lista0.filter(v=>v.reconcilia):lista0;
   const comNum=lista.filter(v=>vfNumFolha(v.sheetName)!=null);
   if(comNum.length) return comNum.reduce((a,b)=>vfNumFolha(b.sheetName)>=vfNumFolha(a.sheetName)?b:a);
   const limpas=lista.filter(v=>!/ERRAD|OLD|ENVIAD|DRAFT|RASCUNHO/i.test(v.sheetName));
@@ -335,27 +363,51 @@ async function vfLoteLer(files){
       wb.SheetNames.forEach(sn=>{ const v=vfVerificarSheet(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null}),sn);
         if(v&&v.declared!=null){ v.ficheiro=f.name; it.folhas.push(v); } });
       if(!it.folhas.length) it.erro='Nenhuma folha de auto de medição';
-      else it.i=it.folhas.indexOf(vfFolhaAEscolher(it.folhas));
+      else { it.i=it.folhas.indexOf(vfFolhaAEscolher(it.folhas));
+        const ult=vfFolhaAEscolher(it.folhas.map(v=>({...v,reconcilia:true})));
+        if(ult.sheetName!==it.folhas[it.i].sheetName) it.aviso='O auto mais recente («'+ult.sheetName+'») não reconcilia com o total declarado — usei «'+it.folhas[it.i].sheetName+'».'; }
     }catch(e){ it.erro='Não consegui abrir o ficheiro'; }
     L.push(it);
   }
-  window.__vfLote=L; vfLotePreparar(); vfLoteDesenhar();
+  window.__vfLote=L; await vfLoteAnteriores(L); vfLotePreparar(); vfLoteDesenhar();
 }
-/* mapa sugerido + repetidos (mesmo contrato e subempreiteiro: fica o nº de auto mais alto) */
+/* v3.8.2: para cada ficheiro, os capítulos dos autos já gravados do mesmo contrato neste projeto
+   (mesmo nº ou subempreiteiro, metade dos artigos em comum), por artigo */
+async function vfLoteAnteriores(L){
+  if(typeof sb==='undefined'||!sb||!(typeof CTX!=='undefined'&&CTX.nome)) return;
+  try{
+    const ex=await sb.from('custo_import').select('id,contrato,subempreiteiro').eq('projeto_ref',CTX.nome);
+    const imps=(ex&&ex.data)||[]; if(!imps.length) return;
+    const porImp={};
+    for(let f=0;f<200000;f+=1000){
+      const q=await sb.from('custo_linha').select('import_id,art_codigo,designacao,capitulo_canonico').in('import_id',imps.map(r=>r.id)).range(f,f+999);
+      if(q.error) return; const b=q.data||[]; b.forEach(l=>{ (porImp[l.import_id]=porImp[l.import_id]||[]).push(l); }); if(b.length<1000) break; }
+    L.forEach(it=>{ if(it.erro) return; const v=it.folhas[it.i]; const ass=vfAssinatura(v.leaves); const m=new Map();
+      imps.forEach(r=>{ const ls=porImp[r.id]||[];
+        if(!(vfNorm(r.contrato)===vfNorm(v.contrato)||vfNorm(r.subempreiteiro)===vfNorm(v.subemp)||!r.subempreiteiro)) return;
+        if(vfSobrepoe(ass,vfAssinatura(ls))<0.5) return;
+        ls.forEach(l=>{ if(l.capitulo_canonico) m.set(vfChaveLinha(l),l.capitulo_canonico); }); });
+      it.anterior=m; });
+  }catch(e){}
+}
+/* mapa sugerido + repetidos: o mesmo contrato (mesmo nº ou subempreiteiro e metade dos artigos em comum)
+   conta uma vez — fica o nº de auto mais alto; em empate, o ficheiro sem «draft»/«(2)» no nome */
 function vfLotePreparar(){
-  const L=window.__vfLote||[]; const melhor={};
-  L.forEach((it,k)=>{ it.dup=null; if(it.erro) return; const v=it.folhas[it.i];
-    it.mapa=it.mapa&&it.mapaFolha===it.i?it.mapa:vfSugerirMapa(v); it.mapaFolha=it.i;
-    const key=vfNorm(v.contrato)+'|'+vfNorm(v.subemp);
-    /* mesmo nº de auto: fica o ficheiro sem «draft», «(2)»… no nome */
-    const n=(v.autoNum||vfNumFolha(v.sheetName)||0)+(/DRAFT|RASCUNHO|\(\d+\)|COPIA|C[ÓO]PIA/i.test(it.ficheiro)?0:0.5);
-    if(!(key in melhor)||n>melhor[key].n) melhor[key]={k,n}; });
-  L.forEach((it,k)=>{ if(it.erro) return; const v=it.folhas[it.i]; const m=melhor[vfNorm(v.contrato)+'|'+vfNorm(v.subemp)]; if(m&&m.k!==k) it.dup=L[m.k].ficheiro; });
+  const L=window.__vfLote||[];
+  const ok=L.map((it,k)=>({it,k})).filter(x=>!x.it.erro);
+  ok.forEach(({it})=>{ it.dup=null; const v=it.folhas[it.i];
+    it.mapa=it.mapa&&it.mapaFolha===it.i?it.mapa:vfSugerirMapa(v,it.anterior); it.mapaFolha=it.i;
+    it.__ass=vfAssinatura(v.leaves);
+    it.__n=(v.autoNum||vfNumFolha(v.sheetName)||0)+(/DRAFT|RASCUNHO|\(\d+\)|COPIA|C[ÓO]PIA/i.test(it.ficheiro)?0:0.5); });
+  ok.forEach(({it:a},i)=>{ const va=a.folhas[a.i];
+    ok.forEach(({it:b},j)=>{ if(i===j||a.dup) return; const vb=b.folhas[b.i];
+      const mesmo=(vfNorm(va.contrato)===vfNorm(vb.contrato)||vfNorm(va.subemp)===vfNorm(vb.subemp))&&vfSobrepoe(a.__ass,b.__ass)>=0.5;
+      if(mesmo&&(b.__n>a.__n||(b.__n===a.__n&&j>i))) a.dup=b.ficheiro; }); });
 }
 function vfLoteGravaveis(){ return (window.__vfLote||[]).filter(it=>!it.erro&&!it.dup&&it.folhas[it.i].reconcilia&&it.folhas[it.i].chapters.every(c=>(it.mapa[c]||{}).cap)); }
 function vfLoteDesenhar(){
   const out=document.getElementById('vfOut'); const L=window.__vfLote||[]; const canon=vfCanon();
-  const COMO={nome:'pelo nome do capítulo',parecido:'nome parecido',contrato:'capítulo principal deste contrato',linhas:'pelas descrições das linhas',manual:'escolhido por ti'};
+  const COMO={nome:'pelo nome do capítulo',anterior:'como no auto já gravado',parecido:'nome parecido',contrato:'capítulo principal deste contrato',linhas:'pelas descrições das linhas',manual:'escolhido por ti'};
   const grav=vfLoteGravaveis();
   const tot=grav.reduce((s,it)=>s+it.folhas[it.i].sumLeaf,0), nl=grav.reduce((s,it)=>s+it.folhas[it.i].nLinhas,0);
   const k=(l,v,s)=>'<div class="lg-kpi"><span class="lg-eyebrow">'+l+'</span><span class="lg-kpi-v">'+v+'</span>'+(s?'<span class="lg-kpi-s">'+s+'</span>':'')+'</div>';
@@ -368,7 +420,7 @@ function vfLoteDesenhar(){
       : it.dup?'<span class="lg-badge" data-tone="neutral" title="Fica o auto mais recente: '+esc(it.dup)+'">Repetido</span>'
       : !v.reconcilia?'<span class="lg-badge" data-tone="danger">Não reconcilia</span>'
       : '<span class="lg-badge" data-tone="success">Pronto</span>';
-    return '<tr id="vflt_'+j+'"'+(it.dup?' style="opacity:.55"':'')+'><td style="max-width:220px;white-space:normal">'+esc(it.ficheiro)+'</td><td>'+sel+'</td>'
+    return '<tr id="vflt_'+j+'"'+(it.dup?' style="opacity:.55"':'')+'><td style="max-width:220px;white-space:normal">'+esc(it.ficheiro)+(it.aviso?'<span class="lg-sub-l" style="color:var(--color-brick,#b4462b)">'+esc(it.aviso)+'</span>':'')+'</td><td>'+sel+'</td>'
       +'<td style="max-width:220px;white-space:normal">'+esc(String(v.subemp||'—').slice(0,60))+'</td><td class="mono">'+esc(v.contrato||'—')+'</td>'
       +'<td class="num">'+v.nLinhas+'</td><td class="num">'+vfMoeda(v.sumLeaf)+'</td>'
       +'<td>'+v.chapters.length+(porConf?' · <b>'+porConf+' a confirmar</b>':'')+'</td><td id="vflte_'+j+'">'+est+'</td></tr>';
@@ -384,10 +436,10 @@ function vfLoteDesenhar(){
       +k('Autos a gravar',grav.length,'última folha de cada contrato')+k('Linhas',nl,'')+k('Valor',vfMoeda(tot),'soma dos autos a gravar')+'</div>'
     +'<section class="lg-section" style="margin-top:16px"><div class="lg-section-head"><h2 class="lg-section-title">Autos encontrados</h2>'
     +'<button class="btn red" data-noic id="vfLoteBtn"'+(grav.length?'':' disabled')+' onclick="vfLoteGravar()">Gravar '+grav.length+' autos</button></div>'
-    +'<p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Projeto: <b>'+esc(CTX.nome)+'</b>. De cada ficheiro uso a última folha «Auto N»; podes escolher outra na coluna Folha. Ficheiros com o mesmo contrato e subempreiteiro contam uma vez (fica o auto mais recente). Gravar substitui o custo anterior do mesmo contrato e subempreiteiro.</p>'
+    +'<p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Projeto: <b>'+esc(CTX.nome)+'</b>. De cada ficheiro uso a última folha «Auto N»; podes escolher outra na coluna Folha. Ficheiros do mesmo contrato contam uma vez (fica o auto mais recente). Gravar substitui o auto antigo do mesmo contrato neste projeto: mesmo nº ou subempreiteiro e pelo menos metade dos artigos em comum.</p>'
     +'<div class="lg-table-wrap"><table class="lg-table" style="min-width:980px"><thead><tr><th>Ficheiro</th><th>Folha</th><th>Subempreiteiro</th><th>Contrato</th><th class="num">Linhas</th><th class="num">Total</th><th>Capítulos</th><th>Estado</th></tr></thead><tbody>'+linhas+'</tbody></table></div></section>'
     +(conf.length?'<section class="lg-section" style="margin-top:16px"><div class="lg-section-head"><h2 class="lg-section-title">Capítulos a confirmar ('+conf.length+')</h2></div>'
-      +'<p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Estes capítulos não foram reconhecidos pelo nome. A sugestão vem de um nome parecido, do capítulo principal do contrato ou das descrições das linhas — confirma ou corrige. A escolha fica memorizada para os próximos autos.</p>'
+      +'<p class="lg-meta lg-pad" style="margin:0;padding-top:10px">Estes capítulos não foram reconhecidos pelo nome. A sugestão vem do auto já gravado do mesmo contrato, de um nome parecido, do capítulo principal do contrato ou das descrições das linhas — confirma ou corrige. A escolha fica memorizada para os próximos autos.</p>'
       +'<div class="lg-table-wrap"><table class="lg-table" style="min-width:760px"><thead><tr><th>Ficheiro</th><th>Capítulo no auto</th><th>Capítulo canónico</th><th>Sugestão</th></tr></thead><tbody>'+conf.join('')+'</tbody></table></div></section>':'')
     +(nome.length?'<details style="margin-top:12px"><summary>Capítulos reconhecidos pelo nome ('+nome.length+')</summary><p class="lg-meta" style="margin:6px 0 0">'+[...new Set(nome)].join(' · ')+'</p></details>':'');
   out.querySelectorAll('[data-lote-folha]').forEach(s=>s.onchange=()=>{ const it=L[+s.dataset.loteFolha]; it.i=+s.value; vfLotePreparar(); vfLoteDesenhar(); });
@@ -422,7 +474,7 @@ async function vfLoteGravar(){
     div.id='view-verificar'; div.className='hidden';
     div.innerHTML=
       '<h2 style="color:#201C1D">Verificar e Gravar Auto de Medição</h2>'
-      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato e subempreiteiro substitui o custo anterior.</div>'
+      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo anterior.</div>'
       +'<div class="card" style="margin-top:10px"><label>Ficheiro do auto (.xlsx) — podes escolher vários de uma vez</label> '
       +'<input type="file" id="vfFile" accept=".xlsx" multiple> '
       +'<button class="btn navy" onclick="vfVerificarFile()">Verificar</button></div>'
@@ -1557,4 +1609,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.8.1');
+APP_REGISTAR('09-custo-real','3.8.2');
