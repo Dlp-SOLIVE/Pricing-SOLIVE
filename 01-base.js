@@ -194,4 +194,4 @@ function showView(v){
   setTimeout(ic,60); setTimeout(ic,900);
 }
 
-APP_REGISTAR('01-base','3.7.0');
+APP_REGISTAR('01-base','3.7.1');

@@ -180,7 +180,7 @@ function vfBuildPayload(v, mapping){
   const mapas=Object.keys(mapping).filter(k=>mapping[k]).map(k=>({capitulo_origem:k, capitulo_canonico:mapping[k]}));
   return {header, linhas, mapas};
 }
-/* grava no Supabase: apaga o custo anterior do mesmo contrato e insere de novo
+/* grava no Supabase: apaga o custo anterior do mesmo contrato e subempreiteiro e insere de novo
    (o custo representa o CONTRATO — importar um auto mais recente refresca-o). */
 async function vfGravar(sheetName){
   const v=(window.__vfState||{})[sheetName];
@@ -197,14 +197,13 @@ async function vfGravar(sheetName){
   if(typeof sb==="undefined"||!sb){ toast("Precisas de estar ligado e com sessão iniciada."); return; }
   const {header,linhas,mapas}=vfBuildPayload({...v,ficheiro:v.ficheiro||sheetName}, mapping);
   try{
-    /* v3.7: gravar apaga o custo anterior do mesmo contrato — se o número já pertence a outro
-       subempreiteiro (nos autos do L'Urbain, UR.2026001 e UR.2026006 aparecem em dois), não apagar */
-    if(header.contrato){
-      const ex=await sb.from('custo_import').select('subempreiteiro').eq('contrato',header.contrato);
-      const outro=(ex.data||[]).find(r=>r.subempreiteiro&&header.subempreiteiro&&vfNorm(r.subempreiteiro)!==vfNorm(header.subempreiteiro));
-      if(outro){ alertx(' Não gravei: o contrato «'+header.contrato+'» já está gravado para «'+outro.subempreiteiro+'», e este auto é de «'+header.subempreiteiro+'». Gravar apagaria o custo do outro subempreiteiro. Corrige o nº do contrato no auto (célula «CONTRATO N.º») e volta a importar.'); return; }
-    }
-    await sb.from('custo_import').delete().eq('contrato',header.contrato);
+    /* v3.7.1: o contrato identifica-se pelo nº + subempreiteiro. Nos autos do L'Urbain há números
+       repetidos entre subempreiteiros (UR.2026001 Gameiro & Rodrigues / Saghir; UR.2026006 Domuswood /
+       Mestria Acetinada): cada um fica com o seu custo, e um auto mais recente do mesmo substitui o anterior */
+    const ex=await sb.from('custo_import').select('id,subempreiteiro').eq('contrato',header.contrato);
+    if(ex.error) throw ex.error;
+    const velhos=(ex.data||[]).filter(r=>vfNorm(r.subempreiteiro)===vfNorm(header.subempreiteiro)).map(r=>r.id);
+    if(velhos.length){ const del=await sb.from('custo_import').delete().in('id',velhos); if(del.error) throw del.error; }
     const ins=await sb.from('custo_import').insert(header).select('id').single();
     if(ins.error) throw ins.error;
     const impId=ins.data.id;
@@ -265,7 +264,7 @@ function vfVerificarFile(){
           +v.chapters.map((c,idx)=>'<tr><td>'+esc(c)+'</td><td><select id="vfmap_'+key+'_'+idx+'" style="min-width:220px">'+opts(c)+'</select></td></tr>').join('')
           +'</table>'
           +'<button class="btn red" id="vfgrav_'+key+'" style="margin-top:10px" onclick="vfGravar(\''+sn.replace(/'/g,"\\'")+'\')">Gravar custo (confirmar)</button>'
-          +' <span class="note" style="font-size:12px">Grava com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo.</span></div>';
+          +' <span class="note" style="font-size:12px">Grava com proveniência. Reimportar um auto mais recente do mesmo contrato e subempreiteiro substitui o custo.</span></div>';
       }
       cards.push(
         '<div class="card" style="border-left:5px solid '+(v.reconcilia?'#1c7c46':'#E62336')+'">'
@@ -293,7 +292,7 @@ function vfVerificarFile(){
     div.id='view-verificar'; div.className='hidden';
     div.innerHTML=
       '<h2 style="color:#201C1D">Verificar e Gravar Auto de Medição</h2>'
-      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato substitui o custo anterior.</div>'
+      +'<div class="note">Confirma que um auto <b>bate certo</b> (soma das linhas = total declarado, ao cêntimo), mapeia os capítulos para a taxonomia, e grava o custo com proveniência. Reimportar um auto mais recente do mesmo contrato e subempreiteiro substitui o custo anterior.</div>'
       +'<div class="card" style="margin-top:10px"><label>Ficheiro do auto (.xlsx)</label> '
       +'<input type="file" id="vfFile" accept=".xlsx"> '
       +'<button class="btn navy" onclick="vfVerificarFile()">Verificar</button></div>'
@@ -1425,4 +1424,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.7.0');
+APP_REGISTAR('09-custo-real','3.7.1');
