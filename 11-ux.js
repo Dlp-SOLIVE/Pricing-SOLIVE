@@ -333,4 +333,4 @@ async function uxRenderResumo(){
 /* Fase 6: o bloco «Como usar a plataforma» do Resumo deu lugar ao ciclo do projeto (uxRenderResumo)
    e ao guia «Como fazer» do cabeçalho; as explicações por separador estão na Ajuda (HELP). */
 
-APP_REGISTAR('11-ux','3.7.0');
+APP_REGISTAR('11-ux','3.7.1');
