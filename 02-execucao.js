@@ -171,4 +171,4 @@ async function gxDelAdj(id){
   await gxLoad();
 }
 
-APP_REGISTAR('02-execucao','3.9.1');
+APP_REGISTAR('02-execucao','3.10.0');

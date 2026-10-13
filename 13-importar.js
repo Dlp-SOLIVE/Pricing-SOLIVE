@@ -457,4 +457,4 @@ async function impEstadoPP(){
   }
 }
 
-APP_REGISTAR('13-importar','3.9.1');
+APP_REGISTAR('13-importar','3.10.0');
