@@ -181,7 +181,7 @@ function showView(v){
   if(v==='execucao') gxRender();
   if(v==='programa'){ try{ tpRenderPrograma(); }catch(e){ console.warn(e); } }
   if(v==='kit'){ try{ tpRenderKit(); }catch(e){ console.warn(e); } }
-  if(v==='importar'){ try{ impEstadoPO(); }catch(e){ console.warn(e); } }
+  if(v==='importar'){ try{ impEstadoPO(); impEstadoPP(); }catch(e){ console.warn(e); } }
   if(v==='admin'){ try{ adminRender(); }catch(e){ console.warn(e); } }
   if(v==='config'){ try{ cfgRender(); }catch(e){ console.warn(e); } }
   try{ if(typeof ctxRender==='function') ctxRender(); }catch(e){}
@@ -194,4 +194,4 @@ function showView(v){
   setTimeout(ic,60); setTimeout(ic,900);
 }
 
-APP_REGISTAR('01-base','3.8.3');
+APP_REGISTAR('01-base','3.9.0');

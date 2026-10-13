@@ -9,6 +9,7 @@ const IMP_TIPOS={
   pricing:    {lbl:'Pricing sheet Legendre',         ic:'file-spreadsheet', destino:'Orçamentar › Mapa de quantidades',        projeto:true},
   resumo:     {lbl:'Resumo do orçamento',            ic:'list-checks',      destino:'Orçamentar › Orçamento',                  projeto:true},
   proposta:   {lbl:'Proposta de fornecedor',         ic:'handshake',        destino:'Orçamentar › Orçamento',                  projeto:true},
+  proposta_art:{lbl:'Proposta · preços por artigo',  ic:'receipt',          destino:'Biblioteca de preços (grava-se neste ecrã)', projeto:true},
   auto:       {lbl:'Auto de medição',                ic:'ruler',            destino:'Obra › Autos de medição',                 projeto:true},
   transferido:{lbl:'Orçamento transferido',          ic:'file-check',       destino:'Obra › Adjudicações e desvios',           projeto:true},
   compras:    {lbl:'Ficheiro de compras (.xlsm)',    ic:'clipboard-list',   destino:'Biblioteca de compras (grava-se neste ecrã)', projeto:false},
@@ -20,6 +21,7 @@ const IMP_DESC={
   pricing:'Orçamento do empreiteiro com as folhas de capítulo e o resumo.',
   resumo:'Totais por capítulo com a fonte do preço (proposta recebida, antiga, sem fonte).',
   proposta:'Artigos com preço unitário e total de um subempreiteiro ou fornecedor.',
+  proposta_art:'A mesma proposta, gravada artigo a artigo na biblioteca de preços (fonte «Proposta»).',
   auto:'Folha de auto com o total declarado do período.',
   transferido:'O orçamento por linha entregue à Produção.',
   compras:'Contratos e artigos (material e mão de obra) do ficheiro .xlsm.',
@@ -45,6 +47,7 @@ let IMP={ficheiro:null, wb:null, sugestoes:[], escolhido:null, outros:false};
     +Object.entries(IMP_TIPOS).map(([k,t])=>'<li><span class="lg-imp-tic">'+lgIc(t.ic)+'</span><div><b>'+esc(t.lbl)+'</b><span>'+esc(IMP_DESC[k]||'')+'</span><span class="lg-imp-dest">→ '+esc(t.destino)+'</span></div></li>').join('')
     +'</ul></section></div>'
     +'<section class="lg-section" id="paCard"><h2 class="lg-section-title">Preços adjudicados · Legendre-PO</h2><div class="lg-pad"><p class="lg-meta" style="margin:8px 0 12px">Linhas das adjudicações <b>validadas</b> na plataforma de Adjudicações (Legendre-PO → <b>Exportações</b> → <b>Preços adjudicados para a Orçamentação (.xlsx)</b>). Entram na biblioteca como fonte «Adjudicação Legendre-PO» e são usadas no Orçamentar MQ e no preço por elemento. Reimportar atualiza as linhas já existentes, não as duplica.</p><div id="paOut"><span class="note" style="display:inline-block;margin:0">Ainda sem informação — inicia sessão.</span></div></div></section>'
+    +'<section class="lg-section" id="ppCard"><h2 class="lg-section-title">Propostas · preços por artigo</h2><div class="lg-pad"><p class="lg-meta" style="margin:8px 0 12px">Propostas de subempreiteiros e fornecedores, gravadas <b>artigo a artigo</b> no projeto ativo. Entram na biblioteca como fonte «Proposta» (confiança abaixo de um auto) e são usadas no Orçamentar MQ. Reimportar a mesma proposta (mesmo fornecedor e referência) substitui as linhas anteriores.</p><div id="ppOut"><span class="note" style="display:inline-block;margin:0">Ainda sem informação — inicia sessão.</span></div></div></section>'
     +'<section class="lg-section" id="cmCard"><h2 class="lg-section-title">Biblioteca de compras (fornecedores)</h2><div class="lg-pad"><p class="lg-meta" style="margin:8px 0 12px">Resultado da última importação do ficheiro de Compras (.xlsm). Traz preços de <b>material</b> (FOR/AL) e <b>mão de obra</b> (MO), marcados pelo tipo de contrato, e alimenta o Orçamentar MQ. Substitui a importação anterior.</p>'
     +'<input type="file" id="cmFile" accept=".xlsm,.xlsx" class="hidden"><span id="cmOut" class="note" style="display:inline-block;margin:0">Ainda não importaste o ficheiro de Compras nesta sessão.</span></div></section>';
   main.appendChild(v);
@@ -122,10 +125,13 @@ function impDetetar(wb,nome){
       if(!comPreco) add('mq',80+base,best.n+' artigos na folha «'+best.sn+'», sem preços');
       else{
         add('proposta',(nomes.length<=3?72:55)+base,best.n+' artigos com preço unitário e total');
+        add('proposta_art',(nomes.length<=3?68:52)+base,best.n+' artigos com preço unitário — para a biblioteca de preços');
         add('mq',(nomes.length<=3?60:70)+base,best.n+' artigos na folha «'+best.sn+'», já com preços');
       }
     }
   }catch(e){}
+  // modelo «Proposta por artigo» (o que a plataforma gera para propostas em PDF ou com formato próprio)
+  try{ for(const sn of nomes){ const r=rows(sn); if(r.slice(0,3).some(x=>(x||[]).some(v=>/^PROPOSTA POR ARTIGO/.test(norm(v))))){ add('proposta_art',100,'modelo «Proposta por artigo» na folha «'+sn+'»'); break; } } }catch(e){}
   // pistas pelo nome do ficheiro (só desempatam, nunca decidem sozinhas)
   const nn=norm(nome||'');
   const pista=(re,tipo)=>{ if(re.test(nn)){ const x=S.find(s=>s.tipo===tipo); if(x) x.conf=Math.min(100,x.conf+8); } };
@@ -197,6 +203,10 @@ async function impAbrir(tipo){
       if(sel&&!sel.value&&CTX.nome){ const o=[...sel.options].find(x=>norm(x.value||x.text)===norm(CTX.nome)); if(o) sel.value=o.value; }
       vfDvImport();
       const card=document.getElementById('vfDvCard'); if(card) card.scrollIntoView({behavior:'smooth'});
+    }
+    else if(tipo==='proposta_art'){
+      impPropLer(IMP.wb,f.name);
+      const c=document.getElementById('ppCard'); if(c) c.scrollIntoView({behavior:'smooth'});
     }
     else if(tipo==='precos_po'){
       impPOLer(IMP.wb,f.name);
@@ -305,4 +315,101 @@ async function impEstadoPO(){
   }
 }
 
-APP_REGISTAR('13-importar','3.8.3');
+/* ---------- Propostas por artigo (Fase 9) ----------
+   Lê uma proposta com Designação · Un. · (Quant.) · Preço unitário, numa folha qualquer: pelo cabeçalho
+   com nome (o modelo «Proposta por artigo» traz também Capítulo, Artigo, Total e Âmbito) ou, sem ele,
+   pelo detetor do Analisador. Linhas sem unidade são títulos ou linha-mãe, como nos autos (v3.7). */
+let IMP_PP=null;
+const IMP_PP_COLS={cap:/^CAPITULO/, art:/^(ARTIGO|ART\.?|REF\.?|REFERENCIA|COD\.?|CODIGO)$/, des:/DESIGNA|DESCRI/, un:/^(UN|UND|UNID|UNIDADE)\.?$/,
+  qt:/^(QUANT|QT|QTD|QTY)/, pu:/PRECO\W*UNIT|^P\.?\W*UNIT|^PRECO$|VALOR\W*UNIT|^PU$|^€\/UN/, tot:/^TOTAL|^VALOR$|^IMPORTANCIA/, amb:/^AMBITO/};
+function impPropCabecalho(rows){
+  for(let i=0;i<Math.min(rows.length,60);i++){
+    const r=(rows[i]||[]).map(x=>norm(x));
+    const col={}; Object.entries(IMP_PP_COLS).forEach(([k,re])=>{ col[k]=r.findIndex(x=>x&&re.test(x)); });
+    if(col.art===col.des) col.art=-1;
+    if(col.des>=0&&col.un>=0&&col.pu>=0) return {row:i,col};
+  }
+  try{ const H=detectHeader(rows); if(H&&H.desc>=0&&H.un>=0){ const pc=detectPriceCols(rows,H);
+    if(pc&&pc.pUnit>=0) return {row:H.row,col:{cap:-1,art:(H.code>=0&&H.code!==H.desc)?H.code:-1,des:H.desc,un:H.un,qt:H.qt,pu:pc.pUnit,tot:pc.pTot,amb:-1}}; } }catch(e){}
+  return null;
+}
+function impPropAmbito(v){ const s=norm(v); if(!s) return null; if(/MAO|LABOU?R/.test(s)) return 'mao_obra'; if(/FORNEC|MATERIA/.test(s)&&!/APLICA|ASSENT|MONTAG/.test(s)) return 'fornecimento'; return 'F&A'; }
+function impPropLinhas(rows,H){
+  const g=(r,k)=>H.col[k]>=0?r[H.col[k]]:null, txt=v=>v==null?'':String(v).trim();
+  const out=[]; let secao=null, mae=null;
+  for(let i=H.row+1;i<rows.length;i++){
+    const r=rows[i]||[]; const d=txt(g(r,'des')); if(!d) continue;
+    const dn=norm(d); if(RE_SOMA.test(dn)||/^(SUBTOTAL|DESC\.?|DESCONTO|IVA)\b/.test(dn)) continue;
+    const a=txt(g(r,'art')), un=txt(g(r,'un')), pu=vfNum(g(r,'pu'));
+    if(un&&pu>0){ const mm=vfMaeDe(a,mae); const desc=vfComMae(d,mm&&mm.d,a);
+      out.push({linha_pos:i, capitulo:txt(g(r,'cap'))||secao||null, artigo:a||null, descricao:desc, unidade:un, quantidade:vfNum(g(r,'qt')),
+        preco_unit:Math.round(pu*10000)/10000, total:vfNum(g(r,'tot')), ambito:impPropAmbito(g(r,'amb'))||(vfSoMaoObra(d,mm&&mm.d)?'mao_obra':null)}); }
+    else if(!un){ if(vfTituloCap(a,d)){ secao=d; mae=null; } else { const mm=vfMaeDe(a,mae); mae={a,d:vfComMae(d,mm&&mm.d,a)}; } }
+  }
+  return out;
+}
+function impPropLer(wb,ficheiro){
+  const box=document.getElementById('ppOut'); if(!box) return;
+  let H=null, rows=null, folha=null, best=null;
+  for(const sn of wb.SheetNames){ const r=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null}); const h=impPropCabecalho(r); if(!h) continue;
+    const l=impPropLinhas(r,h); if(!best||l.length>best.l.length) best={sn,r,h,l}; }
+  if(!best||!best.l.length){ box.innerHTML='<div class="note red">Não encontrei artigos com preço neste ficheiro. Preciso de uma linha de cabeçalho com Designação, Un. e Preço unitário.</div>'; return; }
+  ({sn:folha,r:rows,h:H}=best);
+  const topo=rows.slice(0,H.row);   // fornecedor, data e referência vêm do topo da folha, nunca do cabeçalho da tabela
+  const meta=re=>{ const v=vfHeaderVal(topo,re); return v==null?'':String(v).trim(); };
+  const forn=meta(/^FORNECEDOR/)||String(ficheiro||'').replace(/\.xls[xm]?$/i,'');
+  const data=impPOData(vfHeaderVal(topo,/^DATA$/))||'';
+  const ref=meta(/^REF/)||String(ficheiro||'');
+  IMP_PP={linhas:best.l, ficheiro, folha};
+  const tot=best.l.reduce((s,l)=>s+(l.total!=null?l.total:(l.quantidade||0)*l.preco_unit),0);
+  const nMO=best.l.filter(l=>l.ambito==='mao_obra').length;
+  box.innerHTML='<div class="note" style="margin-bottom:10px"><b>'+best.l.length+'</b> artigos com preço na folha «'+esc(folha)+'» · total '+vfMoeda(tot)+(nMO?' · '+nMO+' de mão de obra':'')
+      +' · projeto <b>'+esc(CTX.nome||'—')+'</b></div>'
+    +'<div class="lg-form" style="max-width:720px"><div class="lg-field"><label for="ppForn">Fornecedor</label><input id="ppForn" type="text" value="'+esc(forn)+'"></div>'
+    +'<div class="lg-field"><label for="ppData">Data da proposta</label><input id="ppData" type="date" value="'+esc(data)+'"></div>'
+    +'<div class="lg-field"><label for="ppRef">Referência</label><input id="ppRef" type="text" value="'+esc(ref)+'"></div>'
+    +'<div class="lg-field"><label for="ppAmb">Âmbito dos artigos sem indicação</label><select id="ppAmb"><option value="F&A">Fornecimento e aplicação</option><option value="fornecimento">Só fornecimento (material)</option><option value="mao_obra">Só mão de obra</option></select></div></div>'
+    +'<div class="lg-table-wrap" style="margin-top:10px"><table class="lg-table" style="min-width:720px"><thead><tr><th>Artigo</th><th>Designação</th><th>Un.</th><th class="num">Quant.</th><th class="num">Preço unit.</th><th>Âmbito</th></tr></thead><tbody>'
+    +best.l.slice(0,15).map(l=>'<tr><td class="mono">'+esc(l.artigo||'')+'</td><td style="white-space:normal;max-width:420px">'+esc(String(l.descricao).slice(0,140))+'</td><td>'+esc(l.unidade)+'</td><td class="num">'+(l.quantidade!=null?fmt(l.quantidade,2):'—')+'</td><td class="num">'+fmt(l.preco_unit,2)+'</td><td>'+esc(l.ambito||'(por omissão)')+'</td></tr>').join('')
+    +(best.l.length>15?'<tr><td colspan="6" class="lg-meta">… e mais '+(best.l.length-15)+' artigos</td></tr>':'')+'</tbody></table></div>'
+    +'<button type="button" class="btn red" data-noic style="margin-top:10px" onclick="impPropGravar()">Gravar '+best.l.length+' artigos na biblioteca</button>';
+}
+async function impPropGravar(){
+  const box=document.getElementById('ppOut'); if(!IMP_PP||!box) return;
+  if(typeof sb==='undefined'||!sb||!SESSION){ alertx('Inicia sessão para gravar.'); return; }
+  const p=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>norm(x.nome)===norm(CTX.nome||''));
+  if(!p){ alertx('Escolhe primeiro o projeto ativo no menu lateral — a proposta tem de entrar num projeto.'); return; }
+  const forn=(document.getElementById('ppForn').value||'').trim(); if(!forn){ alertx('Indica o fornecedor.'); return; }
+  const data=document.getElementById('ppData').value||null, ref=(document.getElementById('ppRef').value||'').trim()||IMP_PP.ficheiro;
+  const amb=document.getElementById('ppAmb').value||'F&A';
+  const rows=IMP_PP.linhas.map(l=>({projeto_id:p.id, fornecedor:forn, ref, data, capitulo:l.capitulo, artigo:l.artigo, descricao:l.descricao, unidade:l.unidade,
+    quantidade:l.quantidade, preco_unit:l.preco_unit, total:l.total, ambito:l.ambito||amb, ficheiro:IMP_PP.ficheiro, linha_pos:l.linha_pos}));
+  box.innerHTML='<div class="note">A gravar '+rows.length+' artigos…</div>';
+  try{
+    const del=await sb.from('preco_proposta').delete().eq('projeto_id',p.id).eq('fornecedor',forn).eq('ref',ref); if(del.error) throw del.error;
+    for(let i=0;i<rows.length;i+=500){ const r=await sb.from('preco_proposta').insert(rows.slice(i,i+500)); if(r.error) throw r.error; }
+    IMP_PP=null; toast('Proposta gravada: '+rows.length+' artigos de '+forn+'.');
+    await impEstadoPP();
+  }catch(e){
+    const msg=String(e.message||e);
+    box.innerHTML='<div class="note red">Erro a gravar: '+esc(msg)+(/preco_proposta/.test(msg)&&/exist|relation|schema/i.test(msg)?'<br>Falta correr o SQL <b>F9_01_propostas_artigo.sql</b> no Supabase.':'')+'</div>';
+  }
+}
+async function impEstadoPP(){
+  const box=document.getElementById('ppOut'); if(!box||IMP_PP) return;
+  if(typeof sb==='undefined'||!sb||!SESSION) return;
+  try{
+    const r=await sb.from('preco_proposta').select('projeto_id,fornecedor,ref').limit(20000);
+    if(r.error) throw r.error;
+    const d=r.data||[];
+    if(!d.length){ box.innerHTML='<span class="note" style="display:inline-block;margin:0">A biblioteca ainda não tem propostas por artigo. Larga acima uma proposta em Excel e escolhe «Proposta · preços por artigo».</span>'; return; }
+    const nome=id=>{ const p=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>String(x.id)===String(id)); return p?p.nome:'(sem projeto)'; };
+    const g={}; d.forEach(x=>{ const k=nome(x.projeto_id); const o=g[k]||(g[k]={n:0,f:new Set()}); o.n++; o.f.add(x.fornecedor); });
+    box.innerHTML='<div class="note" style="margin:0">Na biblioteca: <b>'+d.length+'</b> artigos de propostas · '
+      +Object.entries(g).map(([k,o])=>esc(k)+' ('+o.n+' artigos · '+o.f.size+' fornecedor'+(o.f.size===1?'':'es')+')').join(' · ')+'</div>';
+  }catch(e){
+    box.innerHTML='<span class="note" style="display:inline-block;margin:0">'+(/preco_proposta/.test(String(e.message||e))?'Falta correr o SQL F9_01_propostas_artigo.sql no Supabase.':'Não consegui ler as propostas: '+esc(String(e.message||e)))+'</span>';
+  }
+}
+
+APP_REGISTAR('13-importar','3.9.0');
