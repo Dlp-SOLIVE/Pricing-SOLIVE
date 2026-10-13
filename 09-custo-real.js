@@ -883,6 +883,74 @@ function vfPrecoPorModulo(line, lib){
           kind:'escala (módulo)', escala:{modulos:n, eurModulo:med},
           cands:usados.slice(0,8).map(x=>({desc:x.r.designacao+' — '+x.k+' módulo(s)', pu:Number(x.r.preco_unit), contrato:x.r.contrato, fonte:x.r.fonte, score:null}))};
 }
+/* v3.10: «nome principal» do artigo — as 1–2 primeiras palavras com significado da
+   primeira oração (da linha-mãe, se houver «›»), sem código à frente nem verbos de obra.
+   «Base de duche à medida › (L)0,8x…» → BASE DUCHE; «BD.01 - Base de Duche com 1620x850…» →
+   BASE DUCHE. Serve para ligar artigos iguais descritos de forma diferente, quando a
+   semelhança do texto todo não chega (descrições longas de fornecedor vs. autos curtos). */
+const VF_CAB_GEN=new Set(['FORNECIMENTO','FORNECER','ASSENTAMENTO','MONTAGEM','APLICACAO','EXECUCAO','INSTALACAO','COLOCACAO',
+  'TRABALHOS','TRABALHO','SISTEMA','CONJUNTO','ARTIGO','MARCA','INCLUI','RESPETIVO','RESPETIVA','RESPECTIVO','RESPECTIVA','TODOS','TODAS',
+  'NOVO','NOVA','GERAL','DIVERSOS','VARIOS','MATERIAL','MATERIAIS','ACESSORIOS','EQUIPAMENTO','EQUIPAMENTOS','ELEMENTOS','OBRA']);
+function vfCabeca(desc){
+  for(const parte of String(desc||'').split('›')){
+    let d=parte.replace(/^\s*[A-Z]{0,5}[.\s]?\d+[A-Z]?\s*[-–:.]\s*/i,'');            // «BD.01 - », «PS.01 »
+    d=d.split(/[,;:(]|\s[-–]\s|\d/)[0];
+    const t=vfNorm(d).split(/[^A-Z]+/).filter(x=>x.length>2&&!VF_STOP.has(x)&&!VF_CAB_GEN.has(x));
+    if(t.length>=2&&t[0].length>=4&&!VF_CAB_LOC.has(t[0])) return t.slice(0,2);   // uma palavra só («CABO», «PISO») é vaga demais
+  }
+  return null;
+}
+/* localizações e acabamentos não são o nome do artigo («Exterior: MDF…», «Piso tipo…») */
+const VF_CAB_LOC=new Set(['EXTERIOR','EXTERIORES','INTERIOR','INTERIORES','PISO','PISOS','FRACAO','FRACOES','ZONA','ZONAS','PAREDES','PAREDE','APARTAMENTO','TIPOLOGIA','LOCAL','ACABAMENTO','COR']);
+/* calibre/medida que distingue artigos com o mesmo nome: DN50, Ø110, 3x2,5 mm², 25 mm² */
+function vfCalibres(desc){
+  const d=vfNorm(desc).replace(/,/g,'.'); const out=new Set(); let m; const re=/(?:DN|Ø|D)\s?(\d{2,3})\b|(\d+(?:\.\d+)?\s?X\s?\d+(?:\.\d+)?)\s?MM2|(\d+(?:\.\d+)?)\s?MM2/g;
+  while((m=re.exec(d))) out.add((m[1]?'D'+m[1]:(m[2]||m[3])).replace(/\s/g,''));
+  return out;
+}
+/* só mão de obra: além das regras do auto, «Instalação de…»/«M. Obra…» sem fornecimento */
+function vfSoInstalacao(t){ const n=vfNorm(t); return vfSoMaoObra(t)||(/^(INSTALACAO|M\.? ?OBRA)\b/.test(n)&&!/FORNEC|MATERIA/.test(n)); }
+function vfTokIgual(a,b){ return a===b || (a.length>=4&&b.length>=4&&(a.startsWith(b)||b.startsWith(a))); }
+/* área (m²) das duas primeiras medidas da descrição: «(L)0,8x (P)0,8», «1620x850x100mm»,
+   «L: 1360mm x A: 2100mm», «4,56 x 1,31 m». null se não houver. */
+function vfArea(desc){
+  const d=String(desc||''), n=x=>parseFloat(String(x).replace(',','.')); let m;
+  if((m=d.match(/\(L\)\s*(\d+(?:[.,]\d+)?)\s*x?\s*\(P\)\s*(\d+(?:[.,]\d+)?)/i))) return n(m[1])*n(m[2]);
+  if((m=d.match(/L:?\s*(\d{3,5})\s*mm\s*x\s*A:?\s*(\d{3,5})\s*mm/i))) return n(m[1])*n(m[2])/1e6;
+  if((m=d.match(/(\d{3,5})\s*x\s*(\d{3,5})(?:\s*x\s*\d{2,5})?\s*mm/i))) return n(m[1])*n(m[2])/1e6;
+  if((m=d.match(/(\d+[.,]\d+)\s*x\s*(\d+[.,]\d+)(?:\s*x\s*\d+(?:[.,]\d+)?)?\s*m\b/i))) return n(m[1])*n(m[2]);
+  return null;
+}
+/* preço ajustado à dimensão: cresce com a raiz da área (backtest: bases de duche 0,64→1,44 m²
+   custam +39 %, a raiz dá +50 %, a área dava +125 %). Só ajusta entre 1/4 e 4× a área. */
+function vfEscalaArea(pu, aLinha, aRef){
+  if(!(aLinha>0)||!(aRef>0)) return pu;
+  const r=Math.min(4,Math.max(0.25,aLinha/aRef));
+  return pu*Math.sqrt(r);
+}
+function vfPorCabeca(line, lib, canon){
+  const cab=vfCabeca(line.designacao); if(!cab) return null;
+  const un=vfUnit(line.unidade), mo=vfSoInstalacao(line.designacao), aL=vfArea(line.designacao);
+  const cal=vfCalibres(line.designacao), lt=vfTokens(line.designacao);
+  let cands=(lib||[]).filter(r=>{
+    if(vfUnit(r.unidade)!==un||!(Number(r.preco_unit)>0)) return false;
+    if(canon&&r.capitulo_canonico&&vfNorm(r.capitulo_canonico)!==vfNorm(canon)) return false;
+    if(vfSoInstalacao(r.designacao)!==mo) return false;      // só mão de obra não se mistura com fornecimento
+    const rt=[...vfTokens(r.designacao)];
+    if(!cab.every(c=>rt.some(t=>vfTokIgual(c,t)))) return false;
+    if(cal.size){ const rc=vfCalibres(r.designacao); if(![...cal].some(x=>rc.has(x))) return false; }   // DN50 não preça DN110
+    return true;
+  });
+  if(!cands.length) return null;
+  /* entre os do mesmo nome, ficam os mais parecidos no resto do texto (até 0,1 abaixo do melhor) */
+  const sc=cands.map(r=>({r,s:vfDice(lt,vfTokens(r.designacao))})).sort((a,b)=>b.s-a.s);
+  cands=sc.filter(x=>x.s>=sc[0].s-0.1).map(x=>x.r);
+  const pr=cands.map(r=>vfEscalaArea(Number(r.preco_unit),aL,vfArea(r.designacao)));
+  const med=vfMedian(pr);
+  return {rec:Math.round(med*100)/100,n:cands.length,min:Math.min(...pr),med,max:Math.max(...pr),best:null,conf:'baixa',
+          kind:'nome principal',cabeca:cab.join(' '),
+          cands:cands.slice(0,6).map((r,i)=>({desc:r.designacao,pu:Math.round(pr[i]*100)/100,contrato:r.contrato,fonte:r.fonte,score:null}))};
+}
 function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
   const esc_=vfPrecoPorModulo(line, libFull); if(esc_) return esc_;
   const full=vfMatchLine(line, libFull);
@@ -912,6 +980,8 @@ function vfPriceLine(line, libFull, libMat, libLab, upliftPct, chap, canon){
               kind:'rácio cap.',cap:cr.cap,viaCap:true,cands:(full.cands||[])};
     }
   }
+  /* v3.10: sem texto parecido nem rácio — procura pelo nome principal do artigo */
+  const cabF=vfPorCabeca(line, libFull, canon); if(cabF) return cabF;
   full.kind='—'; return full;
 }
 /* importa o ficheiro de Compras (.xlsm): Contratos -> tipo; Artigos_Guias -> linhas */
@@ -980,11 +1050,11 @@ function vfFontePreco(m){
   if(m.kind==='rácio cap.') return {t:'Rácio de capítulo · indicativo',d:(m.cap||'')+' · média de '+(m.n||0)+' registos'};
   const c0=(m.cands&&m.cands[0])||{};
   const t=VF_FONTE[c0.fonte]||(c0.contrato?String(c0.contrato).split(' · ')[0]:'Custo real');
-  const det={composto:'material + instalação','só material':'só material','material+inst.%':'material + instalação %','escala (módulo)':'por módulo'}[m.kind];
+  const det={composto:'material + instalação','só material':'só material','material+inst.%':'material + instalação %','escala (módulo)':'por módulo','nome principal':'mesmo artigo «'+(m.cabeca||'').toLowerCase()+'», '+(m.n||0)+' registo(s) · indicativo'}[m.kind];
   const ori=c0.contrato?String(c0.contrato).split(' · ').slice(1).filter(Boolean).join(' · '):'';
   return {t, d:[det,ori].filter(Boolean).join(' · ')};
 }
-function vfKindBadge(k){ const m={completo:'completo',composto:'mat+inst','só material':'só material','material+inst.%':'mat+inst %','rácio cap.':'rácio cap.','escala (módulo)':'por módulo'}[k]; return m?'<span class="lg-badge">'+m+'</span>':'—'; }
+function vfKindBadge(k){ const m={completo:'completo',composto:'mat+inst','só material':'só material','material+inst.%':'mat+inst %','rácio cap.':'rácio cap.','escala (módulo)':'por módulo','nome principal':'nome'}[k]; return m?'<span class="lg-badge">'+m+'</span>':'—'; }
 function vfRenderMQ(results, libFullN, libMatN, scope){
   const out=document.getElementById('mqOut');
   const th='<thead><tr><th>Designação (MQ)</th><th>Un</th><th class="num">Qtd</th><th class="num">Preço unit. (€)</th><th>Fonte do preço</th><th>Confiança</th><th class="num">Apoio</th><th class="num">Total (€)</th></tr></thead>';
@@ -1609,4 +1679,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.9.1');
+APP_REGISTAR('09-custo-real','3.10.0');
