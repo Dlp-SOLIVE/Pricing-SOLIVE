@@ -38,7 +38,7 @@ let IMP={ficheiro:null, wb:null, sugestoes:[], escolhido:null, outros:false};
     +'<div class="lg-drop" id="impDrop" role="button" tabindex="0" aria-label="Escolher ou largar o ficheiro Excel">'
     +'<span class="lg-drop-ic lg-notch"><i class="icon-upload" aria-hidden="true"></i></span>'
     +'<div class="lg-drop-t">Larga aqui o ficheiro Excel</div>'
-    +'<p class="lg-drop-s">.xlsx ou .xlsm. A plataforma reconhece o tipo de ficheiro, pede-te confirmação e leva-o para o ecrã certo. Autos de medição: podes largar vários de uma vez.</p>'
+    +'<p class="lg-drop-s">.xlsx ou .xlsm. A plataforma reconhece o tipo de ficheiro, pede-te confirmação e leva-o para o ecrã certo. Autos de medição e propostas por artigo: podes largar vários de uma vez.</p>'
     +'<button type="button" class="btn ghost sm" data-noic id="impEscolher"><i class="icon-folder-open" aria-hidden="true"></i>Escolher ficheiro</button>'
     +'<div class="lg-drop-f" id="impDropF"></div></div>'
     +'<input type="file" id="impFile" accept=".xlsx,.xls,.xlsm" class="hidden" multiple>'
@@ -62,9 +62,18 @@ let IMP={ficheiro:null, wb:null, sugestoes:[], escolhido:null, outros:false};
 
 /* ---------- leitura e reconhecimento ---------- */
 /* v3.8: vários ficheiros de uma vez = autos de medição (Obra › Autos de medição, importação em lote) */
-function impVarios(files){
-  if(!((typeof CTX!=='undefined')&&CTX.nome)){ alertx('Escolhe primeiro o projeto ativo no menu lateral — os autos têm de entrar num projeto.'); return; }
-  showView('verificar'); vfLoteLer(files);
+/* v3.9.1: o tipo de cada ficheiro decide — autos vão para o lote de autos, propostas por artigo para o lote de propostas */
+async function impVarios(files){
+  if(!((typeof CTX!=='undefined')&&CTX.nome)){ alertx('Escolhe primeiro o projeto ativo no menu lateral — os ficheiros têm de entrar num projeto.'); return; }
+  const out=document.getElementById('impOut'); if(out) out.innerHTML='<div class="lg-note">A reconhecer '+files.length+' ficheiros…</div>';
+  const lidos=[];
+  for(const f of files){ try{ const wb=XLSX.read(new Uint8Array(await f.arrayBuffer()),{type:'array'}); const S=impDetetar(wb,f.name); lidos.push({f,wb,tipo:S[0]?S[0].tipo:null}); }
+    catch(e){ lidos.push({f,wb:null,tipo:null}); } }
+  const tipos=[...new Set(lidos.map(x=>x.tipo))];
+  if(tipos.length===1&&tipos[0]==='auto'){ showView('verificar'); vfLoteLer(files); return; }
+  if(tipos.length===1&&tipos[0]==='proposta_art'){ if(out) out.innerHTML=''; impPropLote(lidos); const c=document.getElementById('ppCard'); if(c) c.scrollIntoView({behavior:'smooth'}); return; }
+  if(out) out.innerHTML='<div class="lg-note lg-note-err">Estes ficheiros não são todos do mesmo tipo. Larga de uma vez só autos de medição, ou só propostas por artigo; os restantes, um a um.<ul style="margin:6px 0 0 18px">'
+    +lidos.map(x=>'<li>'+esc(x.f.name)+' — '+esc(x.tipo?IMP_TIPOS[x.tipo].lbl:'não reconhecido')+'</li>').join('')+'</ul></div>';
 }
 function impCarregar(f){
   const out=document.getElementById('impOut');
@@ -348,18 +357,21 @@ function impPropLinhas(rows,H){
   }
   return out;
 }
-function impPropLer(wb,ficheiro){
-  const box=document.getElementById('ppOut'); if(!box) return;
-  let H=null, rows=null, folha=null, best=null;
+function impPropAnalisar(wb,ficheiro){
+  let best=null;
   for(const sn of wb.SheetNames){ const r=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null}); const h=impPropCabecalho(r); if(!h) continue;
     const l=impPropLinhas(r,h); if(!best||l.length>best.l.length) best={sn,r,h,l}; }
-  if(!best||!best.l.length){ box.innerHTML='<div class="note red">Não encontrei artigos com preço neste ficheiro. Preciso de uma linha de cabeçalho com Designação, Un. e Preço unitário.</div>'; return; }
-  ({sn:folha,r:rows,h:H}=best);
-  const topo=rows.slice(0,H.row);   // fornecedor, data e referência vêm do topo da folha, nunca do cabeçalho da tabela
+  if(!best||!best.l.length) return null;
+  const topo=best.r.slice(0,best.h.row);   // fornecedor, data e referência vêm do topo da folha, nunca do cabeçalho da tabela
   const meta=re=>{ const v=vfHeaderVal(topo,re); return v==null?'':String(v).trim(); };
-  const forn=meta(/^FORNECEDOR/)||String(ficheiro||'').replace(/\.xls[xm]?$/i,'');
-  const data=impPOData(vfHeaderVal(topo,/^DATA$/))||'';
-  const ref=meta(/^REF/)||String(ficheiro||'');
+  return {l:best.l, folha:best.sn, ficheiro, forn:meta(/^FORNECEDOR/)||String(ficheiro||'').replace(/\.xls[xm]?$/i,''),
+          data:impPOData(vfHeaderVal(topo,/^DATA$/))||'', ref:meta(/^REF/)||String(ficheiro||'')};
+}
+function impPropLer(wb,ficheiro){
+  const box=document.getElementById('ppOut'); if(!box) return;
+  const best=impPropAnalisar(wb,ficheiro);
+  if(!best){ box.innerHTML='<div class="note red">Não encontrei artigos com preço neste ficheiro. Preciso de uma linha de cabeçalho com Designação, Un. e Preço unitário.</div>'; return; }
+  const {folha,forn,data,ref}=best;
   IMP_PP={linhas:best.l, ficheiro, folha};
   const tot=best.l.reduce((s,l)=>s+(l.total!=null?l.total:(l.quantidade||0)*l.preco_unit),0);
   const nMO=best.l.filter(l=>l.ambito==='mao_obra').length;
@@ -382,21 +394,54 @@ async function impPropGravar(){
   const forn=(document.getElementById('ppForn').value||'').trim(); if(!forn){ alertx('Indica o fornecedor.'); return; }
   const data=document.getElementById('ppData').value||null, ref=(document.getElementById('ppRef').value||'').trim()||IMP_PP.ficheiro;
   const amb=document.getElementById('ppAmb').value||'F&A';
-  const rows=IMP_PP.linhas.map(l=>({projeto_id:p.id, fornecedor:forn, ref, data, capitulo:l.capitulo, artigo:l.artigo, descricao:l.descricao, unidade:l.unidade,
-    quantidade:l.quantidade, preco_unit:l.preco_unit, total:l.total, ambito:l.ambito||amb, ficheiro:IMP_PP.ficheiro, linha_pos:l.linha_pos}));
-  box.innerHTML='<div class="note">A gravar '+rows.length+' artigos…</div>';
+  box.innerHTML='<div class="note">A gravar '+IMP_PP.linhas.length+' artigos…</div>';
   try{
-    const del=await sb.from('preco_proposta').delete().eq('projeto_id',p.id).eq('fornecedor',forn).eq('ref',ref); if(del.error) throw del.error;
-    for(let i=0;i<rows.length;i+=500){ const r=await sb.from('preco_proposta').insert(rows.slice(i,i+500)); if(r.error) throw r.error; }
-    IMP_PP=null; toast('Proposta gravada: '+rows.length+' artigos de '+forn+'.');
+    const n=await impPropGravarUma(p.id,{l:IMP_PP.linhas,ficheiro:IMP_PP.ficheiro,forn,data,ref},amb);
+    IMP_PP=null; toast('Proposta gravada: '+n+' artigos de '+forn+'.');
     await impEstadoPP();
   }catch(e){
     const msg=String(e.message||e);
     box.innerHTML='<div class="note red">Erro a gravar: '+esc(msg)+(/preco_proposta/.test(msg)&&/exist|relation|schema/i.test(msg)?'<br>Falta correr o SQL <b>F9_01_propostas_artigo.sql</b> no Supabase.':'')+'</div>';
   }
 }
+/* grava uma proposta: substitui as linhas anteriores do mesmo projeto, fornecedor e referência */
+async function impPropGravarUma(pid,a,amb){
+  const rows=a.l.map(l=>({projeto_id:pid, fornecedor:a.forn, ref:a.ref, data:a.data||null, capitulo:l.capitulo, artigo:l.artigo, descricao:l.descricao, unidade:l.unidade,
+    quantidade:l.quantidade, preco_unit:l.preco_unit, total:l.total, ambito:l.ambito||amb||'F&A', ficheiro:a.ficheiro, linha_pos:l.linha_pos}));
+  const del=await sb.from('preco_proposta').delete().eq('projeto_id',pid).eq('fornecedor',a.forn).eq('ref',a.ref); if(del.error) throw del.error;
+  for(let i=0;i<rows.length;i+=500){ const r=await sb.from('preco_proposta').insert(rows.slice(i,i+500)); if(r.error) throw r.error; }
+  return rows.length;
+}
+/* v3.9.1: várias propostas de uma vez (modelo «Proposta por artigo» ou ficheiros já reconhecidos como tal) */
+let IMP_PP_LOTE=null;
+function impPropLote(lidos){
+  const box=document.getElementById('ppOut'); if(!box) return;
+  IMP_PP=null;
+  IMP_PP_LOTE=lidos.map(x=>({nome:x.f.name, a:x.wb?impPropAnalisar(x.wb,x.f.name):null, estado:''}));
+  const ok=IMP_PP_LOTE.filter(x=>x.a), tot=ok.reduce((s,x)=>s+x.a.l.reduce((t,l)=>t+(l.total!=null?l.total:(l.quantidade||0)*l.preco_unit),0),0), nl=ok.reduce((s,x)=>s+x.a.l.length,0);
+  box.innerHTML='<div class="note" style="margin-bottom:10px"><b>'+ok.length+'</b> propostas · <b>'+nl+'</b> artigos · '+vfMoeda(tot)+' · projeto <b>'+esc(CTX.nome||'—')+'</b>. Artigos sem âmbito indicado entram como fornecimento e aplicação.</div>'
+    +'<div class="lg-table-wrap"><table class="lg-table" style="min-width:820px"><thead><tr><th>Ficheiro</th><th>Fornecedor</th><th>Referência</th><th>Data</th><th class="num">Artigos</th><th class="num">Total</th><th>Estado</th></tr></thead><tbody>'
+    +IMP_PP_LOTE.map((x,i)=>x.a?'<tr><td style="white-space:normal;max-width:220px;overflow-wrap:anywhere">'+esc(x.nome)+'</td><td style="white-space:normal">'+esc(x.a.forn)+'</td><td style="white-space:normal;max-width:240px">'+esc(x.a.ref)+'</td><td style="white-space:nowrap">'+esc(x.a.data||'—')+'</td><td class="num">'+x.a.l.length+'</td><td class="num">'+vfMoeda(x.a.l.reduce((t,l)=>t+(l.total!=null?l.total:(l.quantidade||0)*l.preco_unit),0))+'</td><td id="ppl_'+i+'"><span class="lg-badge" data-tone="success">Pronta</span></td></tr>'
+      :'<tr><td>'+esc(x.nome)+'</td><td colspan="5">—</td><td><span class="lg-badge" data-tone="neutral">Sem artigos com preço</span></td></tr>').join('')
+    +'</tbody></table></div>'
+    +'<button type="button" class="btn red" data-noic id="ppLoteBtn" style="margin-top:10px"'+(ok.length?'':' disabled')+' onclick="impPropLoteGravar()">Gravar '+ok.length+' propostas na biblioteca</button>';
+}
+async function impPropLoteGravar(){
+  if(!IMP_PP_LOTE) return;
+  if(typeof sb==='undefined'||!sb||!SESSION){ alertx('Inicia sessão para gravar.'); return; }
+  const p=(typeof PROJETOS!=='undefined'?PROJETOS:[]).find(x=>norm(x.nome)===norm(CTX.nome||''));
+  if(!p){ alertx('Escolhe primeiro o projeto ativo no menu lateral — as propostas têm de entrar num projeto.'); return; }
+  const btn=document.getElementById('ppLoteBtn'); if(btn){ btn.disabled=true; btn.textContent='A gravar…'; }
+  let ok=0, n=0, falhas=0;
+  for(let i=0;i<IMP_PP_LOTE.length;i++){ const x=IMP_PP_LOTE[i]; if(!x.a) continue; const cel=document.getElementById('ppl_'+i);
+    try{ n+=await impPropGravarUma(p.id,x.a,'F&A'); ok++; if(cel) cel.innerHTML='<span class="lg-badge" data-tone="success">✓ Gravada</span>'; }
+    catch(e){ falhas++; if(cel) cel.innerHTML='<span class="lg-badge" data-tone="danger">Erro: '+esc(String(e.message||e).slice(0,80))+'</span>'; } }
+  if(btn) btn.textContent=ok+' gravadas';
+  if(falhas) alertx(' Gravei '+ok+' propostas ('+n+' artigos); '+falhas+' deram erro — vê a coluna Estado.');
+  else { toast('Gravadas '+ok+' propostas · '+n+' artigos'); IMP_PP_LOTE=null; setTimeout(()=>{ impEstadoPP(); },2500); }
+}
 async function impEstadoPP(){
-  const box=document.getElementById('ppOut'); if(!box||IMP_PP) return;
+  const box=document.getElementById('ppOut'); if(!box||IMP_PP||IMP_PP_LOTE) return;
   if(typeof sb==='undefined'||!sb||!SESSION) return;
   try{
     const r=await sb.from('preco_proposta').select('projeto_id,fornecedor,ref').limit(20000);
@@ -412,4 +457,4 @@ async function impEstadoPP(){
   }
 }
 
-APP_REGISTAR('13-importar','3.9.0');
+APP_REGISTAR('13-importar','3.9.1');
