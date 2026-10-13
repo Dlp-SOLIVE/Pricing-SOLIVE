@@ -902,4 +902,4 @@ async function resolveFaseExistente(projeto_id,faseTipo){
   }
 }
 
-APP_REGISTAR('04-analisador','3.8.3');
+APP_REGISTAR('04-analisador','3.9.0');

@@ -784,7 +784,7 @@ async function vfPriceMQFile(){
   const projSel=(document.getElementById('mqProj')||{}).value||'';
   const segSel=(document.getElementById('mqSeg')||{}).value||'';
   const comOrc=!!(document.getElementById('mqOrc')||{}).checked;
-  const FONTE_LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',compra_po:'Adj. Legendre-PO',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
+  const FONTE_LBL={auto:'Auto',subempreitada:'Subempr.',composto:'Composto',compra:'Compra',compra_po:'Adj. Legendre-PO',proposta:'Proposta',auto_pu:'Auto (PU)',orcamento_empreiteiro:'Orç. empreiteiro',mq:'MQ',pu:'PU'};
   let vl=await lerLinhasCusto(q=>q.eq('nivel','artigo').gt('preco_unit',0));
   if(!comOrc) vl=vl.filter(r=>r.fonte!=='orcamento_empreiteiro'&&r.fonte!=='mq');
   // preços colhidos de autos antigos repetem os autos verificados do mesmo projeto: não contar duas vezes
@@ -974,7 +974,7 @@ async function vfImportComprasFile(){
 const VF_CONF={alta:['Alta','success'],'média':['Média','info'],baixa:['Baixa · indicativo','warning'],sem:['Sem preço','danger']};
 function vfConfBadge(c){ const m=VF_CONF[c]||VF_CONF.sem; return '<span class="lg-badge" data-tone="'+m[1]+'">'+m[0]+'</span>'; }
 /* fonte do preço: de onde vem o número (a melhor correspondência ou o método) */
-const VF_FONTE={auto:'Auto de medição',auto_pu:'Auto de medição',subempreitada:'Subempreitada',compra_po:'Preço adjudicado (PO)',compra:'Compra',composto:'Preço composto',orcamento_empreiteiro:'Orçamento do empreiteiro',mq:'MQ com preços'};
+const VF_FONTE={auto:'Auto de medição',auto_pu:'Auto de medição',subempreitada:'Subempreitada',compra_po:'Preço adjudicado (PO)',proposta:'Proposta de fornecedor',compra:'Compra',composto:'Preço composto',orcamento_empreiteiro:'Orçamento do empreiteiro',mq:'MQ com preços'};
 function vfFontePreco(m){
   if(!m||m.rec==null) return {t:'Sem preço',d:'Preencher à mão'};
   if(m.kind==='rácio cap.') return {t:'Rácio de capítulo · indicativo',d:(m.cap||'')+' · média de '+(m.n||0)+' registos'};
@@ -1609,4 +1609,4 @@ async function vfBoardReport(){
   }catch(e){ if(out) out.textContent='Erro: '+(e.message||e); }
 }
 
-APP_REGISTAR('09-custo-real','3.8.3');
+APP_REGISTAR('09-custo-real','3.9.0');
