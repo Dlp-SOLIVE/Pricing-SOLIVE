@@ -244,10 +244,12 @@ function impPOLer(wb,ficheiro){
   if(!H){ box.innerHTML='<div class="note red">Não encontrei as colunas do ficheiro da Legendre-PO (ID da linha, Nº Adjudicação, Descrição, Preço unitário líquido). Confirma que é o ficheiro «legendre-precos-adjudicados.xlsx».</div>'; return; }
   const g=(r,k)=>H.col[k]>=0?r[H.col[k]]:null;
   const txt=v=>v==null?null:(String(v).trim()||null);
-  const linhas=[]; let semPreco=0;
+  const linhas=[]; let semPreco=0, anuladas=0;
   for(let i=H.row+1;i<rows.length;i++){
     const r=rows[i]||[]; const id=txt(g(r,'linha_id')), d=txt(g(r,'descricao')); if(!id||!d) continue;
     const pu=vfNum(g(r,'preco_unit')); if(!(pu>0)){ semPreco++; continue; }
+    /* v3.8.3: quantidade negativa = artigo anulado/substituído na adjudicação (ex.: Bosch −16 un); não é um preço */
+    const qn=vfNum(g(r,'quantidade')); if(qn!=null&&qn<0){ anuladas++; continue; }
     linhas.push({linha_id:id, po_numero:txt(g(r,'po_numero')), data:impPOData(g(r,'data')), obra:txt(g(r,'obra')), fornecedor:txt(g(r,'fornecedor')),
       item_ref:txt(g(r,'item_ref')), descricao:d, tipo_despesa:txt(g(r,'tipo_despesa')), rubrica_codigo:txt(g(r,'rubrica_codigo')), rubrica:txt(g(r,'rubrica')),
       quantidade:vfNum(g(r,'quantidade')), unidade:txt(g(r,'unidade')), preco_bruto:vfNum(g(r,'preco_bruto')), desconto1:vfNum(g(r,'desconto1')),
@@ -260,7 +262,7 @@ function impPOLer(wb,ficheiro){
   const tipos={}; linhas.forEach(l=>{ const k=l.tipo_despesa||'(sem tipo)'; tipos[k]=(tipos[k]||0)+1; });
   IMP_PO={linhas,ficheiro};
   const opts=sel=>'<option value="">— não ligar a um projeto —</option>'+projs.map(p=>'<option value="'+p.id+'"'+(sel===p.id?' selected':'')+'>'+esc(p.nome)+'</option>').join('');
-  let h='<div class="note" style="margin-bottom:10px"><b>'+linhas.length+'</b> linhas com preço em <b>'+Object.keys(obras).length+'</b> obra(s)'+(semPreco?' · '+semPreco+' sem preço ignoradas':'')+'. Tipos de despesa: '+Object.entries(tipos).map(([k,n])=>esc(k)+' ('+n+')').join(' · ')+'</div>';
+  let h='<div class="note" style="margin-bottom:10px"><b>'+linhas.length+'</b> linhas com preço em <b>'+Object.keys(obras).length+'</b> obra(s)'+(semPreco?' · '+semPreco+' sem preço ignoradas':'')+(anuladas?' · '+anuladas+' anuladas (quantidade negativa) ignoradas':'')+'. Tipos de despesa: '+Object.entries(tipos).map(([k,n])=>esc(k)+' ('+n+')').join(' · ')+'</div>';
   h+='<table style="font-size:13px"><tr><th>Obra na Legendre-PO</th><th style="text-align:right">Linhas</th><th style="text-align:right">Valor</th><th>Projeto nesta plataforma</th></tr>'
     +Object.entries(obras).map(([k,o],i)=>{ const p=projs.find(x=>norm(x.nome)===norm(k)); return '<tr><td>'+esc(k)+'</td><td class="mono" style="text-align:right">'+o.n+'</td><td class="mono" style="text-align:right">'+fmt(o.tot,0)+' €</td><td><select data-obra="'+esc(k)+'" class="paObra" style="min-width:220px">'+opts(p?p.id:null)+'</select></td></tr>'; }).join('')+'</table>';
   h+='<div class="hint" style="margin-top:8px">O projeto dá o segmento aos preços. Uma obra sem projeto entra na mesma, mas só conta nas pesquisas sem filtro de projeto ou segmento.</div>';
@@ -303,4 +305,4 @@ async function impEstadoPO(){
   }
 }
 
-APP_REGISTAR('13-importar','3.8.2');
+APP_REGISTAR('13-importar','3.8.3');
